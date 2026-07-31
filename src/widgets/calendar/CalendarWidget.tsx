@@ -36,7 +36,7 @@ export function CalendarWidget({ instanceId }: { instanceId: string }) {
 					{PLACEHOLDER_EVENTS.map((event) => (
 						<li
 							key={event.title}
-							className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/40 px-3 py-2"
+							className="flex items-center gap-3 rounded-md border border-border bg-surface px-3 py-2.5"
 						>
 							<span className="text-xs font-medium text-primary">{event.time}</span>
 							<span className="text-sm text-foreground">{event.title}</span>
