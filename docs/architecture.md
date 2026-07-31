@@ -102,6 +102,21 @@ The shell is desktop-first: sidebar on `md+`, full-width grid on smaller screens
 
 `capacitor.config.ts` points `webDir` to `dist`. Run `npm run cap:sync` after each production build before opening native projects.
 
+## PWA
+
+Progressive Web App support is provided by **vite-plugin-pwa** with Workbox.
+
+- **Web manifest** — install metadata, theme colors, icons (`public/pwa-*.png`)
+- **Service worker** — precaches built static assets (`js`, `css`, `html`, icons)
+- **Auto-update** — `registerType: 'autoUpdate'` refreshes the SW when a new build is deployed
+- **Offline** — shell and cached assets load without network; widget data remains in IndexedDB
+
+Registration happens in `src/main.tsx` via `virtual:pwa-register`. PWA dev mode is enabled so the service worker can be tested during `npm run dev`.
+
+Icons are generated from `public/pwa-icon.svg` via `npm run generate:icons` (uses `sharp`).
+
+API response caching is not in the service worker yet — that will layer on TanStack Query + the `cache` IndexedDB store when integrations arrive.
+
 ## Theming
 
 Dark mode is the default (`class="dark"` on `<html>`). Theme tokens live in `src/index.css` as CSS variables compatible with shadcn/ui.
