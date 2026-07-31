@@ -7,8 +7,8 @@ export const weatherWidget: WidgetDefinition = {
 	name: 'Weather',
 	description: 'Local conditions and forecast',
 	icon: CloudSun,
-	defaultSize: { w: 4, h: 5 },
-	minSize: { w: 3, h: 4 },
+	defaultSize: { w: 5, h: 2 },
+	minSize: { w: 3, h: 2 },
 	component: WeatherWidget,
 	defaultSettings: {
 		location: 'Local',

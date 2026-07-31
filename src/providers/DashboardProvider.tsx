@@ -8,6 +8,7 @@ interface DashboardContextValue {
 	setLayouts: (layouts: DashboardLayouts) => Promise<void>
 	addWidget: (type: string) => Promise<void>
 	removeWidget: (instanceId: string) => Promise<void>
+	setWidgetHidden: (instanceId: string, hidden: boolean) => Promise<void>
 	isLoading: boolean
 	error: Error | null
 }
