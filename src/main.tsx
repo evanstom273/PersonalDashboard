@@ -4,6 +4,7 @@ import { registerSW } from 'virtual:pwa-register'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { DashboardProvider } from '@/providers/DashboardProvider'
+import { EditModeProvider } from '@/providers/EditModeProvider'
 import { queryClient } from '@/services/queryClient'
 import { DashboardPage } from '@/pages/DashboardPage'
 import './index.css'
@@ -20,7 +21,9 @@ createRoot(document.getElementById('root')!).render(
 		<QueryClientProvider client={queryClient}>
 			<TooltipProvider>
 				<DashboardProvider>
-					<DashboardPage />
+					<EditModeProvider>
+						<DashboardPage />
+					</EditModeProvider>
 				</DashboardProvider>
 			</TooltipProvider>
 		</QueryClientProvider>

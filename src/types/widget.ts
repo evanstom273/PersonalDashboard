@@ -30,6 +30,7 @@ export interface WidgetDefinition {
 export interface WidgetInstance {
 	id: string
 	type: string
+	hidden?: boolean
 }
 
 export interface DashboardLayouts extends ResponsiveLayouts {

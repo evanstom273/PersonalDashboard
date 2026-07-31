@@ -1,6 +1,6 @@
-import { Loader2 } from 'lucide-react'
-import { WidgetFrame } from '@/components/WidgetFrame'
+import { CloudSun, Loader2 } from 'lucide-react'
 import { useWidgetSettings } from '@/widgets/registry'
+import { cn } from '@/utils/cn'
 
 interface WeatherSettings {
 	location: string
@@ -18,28 +18,49 @@ export function WeatherWidget({ instanceId }: { instanceId: string }) {
 		DEFAULT_SETTINGS,
 	)
 
+	const temp = settings.unit === 'celsius' ? 18 : 64
+	const high = settings.unit === 'celsius' ? 22 : 72
+	const low = settings.unit === 'celsius' ? 14 : 57
+	const unitLabel = settings.unit === 'celsius' ? '°' : '°'
+
 	return (
-		<WidgetFrame
-			title="Weather"
-			description={`${settings.location} · placeholder`}
+		<div
+			className={cn(
+				'flex h-full flex-col overflow-hidden rounded-lg border border-border',
+				'bg-gradient-to-br from-card via-card to-primary/5',
+			)}
 		>
+			<div className="widget-drag-handle flex h-5 shrink-0 items-center px-2.5">
+				<div className="h-0.5 w-6 rounded-full bg-primary/25" />
+			</div>
+
 			{isLoading ? (
-				<div className="flex h-full items-center justify-center">
-					<Loader2 className="size-5 animate-spin text-muted-foreground" />
+				<div className="flex flex-1 items-center justify-center">
+					<Loader2 className="size-5 animate-spin text-primary" />
 				</div>
 			) : (
-				<div className="flex h-full flex-col justify-between gap-4">
-					<div>
-						<p className="text-4xl font-semibold tracking-tight text-primary">
-							{settings.unit === 'celsius' ? '18°C' : '64°F'}
-						</p>
-						<p className="mt-1 text-sm text-muted-foreground">Partly cloudy</p>
+				<div className="flex min-h-0 flex-1 flex-col px-3 pb-2.5">
+					<div className="flex items-center justify-between gap-2">
+						<CloudSun
+							className="size-9 shrink-0 text-primary/90"
+							strokeWidth={1.25}
+							aria-hidden
+						/>
+						<div className="min-w-0 text-right">
+							<p className="text-3xl font-semibold leading-none tracking-tight text-primary tabular-nums">
+								{temp}{unitLabel}
+							</p>
+							<p className="mt-0.5 truncate text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+								{settings.location}
+							</p>
+						</div>
 					</div>
-					<p className="text-xs text-muted-foreground">
-						Weather data will connect here later. Settings and storage are wired through the widget system.
-					</p>
+					<div className="mt-auto flex justify-between pt-1 text-[10px] tabular-nums text-muted-foreground">
+						<span>H {high}{unitLabel}</span>
+						<span>L {low}{unitLabel}</span>
+					</div>
 				</div>
 			)}
-		</WidgetFrame>
+		</div>
 	)
 }

@@ -7,8 +7,8 @@ export const calendarWidget: WidgetDefinition = {
 	name: 'Calendar',
 	description: 'Upcoming events and schedule',
 	icon: CalendarDays,
-	defaultSize: { w: 4, h: 6 },
-	minSize: { w: 3, h: 4 },
+	defaultSize: { w: 7, h: 3 },
+	minSize: { w: 4, h: 2 },
 	component: CalendarWidget,
 	defaultSettings: {
 		view: 'week',

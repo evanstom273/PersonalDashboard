@@ -10,6 +10,7 @@ export function useDashboardLayout() {
 		setLayouts,
 		addWidget,
 		removeWidget,
+		setWidgetHidden,
 		isLoading,
 		error,
 	} = useDashboard()
@@ -27,6 +28,7 @@ export function useDashboardLayout() {
 		onLayoutChange,
 		addWidget,
 		removeWidget,
+		setWidgetHidden,
 		isLoading,
 		error,
 	}

@@ -20,28 +20,99 @@ const DEFAULT_INSTANCES: WidgetInstance[] = [
 	{ id: 'notes-default', type: 'notes' },
 ]
 
+function buildLayoutForBreakpoint(
+	breakpoint: 'lg' | 'md' | 'sm' | 'xs' | 'xxs',
+): Layout {
+	const weather = getWidgetDefinition('weather')
+	const calendar = getWidgetDefinition('calendar')
+	const notes = getWidgetDefinition('notes')
+
+	const layouts: Record<string, Layout> = {
+		lg: [
+			{
+				i: 'weather-default',
+				x: 0,
+				y: 0,
+				w: 5,
+				h: 2,
+				minW: weather?.minSize?.w ?? 3,
+				minH: weather?.minSize?.h ?? 2,
+			},
+			{
+				i: 'calendar-default',
+				x: 5,
+				y: 0,
+				w: 7,
+				h: 3,
+				minW: calendar?.minSize?.w ?? 4,
+				minH: calendar?.minSize?.h ?? 2,
+			},
+			{
+				i: 'notes-default',
+				x: 0,
+				y: 2,
+				w: 5,
+				h: 3,
+				minW: notes?.minSize?.w ?? 3,
+				minH: notes?.minSize?.h ?? 2,
+			},
+		],
+		md: [
+			{
+				i: 'weather-default',
+				x: 0,
+				y: 0,
+				w: 5,
+				h: 2,
+				minW: 3,
+				minH: 2,
+			},
+			{
+				i: 'calendar-default',
+				x: 5,
+				y: 0,
+				w: 5,
+				h: 3,
+				minW: 4,
+				minH: 2,
+			},
+			{
+				i: 'notes-default',
+				x: 0,
+				y: 2,
+				w: 5,
+				h: 3,
+				minW: 3,
+				minH: 2,
+			},
+		],
+		sm: [
+			{ i: 'weather-default', x: 0, y: 0, w: 3, h: 2, minW: 2, minH: 2 },
+			{ i: 'calendar-default', x: 3, y: 0, w: 3, h: 3, minW: 3, minH: 2 },
+			{ i: 'notes-default', x: 0, y: 2, w: 6, h: 3, minW: 3, minH: 2 },
+		],
+		xs: [
+			{ i: 'weather-default', x: 0, y: 0, w: 2, h: 2, minW: 2, minH: 2 },
+			{ i: 'calendar-default', x: 2, y: 0, w: 2, h: 3, minW: 2, minH: 2 },
+			{ i: 'notes-default', x: 0, y: 3, w: 4, h: 3, minW: 2, minH: 2 },
+		],
+		xxs: [
+			{ i: 'weather-default', x: 0, y: 0, w: 2, h: 2, minW: 2, minH: 2 },
+			{ i: 'calendar-default', x: 0, y: 2, w: 2, h: 3, minW: 2, minH: 2 },
+			{ i: 'notes-default', x: 0, y: 5, w: 2, h: 3, minW: 2, minH: 2 },
+		],
+	}
+
+	return layouts[breakpoint]
+}
+
 function buildDefaultLayouts(): DashboardLayouts {
-	const layout: Layout = DEFAULT_INSTANCES.map((instance, index) => {
-		const definition = getWidgetDefinition(instance.type)
-		const column = index % 3
-
-		return {
-			i: instance.id,
-			x: column * 4,
-			y: 0,
-			w: definition?.defaultSize.w ?? 4,
-			h: definition?.defaultSize.h ?? 4,
-			minW: definition?.minSize?.w,
-			minH: definition?.minSize?.h,
-		}
-	})
-
 	return {
-		lg: layout,
-		md: layout,
-		sm: layout,
-		xs: layout,
-		xxs: layout,
+		lg: buildLayoutForBreakpoint('lg'),
+		md: buildLayoutForBreakpoint('md'),
+		sm: buildLayoutForBreakpoint('sm'),
+		xs: buildLayoutForBreakpoint('xs'),
+		xxs: buildLayoutForBreakpoint('xxs'),
 	}
 }
 
@@ -119,6 +190,18 @@ export function useDashboardState() {
 		[setValue],
 	)
 
+	const setWidgetHidden = useCallback(
+		async (instanceId: string, hidden: boolean) => {
+			await setValue((current) => ({
+				...current,
+				instances: current.instances.map((instance) =>
+					instance.id === instanceId ? { ...instance, hidden } : instance,
+				),
+			}))
+		},
+		[setValue],
+	)
+
 	return {
 		instances: value.instances,
 		layouts: value.layouts,
@@ -126,6 +209,7 @@ export function useDashboardState() {
 		setLayouts,
 		addWidget,
 		removeWidget,
+		setWidgetHidden,
 		isLoading,
 		error,
 	}
