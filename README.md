@@ -10,6 +10,7 @@ A modular personal dashboard built for long-term growth. Features are implemente
 - TanStack Query (ready for API integrations)
 - IndexedDB via a storage abstraction
 - Capacitor (mobile packaging)
+- PWA (installable, offline-capable via service worker)
 
 ## Getting started
 
@@ -25,6 +26,23 @@ Open `http://localhost:5173`.
 ```bash
 npm run build
 npm run preview
+```
+
+### PWA
+
+The app is installable as a Progressive Web App. Production builds register a service worker that caches static assets for offline use.
+
+```bash
+npm run build
+npm run preview
+```
+
+Then use your browser’s “Install app” option, or on mobile add to home screen.
+
+To regenerate PNG icons from `public/pwa-icon.svg`:
+
+```bash
+npm run generate:icons
 ```
 
 ### Capacitor
