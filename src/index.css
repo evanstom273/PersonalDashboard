@@ -24,6 +24,7 @@
 	--color-ring: var(--ring);
 	--color-sidebar: var(--sidebar);
 	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-surface: var(--surface);
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
@@ -31,55 +32,64 @@
 }
 
 :root {
-	--radius: 0.625rem;
-	--background: oklch(0.985 0 0);
-	--foreground: oklch(0.145 0 0);
-	--card: oklch(1 0 0);
-	--card-foreground: oklch(0.145 0 0);
-	--popover: oklch(1 0 0);
-	--popover-foreground: oklch(0.145 0 0);
-	--primary: oklch(0.488 0.17 252);
-	--primary-foreground: oklch(0.985 0 0);
-	--secondary: oklch(0.96 0 0);
-	--secondary-foreground: oklch(0.205 0 0);
-	--muted: oklch(0.96 0 0);
-	--muted-foreground: oklch(0.556 0 0);
-	--accent: oklch(0.96 0 0);
-	--accent-foreground: oklch(0.205 0 0);
-	--destructive: oklch(0.577 0.245 27.325);
-	--border: oklch(0.9 0 0);
-	--input: oklch(0.9 0 0);
-	--ring: oklch(0.488 0.17 252);
-	--sidebar: oklch(0.98 0 0);
-	--sidebar-foreground: oklch(0.145 0 0);
+	--radius: 0.5rem;
+	--background: #f8f8f8;
+	--foreground: #101010;
+	--card: #ffffff;
+	--card-foreground: #101010;
+	--popover: #ffffff;
+	--popover-foreground: #101010;
+	--primary: #a8861e;
+	--primary-foreground: #101010;
+	--secondary: #ececec;
+	--secondary-foreground: #101010;
+	--muted: #ececec;
+	--muted-foreground: #666666;
+	--accent: #ececec;
+	--accent-foreground: #101010;
+	--destructive: #c94a4a;
+	--border: #e0e0e0;
+	--input: #e0e0e0;
+	--ring: #a8861e;
+	--sidebar: #f3f3f3;
+	--sidebar-foreground: #101010;
+	--surface: #ffffff;
 }
 
 .dark {
-	--background: oklch(0.16 0.01 260);
-	--foreground: oklch(0.96 0 0);
-	--card: oklch(0.2 0.012 260);
-	--card-foreground: oklch(0.96 0 0);
-	--popover: oklch(0.2 0.012 260);
-	--popover-foreground: oklch(0.96 0 0);
-	--primary: oklch(0.68 0.14 252);
-	--primary-foreground: oklch(0.16 0.01 260);
-	--secondary: oklch(0.24 0.012 260);
-	--secondary-foreground: oklch(0.96 0 0);
-	--muted: oklch(0.24 0.012 260);
-	--muted-foreground: oklch(0.68 0.02 260);
-	--accent: oklch(0.26 0.015 260);
-	--accent-foreground: oklch(0.96 0 0);
-	--destructive: oklch(0.62 0.22 25);
-	--border: oklch(0.3 0.012 260);
-	--input: oklch(0.3 0.012 260);
-	--ring: oklch(0.68 0.14 252);
-	--sidebar: oklch(0.18 0.012 260);
-	--sidebar-foreground: oklch(0.96 0 0);
+	--background: #101010;
+	--foreground: #f2f2f2;
+	--card: #161616;
+	--card-foreground: #f2f2f2;
+	--popover: #141414;
+	--popover-foreground: #f2f2f2;
+	--primary: #c9a227;
+	--primary-foreground: #101010;
+	--secondary: #1c1c1c;
+	--secondary-foreground: #e8e8e8;
+	--muted: #1a1a1a;
+	--muted-foreground: #8a8a8a;
+	--accent: #1f1f1f;
+	--accent-foreground: #f0e6c8;
+	--destructive: #c94a4a;
+	--border: #2a2a2a;
+	--input: #2a2a2a;
+	--ring: #c9a227;
+	--sidebar: #0a0a0a;
+	--sidebar-foreground: #f2f2f2;
+	--surface: #121212;
 }
 
 @layer base {
 	* {
 		@apply border-border;
+	}
+
+	html,
+	body,
+	#root {
+		height: 100%;
+		overflow: hidden;
 	}
 
 	body {
@@ -88,16 +98,38 @@
 	}
 }
 
+.main-scroll {
+	scrollbar-color: color-mix(in srgb, var(--primary) 35%, transparent) transparent;
+	scrollbar-width: thin;
+}
+
+.main-scroll::-webkit-scrollbar {
+	width: 8px;
+}
+
+.main-scroll::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.main-scroll::-webkit-scrollbar-thumb {
+	background: color-mix(in srgb, var(--primary) 30%, transparent);
+	border-radius: 9999px;
+}
+
 .dashboard-grid .react-grid-item.react-grid-placeholder {
-	background: color-mix(in oklch, var(--primary) 18%, transparent);
-	border: 1px dashed color-mix(in oklch, var(--primary) 45%, transparent);
-	border-radius: 0.75rem;
+	background: color-mix(in srgb, var(--primary) 12%, transparent);
+	border: 1px dashed color-mix(in srgb, var(--primary) 45%, transparent);
+	border-radius: var(--radius-lg);
+}
+
+.dashboard-grid .react-resizable-handle::after {
+	border-color: color-mix(in srgb, var(--primary) 55%, transparent) !important;
 }
 
 .dashboard-grid .react-resizable-handle {
-	opacity: 0.35;
+	opacity: 0.25;
 }
 
 .dashboard-grid .react-grid-item:hover .react-resizable-handle {
-	opacity: 0.85;
+	opacity: 0.9;
 }

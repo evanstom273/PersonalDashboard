@@ -30,7 +30,7 @@ export function WeatherWidget({ instanceId }: { instanceId: string }) {
 			) : (
 				<div className="flex h-full flex-col justify-between gap-4">
 					<div>
-						<p className="text-4xl font-semibold tracking-tight text-foreground">
+						<p className="text-4xl font-semibold tracking-tight text-primary">
 							{settings.unit === 'celsius' ? '18°C' : '64°F'}
 						</p>
 						<p className="mt-1 text-sm text-muted-foreground">Partly cloudy</p>

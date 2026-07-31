@@ -31,15 +31,15 @@ export function DashboardGrid() {
 
 	if (isLoading) {
 		return (
-			<div className="flex h-full items-center justify-center">
-				<Loader2 className="size-6 animate-spin text-muted-foreground" />
+			<div className="flex min-h-[12rem] items-center justify-center">
+				<Loader2 className="size-6 animate-spin text-primary" />
 			</div>
 		)
 	}
 
 	if (instances.length === 0) {
 		return (
-			<div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+			<div className="flex min-h-[12rem] flex-col items-center justify-center gap-3 text-center">
 				<p className="text-sm font-medium text-foreground">No widgets yet</p>
 				<p className="max-w-sm text-sm text-muted-foreground">
 					Add a widget from the sidebar or the top navigation bar to start building your dashboard.
@@ -49,14 +49,14 @@ export function DashboardGrid() {
 	}
 
 	return (
-		<div className="dashboard-grid h-full min-h-[480px] w-full">
+		<div className="dashboard-grid w-full">
 			<ResponsiveGridLayout
 				className="layout"
 				layouts={layouts}
 				breakpoints={BREAKPOINTS}
 				cols={COLS}
-				rowHeight={48}
-				margin={[16, 16]}
+				rowHeight={44}
+				margin={[12, 12]}
 				containerPadding={[0, 0]}
 				draggableHandle=".widget-drag-handle"
 				onLayoutChange={handleLayoutChange}
@@ -65,14 +65,11 @@ export function DashboardGrid() {
 				{instances.map((instance) => {
 					const definition = getWidgetDefinition(instance.type)
 					return (
-						<div
-							key={instance.id}
-							className={cn('relative h-full')}
-						>
+						<div key={instance.id} className={cn('relative')}>
 							<Button
 								variant="ghost"
 								size="icon"
-								className="absolute right-2 top-2 z-10 size-7 bg-background/70 hover:bg-background"
+								className="absolute right-1.5 top-1.5 z-10 size-7 border border-border/60 bg-background/90 text-muted-foreground hover:border-primary/40 hover:text-primary"
 								onClick={() => removeWidget(instance.id)}
 								aria-label={`Remove ${definition?.name ?? instance.type} widget`}
 							>

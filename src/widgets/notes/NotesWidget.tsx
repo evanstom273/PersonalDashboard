@@ -37,7 +37,7 @@ export function NotesWidget({ instanceId }: { instanceId: string }) {
 				</div>
 			) : (
 				<textarea
-					className="h-full min-h-[120px] w-full resize-none rounded-lg border border-border/50 bg-background/40 p-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/50"
+					className="h-full min-h-[120px] w-full resize-none rounded-md border border-border bg-background p-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/45 focus:ring-1 focus:ring-primary/25"
 					placeholder="Write a note..."
 					value={content}
 					onChange={(event) => {
