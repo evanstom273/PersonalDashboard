@@ -6,6 +6,7 @@ import { getIntentLabel, resolvePromptIntent } from '@/services/gemini/intent'
 import { getModelById } from '@/services/gemini/models'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import { runModelGeneration } from '@/services/gemini'
+import { saveMessageMediaToLibrary } from '@/services/library/libraryMediaService'
 import type { StoredMessage } from '@/storage/types'
 import type { ChatSubmitPayload, GenerationMode } from '@/types/chat'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -104,6 +105,13 @@ export function ChatPage() {
 				}
 				await appendMessages([userMessage], selectedChatModelId)
 
+				if (imageAttachments.length > 0) {
+					await saveMessageMediaToLibrary(imageAttachments, {
+						source: 'upload',
+						prompt: text,
+					})
+				}
+
 				const history =
 					resolved.intent === 'chat'
 						? [
@@ -153,6 +161,13 @@ export function ChatPage() {
 				}
 
 				await appendMessages([assistantMessage], selectedChatModelId)
+
+				if (assistantMedia && assistantMedia.length > 0) {
+					await saveMessageMediaToLibrary(assistantMedia, {
+						source: 'generated',
+						prompt: resolved.prompt,
+					})
+				}
 			} catch (generationError) {
 				setError(
 					generationError instanceof Error

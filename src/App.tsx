@@ -2,7 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/layout/AppShell'
 import { ChatPage } from '@/pages/ChatPage'
 import { DocumentEditorPage } from '@/pages/DocumentEditorPage'
-import { DocumentsPage } from '@/pages/DocumentsPage'
+import { LegacyDocumentRedirect } from '@/pages/LegacyDocumentRedirect'
+import { LibraryPage } from '@/pages/LibraryPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ChatProvider } from '@/providers/ChatProvider'
 
@@ -13,8 +14,10 @@ export function App() {
 				<Routes>
 					<Route element={<AppShell />}>
 						<Route index element={<ChatPage />} />
-						<Route path="documents" element={<DocumentsPage />} />
-						<Route path="documents/:documentId" element={<DocumentEditorPage />} />
+						<Route path="library" element={<LibraryPage />} />
+						<Route path="library/documents/:documentId" element={<DocumentEditorPage />} />
+						<Route path="documents" element={<Navigate to="/library" replace />} />
+						<Route path="documents/:documentId" element={<LegacyDocumentRedirect />} />
 						<Route path="settings" element={<SettingsPage />} />
 					</Route>
 					<Route path="*" element={<Navigate to="/" replace />} />
