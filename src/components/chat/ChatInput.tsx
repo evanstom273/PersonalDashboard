@@ -100,7 +100,8 @@ export function ChatInput({
 						<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
 						<span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
 					</span>
-					Listening… speak now. Press Continue to review before sending.
+					Listening… speak now. Voice input uses your browser only — not your
+					Gemini API key. Press Continue to review before sending.
 				</div>
 			) : null}
 
@@ -193,10 +194,17 @@ export function ChatInput({
 				)}
 			</div>
 
-			<p className="mx-auto mt-2 hidden max-w-3xl text-center text-xs text-muted-foreground md:block">
-				Use the mic to dictate, review with Continue, then send. Chat uses Gemini
-				3.6 Flash or 3.1 Pro; say generate image, music, or video to switch
-				modes.
+			<p className="mx-auto mt-2 max-w-3xl text-center text-xs text-muted-foreground">
+				<span className="md:hidden">
+					Mic uses browser speech recognition — no Gemini API usage until you
+					send.
+				</span>
+				<span className="hidden md:inline">
+					Voice input uses your browser&apos;s speech recognition, not your
+					Gemini API key. Dictate, review with Continue, then send. Chat uses
+					Gemini 3.6 Flash or 3.1 Pro; say generate image, music, or video to
+					switch modes.
+				</span>
 			</p>
 		</form>
 	)

@@ -122,6 +122,16 @@ export function SettingsPage() {
 						) : null}
 					</section>
 
+					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
+						<h2 className="text-lg font-medium">Voice input</h2>
+						<p className="text-sm text-muted-foreground">
+							The mic on the home page uses your browser&apos;s built-in speech
+							recognition to turn speech into text. It does not call the Gemini
+							API and does not use your API key or credits. Your key is only
+							used when you press Send on the final message.
+						</p>
+					</section>
+
 					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
 						<h2 className="text-lg font-medium">Available models</h2>
 						<p className="text-sm text-muted-foreground">

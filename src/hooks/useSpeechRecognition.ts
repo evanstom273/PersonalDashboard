@@ -4,6 +4,8 @@ import {
 	isSpeechRecognitionSupported,
 } from '@/utils/speechRecognition'
 
+// Browser-only speech-to-text. Never calls the Gemini API or reads the user's API key.
+
 export type SpeechRecognitionStatus = 'idle' | 'listening' | 'review'
 
 interface UseSpeechRecognitionOptions {
