@@ -126,8 +126,8 @@ export function ChatPage() {
 	)
 
 	return (
-		<div className="flex h-full flex-col">
-			<header className="hidden flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 md:flex md:px-6">
+		<div className="flex h-full min-h-0 flex-col overflow-hidden">
+			<header className="hidden shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 md:flex md:px-6">
 				<div>
 					<h1 className="text-lg font-semibold">Home</h1>
 					<p className="text-xs text-muted-foreground">
@@ -142,7 +142,7 @@ export function ChatPage() {
 				/>
 			</header>
 
-			<div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2 md:hidden">
+			<div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2 md:hidden">
 				<p className="text-xs text-muted-foreground">
 					{selectedModel?.name ?? 'Chat model'}
 				</p>
@@ -153,7 +153,7 @@ export function ChatPage() {
 			</div>
 
 			{!hasApiKey ? (
-				<div className="border-b border-border bg-secondary/40 px-4 py-3 text-sm md:px-6">
+				<div className="shrink-0 border-b border-border bg-secondary/40 px-4 py-2 text-sm md:px-6">
 					<span className="text-muted-foreground">
 						No API key configured.{' '}
 					</span>
@@ -167,7 +167,7 @@ export function ChatPage() {
 			) : null}
 
 			{error ? (
-				<div className="border-b border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive md:px-6">
+				<div className="shrink-0 border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive md:px-6">
 					{error}
 				</div>
 			) : null}

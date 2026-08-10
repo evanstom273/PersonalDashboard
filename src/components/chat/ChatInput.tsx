@@ -37,17 +37,17 @@ export function ChatInput({
 	return (
 		<form
 			onSubmit={handleSubmit}
-			className="border-t border-border bg-background px-4 py-4 md:px-8"
+			className="shrink-0 border-t border-border bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-8 md:py-4"
 		>
 			<div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm">
 				<textarea
 					value={prompt}
 					onChange={(event) => setPrompt(event.target.value)}
 					onKeyDown={handleKeyDown}
-					placeholder='Message Gemini… or "generate image …", "generate music …", "generate video …"'
+					placeholder='Message Gemini… or "generate image …"'
 					disabled={disabled || isGenerating}
 					rows={1}
-					className="max-h-40 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
+					className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
 				/>
 				{isGenerating ? (
 					<Button
@@ -70,9 +70,9 @@ export function ChatInput({
 					</Button>
 				)}
 			</div>
-			<p className="mx-auto mt-2 max-w-3xl text-center text-xs text-muted-foreground">
-				Chat uses Gemini 3.6 Flash or 3.1 Pro. Generation commands pick image,
-				music, or video models automatically.
+			<p className="mx-auto mt-2 hidden max-w-3xl text-center text-xs text-muted-foreground md:block">
+				Chat uses Gemini 3.6 Flash or 3.1 Pro. Say generate image, music, or
+				video to switch modes.
 			</p>
 		</form>
 	)
