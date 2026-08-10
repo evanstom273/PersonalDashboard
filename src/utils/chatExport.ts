@@ -281,7 +281,7 @@ export function downloadChatExport(conversation: ConversationRecord): void {
 	anchor.download = buildDownloadFilename(
 		'chat-export',
 		'json',
-		conversation.updatedAt,
+		exportFile.exportedAt,
 	)
 	anchor.click()
 	URL.revokeObjectURL(url)
