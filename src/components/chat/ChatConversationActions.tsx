@@ -10,7 +10,12 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
-import { downloadChatExport, parseChatImportFile } from '@/utils/chatExport'
+import {
+	downloadChatExport,
+	isChatExportZipFileName,
+	parseChatImportFile,
+	parseChatImportZip,
+} from '@/utils/chatExport'
 import type { ConversationRecord } from '@/storage/types'
 
 interface ChatConversationActionsProps {
@@ -70,6 +75,28 @@ export function ChatConversationActions({
 		}
 
 		setImportError(null)
+
+		if (isChatExportZipFileName(file.name)) {
+			const reader = new FileReader()
+			reader.onload = () => {
+				try {
+					const bytes = new Uint8Array(reader.result as ArrayBuffer)
+					const imported = parseChatImportZip(bytes)
+					setPendingImport(imported)
+					setImportDialogOpen(true)
+				} catch (error) {
+					setImportError(
+						error instanceof Error ? error.message : 'Could not read that chat file.',
+					)
+				}
+			}
+			reader.onerror = () => {
+				setImportError('Could not read that chat file.')
+			}
+			reader.readAsArrayBuffer(file)
+			return
+		}
+
 		const reader = new FileReader()
 		reader.onload = () => {
 			try {
@@ -94,7 +121,7 @@ export function ChatConversationActions({
 			<input
 				ref={importInputRef}
 				type="file"
-				accept="application/json,.json"
+				accept="application/json,.json,application/zip,.zip"
 				className="hidden"
 				onChange={handleImportFileChange}
 			/>
@@ -111,7 +138,7 @@ export function ChatConversationActions({
 							downloadChatExport(conversation)
 						}
 					}}
-					aria-label="Export chat as JSON"
+					aria-label="Export chat as ZIP"
 					title="Export chat"
 				>
 					<Download className="h-4 w-4" />
@@ -123,7 +150,7 @@ export function ChatConversationActions({
 					className="h-8 w-8"
 					disabled={isGenerating}
 					onClick={() => importInputRef.current?.click()}
-					aria-label="Import chat JSON"
+					aria-label="Import chat ZIP or JSON"
 					title="Import chat"
 				>
 					<Upload className="h-4 w-4" />
