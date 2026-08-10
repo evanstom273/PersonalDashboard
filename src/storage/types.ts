@@ -22,6 +22,9 @@ export interface LibraryMediaRecord {
 export interface UserPreferences {
 	geminiApiKey: string
 	defaultModelId: string
+	defaultImageModelId: string
+	defaultMusicModelId: string
+	defaultVideoModelId: string
 	userName: string
 	aiName: string
 	aiBehaviorInstructions: string
@@ -30,6 +33,9 @@ export interface UserPreferences {
 export const DEFAULT_PREFERENCES: UserPreferences = {
 	geminiApiKey: '',
 	defaultModelId: 'gemini-3.6-flash',
+	defaultImageModelId: 'gemini-3.1-flash-image',
+	defaultMusicModelId: 'lyria-3-pro-preview',
+	defaultVideoModelId: 'veo-3.1-lite-generate-preview',
 	userName: '',
 	aiName: '',
 	aiBehaviorInstructions: '',

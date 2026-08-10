@@ -15,7 +15,7 @@ export function AppShell() {
 	const selectedModel = getModelById(preferences.defaultModelId)
 
 	return (
-		<div className="flex h-dvh max-h-dvh overflow-hidden bg-background">
+		<div className="app-shell flex overflow-hidden bg-background">
 			<aside className="hidden h-full w-64 shrink-0 border-r border-sidebar-border bg-sidebar md:flex">
 				<AppNav />
 			</aside>

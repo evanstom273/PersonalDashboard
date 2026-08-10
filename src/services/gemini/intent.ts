@@ -1,6 +1,8 @@
 import type { GenerationIntent } from '@/services/gemini/constants'
-import { selectGenerationModel } from '@/services/gemini/generationModelSelection'
-import type { GenerationMode } from '@/types/chat'
+import {
+	getModelIdForIntent,
+	type GenerationModelPreferences,
+} from '@/services/gemini/modelPreferences'
 
 export interface ResolvedPrompt {
 	modelId: string
@@ -85,26 +87,9 @@ function resolveGenerationPrompt(
 
 export function resolvePromptIntent(
 	text: string,
-	selectedChatModelId: string,
-	forcedMode: GenerationMode = 'auto',
+	models: GenerationModelPreferences,
 ): ResolvedPrompt {
 	const trimmed = text.trim()
-
-	if (forcedMode !== 'auto') {
-		if (forcedMode === 'chat') {
-			return {
-				intent: 'chat',
-				modelId: selectedChatModelId,
-				prompt: trimmed,
-			}
-		}
-
-		return {
-			intent: forcedMode,
-			modelId: selectGenerationModel(forcedMode, trimmed),
-			prompt: trimmed,
-		}
-	}
 
 	for (const { intent, regex } of INTENT_PATTERNS) {
 		const match = trimmed.match(regex)
@@ -112,7 +97,7 @@ export function resolvePromptIntent(
 			const prompt = resolveGenerationPrompt(trimmed, match[1])
 			return {
 				intent,
-				modelId: selectGenerationModel(intent, prompt),
+				modelId: getModelIdForIntent(intent, models),
 				prompt,
 			}
 		}
@@ -120,7 +105,7 @@ export function resolvePromptIntent(
 
 	return {
 		intent: 'chat',
-		modelId: selectedChatModelId,
+		modelId: getModelIdForIntent('chat', models),
 		prompt: trimmed,
 	}
 }

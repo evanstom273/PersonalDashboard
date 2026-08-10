@@ -15,8 +15,7 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { insertDocumentMention, buildDocumentMention } from '@/utils/documentMentions'
 import { createDocument } from '@/services/documents/documentService'
 import { normalizeDocumentContent } from '@/utils/documentContent'
-import type { ChatAttachment, ChatSubmitPayload, GenerationMode } from '@/types/chat'
-import { GENERATION_MODE_LABELS } from '@/types/chat'
+import type { ChatAttachment, ChatSubmitPayload } from '@/types/chat'
 import {
 	getFileBaseName,
 	isImageFile,
@@ -29,12 +28,16 @@ import { cn } from '@/utils/cn'
 interface ChatInputProps {
 	disabled?: boolean
 	isGenerating?: boolean
-	generationMode: GenerationMode
 	webSearchEnabled: boolean
 	selectedChatModelId: string
-	onGenerationModeChange: (mode: GenerationMode) => void
+	selectedImageModelId: string
+	selectedMusicModelId: string
+	selectedVideoModelId: string
 	onWebSearchChange: (enabled: boolean) => void
 	onChatModelChange: (modelId: string) => void
+	onImageModelChange: (modelId: string) => void
+	onMusicModelChange: (modelId: string) => void
+	onVideoModelChange: (modelId: string) => void
 	onSubmit: (payload: ChatSubmitPayload) => void
 	onStop?: () => void
 }
@@ -42,12 +45,16 @@ interface ChatInputProps {
 export function ChatInput({
 	disabled,
 	isGenerating,
-	generationMode,
 	webSearchEnabled,
 	selectedChatModelId,
-	onGenerationModeChange,
+	selectedImageModelId,
+	selectedMusicModelId,
+	selectedVideoModelId,
 	onWebSearchChange,
 	onChatModelChange,
+	onImageModelChange,
+	onMusicModelChange,
+	onVideoModelChange,
 	onSubmit,
 	onStop,
 }: ChatInputProps) {
@@ -150,7 +157,6 @@ export function ChatInput({
 
 		onSubmit({
 			text: messageText,
-			generationMode,
 			attachments,
 			webSearchEnabled,
 		})
@@ -277,7 +283,7 @@ export function ChatInput({
 	return (
 		<form
 			onSubmit={handleSubmit}
-			className="chat-input-bar sticky bottom-0 z-30 shrink-0 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-8 md:py-4"
+			className="chat-input-bar z-30 shrink-0 border-t border-border px-4 py-3 md:px-8 md:py-4"
 		>
 			{isListening ? (
 				<div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 text-xs text-primary">
@@ -307,36 +313,18 @@ export function ChatInput({
 				</div>
 			) : null}
 
-			{generationMode !== 'auto' || webSearchEnabled ? (
+			{webSearchEnabled ? (
 				<div className="mx-auto mb-2 flex max-w-3xl flex-wrap items-center gap-2">
-					{generationMode !== 'auto' ? (
-						<>
-							<span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
-								{GENERATION_MODE_LABELS[generationMode]} mode
-							</span>
-							<button
-								type="button"
-								className="text-xs text-muted-foreground underline-offset-4 hover:underline"
-								onClick={() => onGenerationModeChange('auto')}
-							>
-								Reset to auto
-							</button>
-						</>
-					) : null}
-					{webSearchEnabled ? (
-						<>
-							<span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground ring-1 ring-border">
-								Web search on
-							</span>
-							<button
-								type="button"
-								className="text-xs text-muted-foreground underline-offset-4 hover:underline"
-								onClick={() => onWebSearchChange(false)}
-							>
-								Turn off
-							</button>
-						</>
-					) : null}
+					<span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground ring-1 ring-border">
+						Web search on
+					</span>
+					<button
+						type="button"
+						className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+						onClick={() => onWebSearchChange(false)}
+					>
+						Turn off
+					</button>
 				</div>
 			) : null}
 
@@ -386,12 +374,16 @@ export function ChatInput({
 				>
 					<ChatAttachMenu
 						disabled={disabled || isGenerating || isListening}
-						generationMode={generationMode}
 						webSearchEnabled={webSearchEnabled}
 						selectedChatModelId={selectedChatModelId}
-						onGenerationModeChange={onGenerationModeChange}
+						selectedImageModelId={selectedImageModelId}
+						selectedMusicModelId={selectedMusicModelId}
+						selectedVideoModelId={selectedVideoModelId}
 						onWebSearchChange={onWebSearchChange}
 						onChatModelChange={onChatModelChange}
+						onImageModelChange={onImageModelChange}
+						onMusicModelChange={onMusicModelChange}
+						onVideoModelChange={onVideoModelChange}
 						onDocumentUpload={(file) => {
 							void handleDocumentUpload(file)
 						}}
