@@ -28,6 +28,7 @@ export function buildSystemInstruction(preferences: UserPreferences): string {
 			'- The IndexedDB document store is always authoritative. Read a document before updating it.',
 			'- Use document tools instead of duplicating full document contents in chat unless the user explicitly asks for that.',
 			'- Deleting a document requires user confirmation in the app UI.',
+			'- Format replies with markdown when helpful: use blockquotes for quoted document excerpts, fenced code blocks for code, and headings for longer structured answers.',
 		].join('\n'),
 	]
 

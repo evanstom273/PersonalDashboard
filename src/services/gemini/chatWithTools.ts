@@ -48,7 +48,7 @@ export async function generateChatWithTools(
 ): Promise<ChatWithToolsResult> {
 	const contents: GeminiContent[] = messages.map((message) => ({
 		role: message.role === 'assistant' ? 'model' : 'user',
-		parts: [{ text: message.content }],
+		parts: buildMessageParts(message),
 	}))
 
 	let pendingDeleteConfirmation: PendingDeleteConfirmation | undefined
@@ -130,4 +130,36 @@ export async function generateChatWithTools(
 		media: [],
 		pendingDeleteConfirmation,
 	}
+}
+
+function buildMessageParts(message: ChatMessageInput): GeminiPart[] {
+	const parts: GeminiPart[] = []
+
+	if (message.content.trim()) {
+		parts.push({ text: message.content })
+	}
+
+	for (const item of message.media ?? []) {
+		if (item.type !== 'image') {
+			continue
+		}
+
+		const base64 = item.dataUrl.split(',')[1]
+		if (!base64) {
+			continue
+		}
+
+		parts.push({
+			inlineData: {
+				mimeType: item.mimeType,
+				data: base64,
+			},
+		})
+	}
+
+	if (parts.length === 0) {
+		parts.push({ text: message.content || ' ' })
+	}
+
+	return parts
 }

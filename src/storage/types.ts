@@ -3,6 +3,21 @@ export type StoreName =
 	| 'conversations'
 	| 'cache'
 	| 'documents'
+	| 'libraryMedia'
+
+export type LibraryMediaKind = 'image' | 'audio' | 'video'
+
+export interface LibraryMediaRecord {
+	id: string
+	title: string
+	kind: LibraryMediaKind
+	mimeType: string
+	dataUrl: string
+	source: 'upload' | 'generated'
+	prompt?: string
+	createdAt: number
+	updatedAt: number
+}
 
 export interface UserPreferences {
 	geminiApiKey: string

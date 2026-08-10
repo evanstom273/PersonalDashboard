@@ -4,6 +4,7 @@ import type { MessageMedia } from '@/storage/types'
 export interface ChatMessageInput {
 	role: 'user' | 'assistant'
 	content: string
+	media?: MessageMedia[]
 }
 
 interface GenerateContentResponse {
@@ -20,6 +21,44 @@ interface GenerateContentResponse {
 	}>
 }
 
+function buildChatParts(message: ChatMessageInput): Array<{
+	text?: string
+	inlineData?: { mimeType: string; data: string }
+}> {
+	const parts: Array<{
+		text?: string
+		inlineData?: { mimeType: string; data: string }
+	}> = []
+
+	if (message.content.trim()) {
+		parts.push({ text: message.content })
+	}
+
+	for (const item of message.media ?? []) {
+		if (item.type !== 'image') {
+			continue
+		}
+
+		const base64 = item.dataUrl.split(',')[1]
+		if (!base64) {
+			continue
+		}
+
+		parts.push({
+			inlineData: {
+				mimeType: item.mimeType,
+				data: base64,
+			},
+		})
+	}
+
+	if (parts.length === 0) {
+		parts.push({ text: message.content || ' ' })
+	}
+
+	return parts
+}
+
 export async function generateChatResponse(
 	apiKey: string,
 	modelId: string,
@@ -33,7 +72,7 @@ export async function generateChatResponse(
 			body: JSON.stringify({
 				contents: messages.map((message) => ({
 					role: message.role === 'assistant' ? 'model' : 'user',
-					parts: [{ text: message.content }],
+					parts: buildChatParts(message),
 				})),
 			}),
 		},

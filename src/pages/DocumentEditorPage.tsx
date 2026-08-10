@@ -54,7 +54,7 @@ export function DocumentEditorPage() {
 			if (documentId === 'new') {
 				const created = await createDocument('Untitled document')
 				if (!cancelled) {
-					navigate(`/documents/${created.id}`, { replace: true })
+					navigate(`/library/documents/${created.id}`, { replace: true })
 				}
 				return
 			}
@@ -62,7 +62,7 @@ export function DocumentEditorPage() {
 			const stored = await getDocument(documentId)
 			if (!cancelled) {
 				if (!stored) {
-					navigate('/documents', { replace: true })
+					navigate('/library', { replace: true })
 					return
 				}
 				setDocument(stored)
@@ -113,9 +113,9 @@ export function DocumentEditorPage() {
 			<header className="shrink-0 border-b border-border px-4 py-3 md:px-6">
 				<div className="flex flex-wrap items-center gap-3">
 					<Button asChild variant="ghost" size="sm">
-						<Link to="/documents">
+						<Link to="/library">
 							<ArrowLeft className="h-4 w-4" />
-							Documents
+							Library
 						</Link>
 					</Button>
 					<input
