@@ -38,8 +38,8 @@ interface ChatAttachMenuProps {
 	onMusicModelChange: (modelId: string) => void
 	forcedNextIntent: GenerationIntent | null
 	onForceNextIntent: (intent: GenerationIntent | null) => void
-	onDocumentUpload: (file: File) => void
-	onImageUpload: (file: File) => void
+	onDocumentUpload: (files: File[]) => void
+	onImageUpload: (files: File[]) => void
 }
 
 type ExpandableCategory = Exclude<ModelCategory, 'chat'>
@@ -103,12 +103,13 @@ export function ChatAttachMenu({
 			<input
 				ref={documentInputRef}
 				type="file"
+				multiple
 				accept=".txt,.md,.markdown,.html,.htm,.json,.csv,.xml,.yml,.yaml,text/*"
 				className="hidden"
 				onChange={(event) => {
-					const file = event.target.files?.[0]
-					if (file) {
-						onDocumentUpload(file)
+					const files = Array.from(event.target.files ?? [])
+					if (files.length > 0) {
+						onDocumentUpload(files)
 					}
 					event.target.value = ''
 				}}
@@ -116,12 +117,13 @@ export function ChatAttachMenu({
 			<input
 				ref={imageInputRef}
 				type="file"
+				multiple
 				accept="image/*"
 				className="hidden"
 				onChange={(event) => {
-					const file = event.target.files?.[0]
-					if (file) {
-						onImageUpload(file)
+					const files = Array.from(event.target.files ?? [])
+					if (files.length > 0) {
+						onImageUpload(files)
 					}
 					event.target.value = ''
 				}}
@@ -149,7 +151,7 @@ export function ChatAttachMenu({
 						}}
 					>
 						<FileText className="h-4 w-4" />
-						Upload document
+						Upload documents
 					</DropdownMenuItem>
 					<DropdownMenuItem
 						onSelect={() => {
@@ -157,7 +159,7 @@ export function ChatAttachMenu({
 						}}
 					>
 						<ImagePlus className="h-4 w-4" />
-						Upload image
+						Upload images
 					</DropdownMenuItem>
 
 					<DropdownMenuSeparator />
