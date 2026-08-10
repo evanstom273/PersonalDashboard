@@ -30,6 +30,7 @@
 }
 
 :root {
+	--app-bottom-inset: env(safe-area-inset-bottom, 0px);
 	--radius: 0.625rem;
 	--background: oklch(0.145 0 0);
 	--foreground: oklch(0.985 0 0);
@@ -63,10 +64,17 @@ html {
 	height: 100%;
 }
 
+@media (display-mode: standalone) {
+	:root {
+		/* Android PWA often reports 0 for safe-area-inset-bottom despite gesture nav bar */
+		--app-bottom-inset: max(env(safe-area-inset-bottom, 0px), 48px);
+	}
+}
+
 body {
 	margin: 0;
-	height: 100dvh;
-	max-height: 100dvh;
+	height: 100svh;
+	max-height: 100svh;
 	overflow: hidden;
 	background: var(--background);
 	color: var(--foreground);
@@ -84,19 +92,19 @@ body {
 }
 
 #root {
-	height: 100dvh;
-	max-height: 100dvh;
+	height: 100svh;
+	max-height: 100svh;
 	overflow: hidden;
 }
 
-.chat-input-bar {
-	padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+.app-shell {
+	height: 100svh;
+	max-height: 100svh;
 }
 
-@supports (padding: max(0px)) {
-	.chat-input-bar {
-		padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
-	}
+.chat-input-bar {
+	padding-bottom: calc(var(--app-bottom-inset) + 0.75rem);
+	background-color: var(--background);
 }
 
 .document-editor-content {
