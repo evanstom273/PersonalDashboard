@@ -114,13 +114,24 @@ function audioInlineDataToPlayable(
 	}
 
 	const pcmBytes = base64ToBytes(base64Data)
-	const wavBytes = pcmToWav(pcmBytes)
+	const sampleRate = parsePcmSampleRate(normalizedMimeType)
+	const wavBytes = pcmToWav(pcmBytes, sampleRate)
 	const wavBase64 = bytesToBase64(wavBytes)
 
 	return {
 		dataUrl: toDataUrl('audio/wav', wavBase64),
 		mimeType: 'audio/wav',
 	}
+}
+
+function parsePcmSampleRate(mimeType: string): number {
+	const match = mimeType.match(/rate=(\d+)/i)
+	if (!match) {
+		return 24000
+	}
+
+	const sampleRate = Number(match[1])
+	return Number.isFinite(sampleRate) && sampleRate > 0 ? sampleRate : 24000
 }
 
 function base64ToBytes(base64Data: string): Uint8Array {
