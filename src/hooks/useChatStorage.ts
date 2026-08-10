@@ -4,11 +4,14 @@ import { getValue, setValue } from '@/storage/storageService'
 import {
 	DEFAULT_PREFERENCES,
 	MEMORY_ARCHIVE_INTERVAL_OPTIONS,
+	TTS_READ_ALOUD_MODE_OPTIONS,
 	type ConversationRecord,
 	type MemoryArchiveInterval,
 	type StoredMessage,
+	type TtsReadAloudMode,
 	type UserPreferences,
 } from '@/storage/types'
+import { normalizeTtsVoiceName } from '@/services/gemini/ttsVoices'
 
 const PREFERENCES_KEY = 'user'
 
@@ -21,6 +24,17 @@ function normalizeMemoryArchiveInterval(value: unknown): MemoryArchiveInterval {
 	}
 
 	return DEFAULT_PREFERENCES.memoryArchiveInterval
+}
+
+function normalizeTtsReadAloudMode(value: unknown): TtsReadAloudMode {
+	if (
+		typeof value === 'string' &&
+		TTS_READ_ALOUD_MODE_OPTIONS.includes(value as TtsReadAloudMode)
+	) {
+		return value as TtsReadAloudMode
+	}
+
+	return DEFAULT_PREFERENCES.ttsReadAloudMode
 }
 
 function normalizeConversation(
@@ -69,6 +83,8 @@ export function usePreferences() {
 					memoryArchiveInterval: normalizeMemoryArchiveInterval(
 						stored?.memoryArchiveInterval,
 					),
+					ttsReadAloudMode: normalizeTtsReadAloudMode(stored?.ttsReadAloudMode),
+					ttsVoiceName: normalizeTtsVoiceName(stored?.ttsVoiceName),
 				})
 				setIsLoading(false)
 			}

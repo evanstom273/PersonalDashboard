@@ -1,14 +1,17 @@
-import { ExternalLink, Brain, Bell, KeyRound, PlugZap, Save, Sparkles, UserRound } from 'lucide-react'
+import { ExternalLink, Brain, Bell, KeyRound, PlugZap, Save, Sparkles, UserRound, Volume2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { usePreferencesContext } from '@/providers/ChatProvider'
 import { validateApiKey } from '@/services/gemini/validate'
+import { GEMINI_TTS_VOICES } from '@/services/gemini/ttsVoices'
 import { GEMINI_MODELS, MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
+import { useTextToSpeechContext } from '@/providers/ChatProvider'
 import {
 	MEMORY_ARCHIVE_INTERVAL_OPTIONS,
 	type MemoryArchiveInterval,
+	type TtsReadAloudMode,
 } from '@/storage/types'
 import {
 	canUseNotifications,
@@ -18,6 +21,7 @@ import {
 
 export function SettingsPage() {
 	const { preferences, savePreferences, isLoading } = usePreferencesContext()
+	const { previewVoice, status: speechStatus } = useTextToSpeechContext()
 	const [apiKey, setApiKey] = useState('')
 	const [userName, setUserName] = useState('')
 	const [aiName, setAiName] = useState('')
@@ -25,6 +29,9 @@ export function SettingsPage() {
 	const [allowMatureContent, setAllowMatureContent] = useState(true)
 	const [memoryArchiveInterval, setMemoryArchiveInterval] =
 		useState<MemoryArchiveInterval>(20)
+	const [ttsReadAloudMode, setTtsReadAloudMode] =
+		useState<TtsReadAloudMode>('never')
+	const [ttsVoiceName, setTtsVoiceName] = useState('Kore')
 	const [savedApiKey, setSavedApiKey] = useState(false)
 	const [savedIdentity, setSavedIdentity] = useState(false)
 	const [isSavingApiKey, setIsSavingApiKey] = useState(false)
@@ -47,6 +54,8 @@ export function SettingsPage() {
 			setAiBehaviorInstructions(preferences.aiBehaviorInstructions)
 			setAllowMatureContent(preferences.allowMatureContent ?? true)
 			setMemoryArchiveInterval(preferences.memoryArchiveInterval)
+			setTtsReadAloudMode(preferences.ttsReadAloudMode)
+			setTtsVoiceName(preferences.ttsVoiceName)
 		}
 	}, [isLoading, preferences])
 
@@ -91,6 +100,22 @@ export function SettingsPage() {
 		await savePreferences({
 			...preferences,
 			memoryArchiveInterval: interval,
+		})
+	}
+
+	async function handleTtsReadAloudModeChange(value: TtsReadAloudMode): Promise<void> {
+		setTtsReadAloudMode(value)
+		await savePreferences({
+			...preferences,
+			ttsReadAloudMode: value,
+		})
+	}
+
+	async function handleTtsVoiceChange(value: string): Promise<void> {
+		setTtsVoiceName(value)
+		await savePreferences({
+			...preferences,
+			ttsVoiceName: value,
 		})
 	}
 
@@ -359,6 +384,85 @@ export function SettingsPage() {
 							input still fails in an installed app, open the site in Chrome
 							instead of the home-screen shortcut.
 						</p>
+					</section>
+
+					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+						<div className="flex items-center gap-2">
+							<Volume2 className="h-5 w-5 text-primary" />
+							<h2 className="text-lg font-medium">Voice output</h2>
+						</div>
+						<p className="text-sm text-muted-foreground">
+							Have Gemini read assistant replies aloud using the Gemini TTS
+							model. Chat text is always shown normally — speech is an optional
+							output layer on top.
+						</p>
+
+						<div className="space-y-2">
+							<label
+								htmlFor="tts-read-aloud-mode"
+								className="text-sm font-medium"
+							>
+								Read responses aloud
+							</label>
+							<select
+								id="tts-read-aloud-mode"
+								value={ttsReadAloudMode}
+								onChange={(event) => {
+									void handleTtsReadAloudModeChange(
+										event.target.value as TtsReadAloudMode,
+									)
+								}}
+								className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+							>
+								<option value="never">Never</option>
+								<option value="after_speech">When I use the microphone</option>
+								<option value="always">Always</option>
+							</select>
+						</div>
+
+						<div className="space-y-2">
+							<label htmlFor="tts-voice-name" className="text-sm font-medium">
+								Speaking voice
+							</label>
+							<div className="flex flex-wrap items-center gap-3">
+								<select
+									id="tts-voice-name"
+									value={ttsVoiceName}
+									onChange={(event) => {
+										void handleTtsVoiceChange(event.target.value)
+									}}
+									className="min-w-0 flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+								>
+									{GEMINI_TTS_VOICES.map((voice) => (
+										<option key={voice.name} value={voice.name}>
+											{voice.name} — {voice.description}
+										</option>
+									))}
+								</select>
+								<Button
+									type="button"
+									variant="outline"
+									disabled={
+										!preferences.geminiApiKey.trim() ||
+										speechStatus === 'loading' ||
+										speechStatus === 'playing'
+									}
+									onClick={() => {
+										void previewVoice(ttsVoiceName)
+									}}
+								>
+									<Volume2 className="h-4 w-4" />
+									{speechStatus === 'loading' ? 'Loading…' : 'Preview'}
+								</Button>
+							</div>
+							<p className="text-sm text-muted-foreground">
+								Uses your saved Gemini API key and the{' '}
+								<span className="font-medium text-foreground">
+									gemini-3.1-flash-tts-preview
+								</span>{' '}
+								model. Manual playback only runs when you tap Listen on a reply.
+							</p>
+						</div>
 					</section>
 
 					<section className="space-y-4 rounded-xl border border-border bg-card p-5">

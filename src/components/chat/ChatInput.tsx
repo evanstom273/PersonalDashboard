@@ -17,7 +17,7 @@ import { createDocument } from '@/services/documents/documentService'
 import {
 	ingestUploadedDocumentContent,
 } from '@/utils/documentContent'
-import type { ChatAttachment, ChatSubmitPayload } from '@/types/chat'
+import type { ChatAttachment, ChatInputMethod, ChatSubmitPayload } from '@/types/chat'
 import type { GenerationIntent } from '@/services/gemini/constants'
 import type { StoredMessage } from '@/storage/types'
 import { MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
@@ -75,6 +75,7 @@ export function ChatInput({
 	const [cursorPosition, setCursorPosition] = useState(0)
 	const [attachments, setAttachments] = useState<ChatAttachment[]>([])
 	const [attachError, setAttachError] = useState<string | null>(null)
+	const [inputMethod, setInputMethod] = useState<ChatInputMethod>('typed')
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const promptBeforeSpeechRef = useRef('')
 
@@ -202,12 +203,14 @@ export function ChatInput({
 			text: messageText,
 			attachments,
 			webSearchEnabled,
+			inputMethod,
 			editFromMessageId: editingMessage?.id,
 		})
 		setPrompt('')
 		setCursorPosition(0)
 		setAttachments([])
 		setAttachError(null)
+		setInputMethod('typed')
 		resetSpeechState()
 		onCancelEdit?.()
 	}
@@ -372,6 +375,7 @@ export function ChatInput({
 			const nextPrompt = nextTranscript.trim()
 			setPrompt(nextPrompt)
 			setCursorPosition(nextPrompt.length)
+			setInputMethod('speech')
 		})
 	}
 
@@ -570,6 +574,9 @@ export function ChatInput({
 						onChange={(event) => {
 							setPrompt(event.target.value)
 							setCursorPosition(event.target.selectionStart)
+							if (!isListening && !isTranscribing) {
+								setInputMethod('typed')
+							}
 						}}
 						onClick={syncCursor}
 						onKeyUp={syncCursor}

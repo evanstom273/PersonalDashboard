@@ -7,6 +7,7 @@ import { MessageActions } from '@/components/chat/MessageActions'
 import { MediaLightbox } from '@/components/media/MediaLightbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { MessageDocumentLink, StoredMessage } from '@/storage/types'
+import type { TtsPlaybackStatus } from '@/hooks/useTextToSpeech'
 import { formatMessageTime } from '@/utils/dateTime'
 import { cn } from '@/utils/cn'
 
@@ -26,6 +27,11 @@ interface ChatMessagesProps {
 		documentTitle: string,
 	) => void
 	onCancelDelete: (messageId: string) => void
+	activeSpeechMessageId?: string | null
+	speechStatus?: TtsPlaybackStatus
+	onSpeakMessage?: (message: StoredMessage) => void
+	onStopSpeech?: () => void
+	speechDisabled?: boolean
 }
 
 export function ChatMessages({
@@ -37,6 +43,11 @@ export function ChatMessages({
 	onEditUserMessage,
 	onConfirmDelete,
 	onCancelDelete,
+	activeSpeechMessageId = null,
+	speechStatus = 'idle',
+	onSpeakMessage,
+	onStopSpeech,
+	speechDisabled = false,
 }: ChatMessagesProps) {
 	const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -76,6 +87,11 @@ export function ChatMessages({
 							editDisabled={isGenerating}
 							onConfirmDelete={onConfirmDelete}
 							onCancelDelete={onCancelDelete}
+							activeSpeechMessageId={activeSpeechMessageId}
+							speechStatus={speechStatus}
+							onSpeakMessage={onSpeakMessage}
+							onStopSpeech={onStopSpeech}
+							speechDisabled={speechDisabled}
 						/>
 					))}
 					{streamingAssistant ? (
@@ -113,6 +129,11 @@ function MessageRow({
 	isEditing = false,
 	onConfirmDelete,
 	onCancelDelete,
+	activeSpeechMessageId = null,
+	speechStatus = 'idle',
+	onSpeakMessage,
+	onStopSpeech,
+	speechDisabled = false,
 	isStreaming = false,
 }: {
 	message: StoredMessage
@@ -122,12 +143,19 @@ function MessageRow({
 	isEditing?: boolean
 	onConfirmDelete: ChatMessagesProps['onConfirmDelete']
 	onCancelDelete: ChatMessagesProps['onCancelDelete']
+	activeSpeechMessageId?: string | null
+	speechStatus?: TtsPlaybackStatus
+	onSpeakMessage?: (message: StoredMessage) => void
+	onStopSpeech?: () => void
+	speechDisabled?: boolean
 	isStreaming?: boolean
 }) {
 	const contentRef = useRef<HTMLDivElement>(null)
 	const isUser = message.role === 'user'
 	const hasMedia = (message.media?.length ?? 0) > 0
 	const showMediaFirst = !isUser && hasMedia
+	const messageSpeechStatus =
+		activeSpeechMessageId === message.id ? speechStatus : 'idle'
 
 	return (
 		<article
@@ -271,6 +299,14 @@ function MessageRow({
 									: undefined
 							}
 							editDisabled={editDisabled}
+							onSpeak={
+								!isUser && onSpeakMessage && message.content.trim()
+									? () => onSpeakMessage(message)
+									: undefined
+							}
+							onStopSpeak={onStopSpeech}
+							speakStatus={messageSpeechStatus}
+							speakDisabled={speechDisabled}
 						/>
 					) : null}
 				</div>

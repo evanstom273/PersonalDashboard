@@ -26,6 +26,16 @@ export const MEMORY_ARCHIVE_INTERVAL_OPTIONS = [5, 10, 15, 20] as const
 export type MemoryArchiveInterval =
 	(typeof MEMORY_ARCHIVE_INTERVAL_OPTIONS)[number]
 
+export const TTS_READ_ALOUD_MODE_OPTIONS = [
+	'never',
+	'after_speech',
+	'always',
+] as const
+
+export type TtsReadAloudMode = (typeof TTS_READ_ALOUD_MODE_OPTIONS)[number]
+
+export type ChatInputMethod = 'typed' | 'speech'
+
 export type LibraryMediaKind = 'image' | 'audio'
 
 export interface LibraryMediaRecord {
@@ -50,6 +60,8 @@ export interface UserPreferences {
 	aiBehaviorInstructions: string
 	allowMatureContent: boolean
 	memoryArchiveInterval: MemoryArchiveInterval
+	ttsReadAloudMode: TtsReadAloudMode
+	ttsVoiceName: string
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -62,6 +74,8 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	aiBehaviorInstructions: '',
 	allowMatureContent: true,
 	memoryArchiveInterval: 20,
+	ttsReadAloudMode: 'never',
+	ttsVoiceName: 'Kore',
 }
 
 export interface DocumentRecord {

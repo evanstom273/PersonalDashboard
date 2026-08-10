@@ -1,3 +1,5 @@
+import type { ChatInputMethod } from '@/storage/types'
+
 export interface ChatAttachment {
 	id: string
 	type: 'document' | 'image'
@@ -11,5 +13,8 @@ export interface ChatSubmitPayload {
 	text: string
 	attachments: ChatAttachment[]
 	webSearchEnabled: boolean
+	inputMethod: ChatInputMethod
 	editFromMessageId?: string
 }
+
+export type { ChatInputMethod }
