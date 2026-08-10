@@ -142,10 +142,15 @@ export function DocumentEditorPage() {
 					{readOnly ? (
 						<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 							<Lock className="h-3.5 w-3.5" />
-							Read-only upload
+							Read-only
 						</div>
 					) : (
 						<div className="flex items-center gap-2 text-xs text-muted-foreground">
+							{document.source === 'upload' ? (
+								<span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+									Uploaded
+								</span>
+							) : null}
 							<Save className="h-3.5 w-3.5" />
 							{isSaving
 								? 'Saving…'

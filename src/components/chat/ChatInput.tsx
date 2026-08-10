@@ -201,7 +201,6 @@ export function ChatInput({
 				const document = await createDocument(title, content, {
 					source: 'upload',
 					contentFormat,
-					readOnly: true,
 				})
 
 				return {

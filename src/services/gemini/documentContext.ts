@@ -33,7 +33,8 @@ export function formatDocumentForContext(document: DocumentRecord): string {
 		documentBodyForContext(normalized),
 		MAX_CHARS_PER_DOCUMENT,
 	)
-	const accessLabel = normalized.readOnly ? 'read-only upload' : 'editable'
+	const accessLabel =
+		normalized.source === 'upload' ? 'uploaded, editable' : 'editable'
 
 	return [
 		`### ${normalized.title}`,
@@ -75,7 +76,7 @@ export function buildDocumentLibraryContext(
 	const header = [
 		'## Document library (always in context)',
 		'',
-		'All library documents are injected here on every message. Use document tools to create, update, rename, or delete. Uploaded documents are read-only.',
+		'All library documents are injected here on every message. Use document tools to create, update, rename, or delete. Uploaded documents can be edited like any other document.',
 		'',
 	].join('\n')
 

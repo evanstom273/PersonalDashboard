@@ -179,7 +179,7 @@ export function normalizeDocumentRecord(document: DocumentRecord): DocumentRecor
 		...document,
 		source,
 		contentFormat,
-		readOnly: document.readOnly ?? source === 'upload',
+		readOnly: source === 'upload' ? false : (document.readOnly ?? false),
 	}
 }
 
@@ -271,6 +271,6 @@ export function resolveCreateDocumentDefaults(
 	return {
 		source,
 		contentFormat: options.contentFormat ?? 'markdown',
-		readOnly: options.readOnly ?? source === 'upload',
+		readOnly: options.readOnly ?? false,
 	}
 }
