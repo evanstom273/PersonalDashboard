@@ -91,7 +91,7 @@ export function MemoryPage() {
 						value={query}
 						onChange={(event) => setQuery(event.target.value)}
 						placeholder="Search memory…"
-						className="w-full rounded-lg border border-input bg-background py-2 pr-3 pl-9 text-sm outline-none ring-ring focus:ring-2"
+						className="w-full rounded-lg border border-input bg-secondary py-2 pr-3 pl-9 text-sm outline-none ring-ring focus:ring-2"
 					/>
 				</div>
 			</header>

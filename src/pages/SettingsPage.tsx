@@ -186,7 +186,7 @@ export function SettingsPage() {
 								setSavedIdentity(false)
 							}}
 							placeholder="Your name"
-							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+							className="w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						/>
 					</section>
 
@@ -206,7 +206,7 @@ export function SettingsPage() {
 								setSavedIdentity(false)
 							}}
 							placeholder="Assistant"
-							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+							className="w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						/>
 					</section>
 
@@ -225,7 +225,7 @@ export function SettingsPage() {
 							}}
 							rows={8}
 							placeholder="Warm, conversational, witty, direct, British English"
-							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+							className="w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						/>
 						<label className="flex items-start gap-3 rounded-lg border border-border/60 px-3 py-3 text-sm">
 							<input
@@ -343,7 +343,7 @@ export function SettingsPage() {
 							}}
 							placeholder="AIza..."
 							autoComplete="off"
-							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+							className="w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						/>
 						<div className="flex flex-wrap items-center gap-3">
 							<Button
@@ -419,7 +419,7 @@ export function SettingsPage() {
 										event.target.value as TtsReadAloudMode,
 									)
 								}}
-								className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+								className="w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 							>
 								<option value="never">Never</option>
 								<option value="after_speech">When I use the microphone</option>
@@ -438,7 +438,7 @@ export function SettingsPage() {
 									onChange={(event) => {
 										void handleTtsVoiceChange(event.target.value)
 									}}
-									className="min-w-0 flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+									className="min-w-0 flex-1 rounded-lg border border-input bg-secondary px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 								>
 									{GEMINI_TTS_VOICES.map((voice) => (
 										<option key={voice.name} value={voice.name}>

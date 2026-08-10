@@ -156,7 +156,7 @@ export function LibraryPage() {
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
 							placeholder={searchPlaceholder}
-							className="w-full rounded-lg border border-input bg-background py-2 pr-3 pl-9 text-sm outline-none ring-ring focus:ring-2"
+							className="w-full rounded-lg border border-input bg-secondary py-2 pr-3 pl-9 text-sm outline-none ring-ring focus:ring-2"
 						/>
 					</div>
 				) : null}
@@ -288,7 +288,7 @@ function DocumentsSection({ query }: { query: string }) {
 												setRenamingId(null)
 											}
 										}}
-										className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm outline-none"
+										className="w-full rounded-md border border-input bg-secondary px-2 py-1 text-sm outline-none"
 									/>
 								) : (
 									<Link
@@ -482,7 +482,7 @@ function MediaCard({
 									onCancelRename()
 								}
 							}}
-							className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm outline-none"
+							className="w-full rounded-md border border-input bg-secondary px-2 py-1 text-sm outline-none"
 						/>
 					) : (
 						<h3 className="truncate font-medium">{item.title}</h3>
