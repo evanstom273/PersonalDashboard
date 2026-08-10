@@ -21,6 +21,7 @@ import {
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { MediaLightbox } from '@/components/media/MediaLightbox'
 import { useDocuments } from '@/hooks/useDocuments'
 import { useLibraryMedia } from '@/hooks/useLibraryMedia'
 import {
@@ -101,7 +102,7 @@ export function LibraryPage() {
 			</header>
 
 			<ScrollArea className="min-h-0 flex-1">
-				<div className="px-4 py-4 md:px-6">
+				<div className="min-w-0 px-4 py-4 md:px-6">
 					{activeTab === 'documents' ? (
 						<DocumentsSection query={query} />
 					) : (
@@ -381,7 +382,7 @@ function MediaCard({
 	onDelete: () => void
 }) {
 	return (
-		<div className="rounded-xl border border-border bg-card p-4">
+		<div className="min-w-0 rounded-xl border border-border bg-card p-4">
 			<div className="flex flex-wrap items-start justify-between gap-3">
 				<div className="min-w-0 flex-1">
 					{isRenaming ? (
@@ -441,22 +442,24 @@ function MediaCard({
 				</div>
 			</div>
 
-			<div className="mt-4">
+			<div className="mt-4 min-w-0 overflow-hidden">
 				{item.kind === 'image' ? (
-					<img
+					<MediaLightbox
+						kind="image"
 						src={item.dataUrl}
 						alt={item.title}
-						className="max-h-64 w-full rounded-lg object-contain ring-1 ring-border"
+						title={item.title}
 					/>
 				) : null}
 				{item.kind === 'audio' ? (
-					<audio controls src={item.dataUrl} className="w-full" />
+					<audio controls src={item.dataUrl} className="w-full max-w-full" />
 				) : null}
 				{item.kind === 'video' ? (
-					<video
-						controls
+					<MediaLightbox
+						kind="video"
 						src={item.dataUrl}
-						className="max-h-64 w-full rounded-lg ring-1 ring-border"
+						alt={item.title}
+						title={item.title}
 					/>
 				) : null}
 			</div>
