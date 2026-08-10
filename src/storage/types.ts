@@ -2,15 +2,30 @@ export type StoreName =
 	| 'preferences'
 	| 'conversations'
 	| 'cache'
+	| 'documents'
 
 export interface UserPreferences {
 	geminiApiKey: string
 	defaultModelId: string
+	userName: string
+	aiName: string
+	aiBehaviorInstructions: string
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
 	geminiApiKey: '',
 	defaultModelId: 'gemini-3.6-flash',
+	userName: '',
+	aiName: '',
+	aiBehaviorInstructions: '',
+}
+
+export interface DocumentRecord {
+	id: string
+	title: string
+	content: string
+	createdAt: number
+	updatedAt: number
 }
 
 export interface ConversationRecord {
@@ -27,7 +42,13 @@ export interface StoredMessage {
 	role: 'user' | 'assistant'
 	content: string
 	media?: MessageMedia[]
+	pendingDeleteConfirmation?: PendingDeleteConfirmation
 	createdAt: number
+}
+
+export interface PendingDeleteConfirmation {
+	documentId: string
+	documentTitle: string
 }
 
 export interface MessageMedia {

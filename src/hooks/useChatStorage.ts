@@ -36,7 +36,10 @@ export function usePreferences() {
 				PREFERENCES_KEY,
 			)
 			if (!cancelled) {
-				setPreferencesState(stored ?? DEFAULT_PREFERENCES)
+				setPreferencesState({
+					...DEFAULT_PREFERENCES,
+					...stored,
+				})
 				setIsLoading(false)
 			}
 		}
@@ -137,10 +140,35 @@ export function useMainConversation(defaultModelId: string) {
 		[ensureConversation, persistConversation],
 	)
 
+	const updateMessage = useCallback(
+		async (
+			messageId: string,
+			patch: Partial<StoredMessage>,
+		): Promise<ConversationRecord> => {
+			const existing =
+				(await getValue<ConversationRecord>(
+					'conversations',
+					MAIN_CONVERSATION_ID,
+				)) ?? (await ensureConversation())
+
+			const updated: ConversationRecord = {
+				...existing,
+				messages: existing.messages.map((message) =>
+					message.id === messageId ? { ...message, ...patch } : message,
+				),
+				updatedAt: Date.now(),
+			}
+			await persistConversation(updated)
+			return updated
+		},
+		[ensureConversation, persistConversation],
+	)
+
 	return {
 		conversation,
 		isLoading,
 		appendMessages,
+		updateMessage,
 		ensureConversation,
 	}
 }

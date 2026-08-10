@@ -5,10 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { AppNav } from '@/layout/AppNav'
 import { usePreferencesContext } from '@/providers/ChatProvider'
+import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
+import { getModelById } from '@/services/gemini/models'
 
 export function AppShell() {
 	const { preferences } = usePreferencesContext()
 	const [drawerOpen, setDrawerOpen] = useState(false)
+	const aiName = getConfiguredAiName(preferences)
+	const selectedModel = getModelById(preferences.defaultModelId)
 
 	return (
 		<div className="flex h-dvh max-h-dvh overflow-hidden bg-background">
@@ -33,11 +37,9 @@ export function AppShell() {
 						<Menu className="h-4 w-4" />
 					</Button>
 					<div>
-						<p className="text-sm font-semibold">Gemini Chat</p>
+						<p className="text-sm font-semibold">{aiName}</p>
 						<p className="text-xs text-muted-foreground">
-							{preferences.defaultModelId === 'gemini-3.1-pro-preview'
-								? 'Gemini 3.1 Pro'
-								: 'Gemini 3.6 Flash'}
+							{selectedModel?.name ?? 'Chat model'}
 						</p>
 					</div>
 				</header>
