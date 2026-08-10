@@ -20,7 +20,7 @@ import {
 	Plus,
 	Trash2,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
@@ -65,9 +65,6 @@ export function ProjectBoardPage() {
 	const [project, setProject] = useState<ProjectRecord | null>(null)
 	const [isLoading, setIsLoading] = useState(true)
 	const [editingTask, setEditingTask] = useState<ProjectTaskRecord | null>(null)
-	const [creatingStatus, setCreatingStatus] = useState<ProjectTaskStatus | null>(
-		null,
-	)
 	const [collapsed, setCollapsed] =
 		useState<Record<ProjectTaskStatus, boolean>>(DEFAULT_COLLAPSED)
 	const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
@@ -157,6 +154,21 @@ export function ProjectBoardPage() {
 		void changeTaskStatus(project.id, taskId, nextStatus)
 	}
 
+	async function handleAddTask(status: ProjectTaskStatus): Promise<void> {
+		if (!project) {
+			return
+		}
+
+		const task = await addTask(project.id, {
+			title: 'New task',
+			status,
+		})
+
+		if (task) {
+			setEditingTask(task)
+		}
+	}
+
 	function toggleColumn(status: ProjectTaskStatus): void {
 		setCollapsed((current) => ({
 			...current,
@@ -233,7 +245,9 @@ export function ProjectBoardPage() {
 								tasks={columns[column.id]}
 								isCollapsed={collapsed[column.id]}
 								onToggle={() => toggleColumn(column.id)}
-								onAddTask={() => setCreatingStatus(column.id)}
+								onAddTask={() => {
+									void handleAddTask(column.id)
+								}}
 								onEditTask={setEditingTask}
 								onMoveTask={(task, status) => {
 									void changeTaskStatus(project.id, task.id, status)
@@ -259,35 +273,19 @@ export function ProjectBoardPage() {
 			</DndContext>
 
 			<TaskEditorDialog
-				open={creatingStatus !== null}
-				status={creatingStatus ?? 'todo'}
-				onOpenChange={(open) => {
-					if (!open) {
-						setCreatingStatus(null)
-					}
-				}}
-				onSave={async (input) => {
-					await addTask(project.id, { ...input, status: creatingStatus ?? 'todo' })
-					setCreatingStatus(null)
-				}}
-			/>
-
-			<TaskEditorDialog
 				open={editingTask !== null}
 				task={editingTask ?? undefined}
-				status={editingTask?.status ?? 'todo'}
 				onOpenChange={(open) => {
 					if (!open) {
 						setEditingTask(null)
 					}
 				}}
-				onSave={async (input) => {
-					if (!editingTask) {
+				onPersist={async (input) => {
+					if (!editingTask || !project) {
 						return
 					}
 
 					await saveTask(project.id, editingTask.id, input)
-					setEditingTask(null)
 				}}
 			/>
 		</div>
@@ -546,15 +544,13 @@ function TaskCardPreview({
 function TaskEditorDialog({
 	open,
 	task,
-	status,
 	onOpenChange,
-	onSave,
+	onPersist,
 }: {
 	open: boolean
 	task?: ProjectTaskRecord
-	status: ProjectTaskStatus
 	onOpenChange: (open: boolean) => void
-	onSave: (input: {
+	onPersist: (input: {
 		title: string
 		note?: string
 		status?: ProjectTaskStatus
@@ -566,72 +562,162 @@ function TaskEditorDialog({
 	const { documents } = useDocuments()
 	const [title, setTitle] = useState('')
 	const [note, setNote] = useState('')
-	const [taskStatus, setTaskStatus] = useState<ProjectTaskStatus>(status)
+	const [taskStatus, setTaskStatus] = useState<ProjectTaskStatus>('todo')
 	const [checklist, setChecklist] = useState<ProjectChecklistItem[]>([])
 	const [newChecklistItem, setNewChecklistItem] = useState('')
 	const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([])
 	const [reminderId, setReminderId] = useState('')
 	const [formError, setFormError] = useState<string | null>(null)
-	const [isSaving, setIsSaving] = useState(false)
+	const skipNextPersistRef = useRef(false)
+	const persistTimerRef = useRef<number | null>(null)
 
 	useEffect(() => {
-		if (!open) {
+		if (!open || !task) {
 			return
 		}
 
-		setTitle(task?.title ?? '')
-		setNote(task?.note ?? '')
-		setTaskStatus(task?.status ?? status)
-		setChecklist(task?.checklist ?? [])
-		setSelectedDocumentIds(task?.documentIds ?? [])
-		setReminderId(task?.reminderId ?? '')
+		skipNextPersistRef.current = true
+		setTitle(task.title)
+		setNote(task.note ?? '')
+		setTaskStatus(task.status)
+		setChecklist(task.checklist)
+		setSelectedDocumentIds(task.documentIds)
+		setReminderId(task.reminderId ?? '')
 		setNewChecklistItem('')
 		setFormError(null)
-	}, [open, status, task])
+	}, [open, task])
 
-	async function handleSubmit(event: FormEvent): Promise<void> {
-		event.preventDefault()
-		setFormError(null)
+	const persistNow = useCallback(
+		async (overrides?: Partial<{
+			title: string
+			note: string
+			taskStatus: ProjectTaskStatus
+			checklist: ProjectChecklistItem[]
+			selectedDocumentIds: string[]
+			reminderId: string
+		}>) => {
+			const nextTitle = (overrides?.title ?? title).trim()
+			if (!nextTitle) {
+				setFormError('Title is required.')
+				return
+			}
 
-		if (!title.trim()) {
-			setFormError('Title is required.')
+			setFormError(null)
+
+			try {
+				await onPersist({
+					title: nextTitle,
+					note: (overrides?.note ?? note).trim() || undefined,
+					status: overrides?.taskStatus ?? taskStatus,
+					checklist: overrides?.checklist ?? checklist,
+					documentIds: overrides?.selectedDocumentIds ?? selectedDocumentIds,
+					reminderId: (overrides?.reminderId ?? reminderId).trim() || undefined,
+				})
+			} catch (error) {
+				setFormError(
+					error instanceof Error ? error.message : 'Could not save task.',
+				)
+			}
+		},
+		[
+			checklist,
+			note,
+			onPersist,
+			reminderId,
+			selectedDocumentIds,
+			taskStatus,
+			title,
+		],
+	)
+
+	const schedulePersist = useCallback(
+		(overrides?: Parameters<typeof persistNow>[0]) => {
+			if (persistTimerRef.current !== null) {
+				window.clearTimeout(persistTimerRef.current)
+			}
+
+			persistTimerRef.current = window.setTimeout(() => {
+				persistTimerRef.current = null
+				void persistNow(overrides)
+			}, 350)
+		},
+		[persistNow],
+	)
+
+	useEffect(() => {
+		if (!open || !task) {
 			return
 		}
 
-		setIsSaving(true)
-		try {
-			await onSave({
-				title: title.trim(),
-				note: note.trim() || undefined,
-				status: taskStatus,
-				checklist,
-				documentIds: selectedDocumentIds,
-				reminderId: reminderId.trim() || undefined,
-			})
-		} catch (error) {
-			setFormError(
-				error instanceof Error ? error.message : 'Could not save task.',
-			)
-		} finally {
-			setIsSaving(false)
+		if (skipNextPersistRef.current) {
+			skipNextPersistRef.current = false
+			return
 		}
-	}
+
+		schedulePersist()
+
+		return () => {
+			if (persistTimerRef.current !== null) {
+				window.clearTimeout(persistTimerRef.current)
+				persistTimerRef.current = null
+			}
+		}
+	}, [
+		checklist,
+		note,
+		open,
+		reminderId,
+		schedulePersist,
+		selectedDocumentIds,
+		task,
+		taskStatus,
+		title,
+	])
 
 	function toggleDocument(documentId: string): void {
-		setSelectedDocumentIds((current) =>
-			current.includes(documentId)
+		setSelectedDocumentIds((current) => {
+			const next = current.includes(documentId)
 				? current.filter((id) => id !== documentId)
-				: [...current, documentId],
-		)
+				: [...current, documentId]
+
+			if (persistTimerRef.current !== null) {
+				window.clearTimeout(persistTimerRef.current)
+				persistTimerRef.current = null
+			}
+
+			void persistNow({ selectedDocumentIds: next })
+			return next
+		})
+	}
+
+	function addChecklistItem(): void {
+		const label = newChecklistItem.trim()
+		if (!label) {
+			return
+		}
+
+		const nextChecklist = [
+			...checklist,
+			{ id: crypto.randomUUID(), label, checked: false },
+		]
+		setChecklist(nextChecklist)
+		setNewChecklistItem('')
+
+		if (persistTimerRef.current !== null) {
+			window.clearTimeout(persistTimerRef.current)
+			persistTimerRef.current = null
+		}
+
+		void persistNow({ checklist: nextChecklist })
 	}
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
 				<DialogHeader>
-					<DialogTitle>{task ? 'Edit task' : 'New task'}</DialogTitle>
+					<DialogTitle>Edit task</DialogTitle>
 				</DialogHeader>
-				<form onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
+				<div className="space-y-4">
 					<div className="space-y-2">
 						<label htmlFor="task-title" className="text-sm font-medium">
 							Title
@@ -650,9 +736,17 @@ function TaskEditorDialog({
 						<select
 							id="task-status"
 							value={taskStatus}
-							onChange={(event) =>
-								setTaskStatus(event.target.value as ProjectTaskStatus)
-							}
+							onChange={(event) => {
+								const nextStatus = event.target.value as ProjectTaskStatus
+								setTaskStatus(nextStatus)
+
+								if (persistTimerRef.current !== null) {
+									window.clearTimeout(persistTimerRef.current)
+									persistTimerRef.current = null
+								}
+
+								void persistNow({ taskStatus: nextStatus })
+							}}
 							className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						>
 							{COLUMNS.map((column) => (
@@ -686,13 +780,19 @@ function TaskEditorDialog({
 										type="checkbox"
 										checked={item.checked}
 										onChange={(event) => {
-											setChecklist((current) =>
-												current.map((entry) =>
-													entry.id === item.id
-														? { ...entry, checked: event.target.checked }
-														: entry,
-												),
+											const nextChecklist = checklist.map((entry) =>
+												entry.id === item.id
+													? { ...entry, checked: event.target.checked }
+													: entry,
 											)
+											setChecklist(nextChecklist)
+
+											if (persistTimerRef.current !== null) {
+												window.clearTimeout(persistTimerRef.current)
+												persistTimerRef.current = null
+											}
+
+											void persistNow({ checklist: nextChecklist })
 										}}
 									/>
 									<span className={cn(item.checked && 'line-through opacity-70')}>
@@ -702,9 +802,17 @@ function TaskEditorDialog({
 										type="button"
 										className="ml-auto text-xs text-destructive"
 										onClick={() => {
-											setChecklist((current) =>
-												current.filter((entry) => entry.id !== item.id),
+											const nextChecklist = checklist.filter(
+												(entry) => entry.id !== item.id,
 											)
+											setChecklist(nextChecklist)
+
+											if (persistTimerRef.current !== null) {
+												window.clearTimeout(persistTimerRef.current)
+												persistTimerRef.current = null
+											}
+
+											void persistNow({ checklist: nextChecklist })
 										}}
 									>
 										Remove
@@ -716,25 +824,16 @@ function TaskEditorDialog({
 							<input
 								value={newChecklistItem}
 								onChange={(event) => setNewChecklistItem(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key === 'Enter') {
+										event.preventDefault()
+										addChecklistItem()
+									}
+								}}
 								placeholder="Add checklist item"
 								className="min-w-0 flex-1 rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 							/>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => {
-									const label = newChecklistItem.trim()
-									if (!label) {
-										return
-									}
-
-									setChecklist((current) => [
-										...current,
-										{ id: crypto.randomUUID(), label, checked: false },
-									])
-									setNewChecklistItem('')
-								}}
-							>
+							<Button type="button" variant="outline" onClick={addChecklistItem}>
 								Add
 							</Button>
 						</div>
@@ -775,15 +874,12 @@ function TaskEditorDialog({
 					{formError ? (
 						<p className="text-sm text-destructive">{formError}</p>
 					) : null}
-					<div className="flex justify-end gap-2">
-						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={isSaving}>
-							{isSaving ? 'Saving…' : 'Save task'}
+					<div className="flex justify-end">
+						<Button type="button" onClick={() => onOpenChange(false)}>
+							Done
 						</Button>
 					</div>
-				</form>
+				</div>
 			</DialogContent>
 		</Dialog>
 	)
