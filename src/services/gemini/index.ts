@@ -17,6 +17,7 @@ export async function runModelGeneration(
 	modelId: string,
 	prompt: string,
 	history: ChatMessageInput[],
+	allowMatureContent = true,
 ): Promise<GenerationResult> {
 	const model = getModelById(modelId)
 	if (!model) {
@@ -25,14 +26,16 @@ export async function runModelGeneration(
 
 	switch (model.category) {
 		case 'chat':
-			return generateChatResponse(apiKey, modelId, [
-				...history,
-				{ role: 'user', content: prompt },
-			])
+			return generateChatResponse(
+				apiKey,
+				modelId,
+				[...history, { role: 'user', content: prompt }],
+				allowMatureContent,
+			)
 		case 'image':
-			return generateImage(apiKey, modelId, prompt)
+			return generateImage(apiKey, modelId, prompt, allowMatureContent)
 		case 'music':
-			return generateMusic(apiKey, modelId, prompt)
+			return generateMusic(apiKey, modelId, prompt, allowMatureContent)
 		default: {
 			const exhaustiveCheck: never = model.category
 			throw new Error(`Unsupported model category: ${exhaustiveCheck}`)

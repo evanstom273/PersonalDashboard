@@ -1,4 +1,5 @@
 import { geminiFetch } from '@/services/gemini/client'
+import { applySafetySettingsToRequestBody } from '@/services/gemini/safetySettings'
 import { getConfiguredUserName } from '@/services/gemini/systemInstruction'
 import {
 	addMemoryEntries,
@@ -114,17 +115,22 @@ async function extractMemoryFromBatch(
 		`/models/${modelId}:generateContent`,
 		{
 			method: 'POST',
-			body: JSON.stringify({
-				contents: [
+			body: JSON.stringify(
+				applySafetySettingsToRequestBody(
 					{
-						role: 'user',
-						parts: [{ text: prompt }],
+						contents: [
+							{
+								role: 'user',
+								parts: [{ text: prompt }],
+							},
+						],
+						generationConfig: {
+							temperature: 0.2,
+						},
 					},
-				],
-				generationConfig: {
-					temperature: 0.2,
-				},
-			}),
+					preferences.allowMatureContent ?? true,
+				),
+			),
 		},
 	)
 

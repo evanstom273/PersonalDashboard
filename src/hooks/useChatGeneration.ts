@@ -221,6 +221,7 @@ export function useChatGeneration({
 						resolved.modelId,
 						resolved.prompt,
 						history,
+						preferences.allowMatureContent ?? true,
 					)
 					const modelUsed = getModelById(resolved.modelId)
 					assistantMedia = result.media.length > 0 ? result.media : undefined

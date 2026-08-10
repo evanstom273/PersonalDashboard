@@ -23,6 +23,20 @@ export function buildSystemInstruction(preferences: UserPreferences): string {
 		behavior
 			? behavior
 			: 'Be helpful, clear, and accurate. Match the user\'s tone when appropriate.',
+	]
+
+	if (preferences.allowMatureContent ?? true) {
+		sections.push(
+			[
+				'Language and mature content:',
+				'- The user is an adult. Match their tone, including profanity and strong language when they use it or ask for it.',
+				'- Do not sanitize their messages, refuse casual swearing, or lecture about language unless they ask.',
+				'- You may swear and discuss mature themes when it fits the conversation. Avoid a filtered or corporate tone.',
+			].join('\n'),
+		)
+	}
+
+	sections.push(
 		[
 			'Application capabilities you must respect:',
 			'- This app uses one continuous conversation.',
@@ -40,7 +54,7 @@ export function buildSystemInstruction(preferences: UserPreferences): string {
 			'- Deleting a document requires user confirmation in the app UI.',
 			'- Format replies with markdown when helpful: use blockquotes for quoted document excerpts, fenced code blocks for code, and headings for longer structured answers.',
 		].join('\n'),
-	]
+	)
 
 	return sections.join('\n\n')
 }

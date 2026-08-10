@@ -6,6 +6,7 @@ import {
 	type GroundingMetadata,
 } from '@/services/gemini/grounding'
 import type { ChatMessageInput } from '@/services/gemini/generate'
+import { applySafetySettingsToRequestBody } from '@/services/gemini/safetySettings'
 import { geminiStreamGenerateContent } from '@/services/gemini/stream'
 import type { MessageMedia, PendingDeleteConfirmation, UserPreferences } from '@/storage/types'
 import type { MessageDocumentLink } from '@/storage/types'
@@ -72,13 +73,16 @@ export async function generateChatWithTools(
 			throw new DOMException('Generation aborted', 'AbortError')
 		}
 
-		const requestBody: Record<string, unknown> = {
-			systemInstruction: {
-				parts: [{ text: await buildFullSystemInstruction(preferences) }],
+		const requestBody: Record<string, unknown> = applySafetySettingsToRequestBody(
+			{
+				systemInstruction: {
+					parts: [{ text: await buildFullSystemInstruction(preferences) }],
+				},
+				tools: buildChatTools(useWebSearch),
+				contents,
 			},
-			tools: buildChatTools(useWebSearch),
-			contents,
-		}
+			preferences.allowMatureContent ?? true,
+		)
 
 		if (useWebSearch) {
 			requestBody.toolConfig = {
