@@ -155,8 +155,13 @@ export function DocumentEditor({
 
 	return (
 		<div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', className)}>
+			<div className="min-h-0 flex-1 overflow-y-auto">
+				<EditorContent editor={editor} className="h-full" />
+			</div>
+
 			{editable ? (
-				<div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-card/40 px-2 py-2 md:px-4">
+				<div className="document-editor-toolbar shrink-0 border-t border-border bg-card/80 px-2 py-2 backdrop-blur-md md:px-4">
+					<div className="flex items-center gap-1 overflow-x-auto">
 					<ToolbarButton
 						label="Bold"
 						active={editor.isActive('bold')}
@@ -180,7 +185,7 @@ export function DocumentEditor({
 						>
 							<Heading className="h-4 w-4" />
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="start">
+						<DropdownMenuContent align="start" side="top">
 							<DropdownMenuLabel>Heading</DropdownMenuLabel>
 							<DropdownMenuItem
 								onSelect={() =>
@@ -355,7 +360,7 @@ export function DocumentEditor({
 									<Sparkles className="h-4 w-4 text-primary" />
 									<span className="text-xs font-medium">AI</span>
 								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end">
+								<DropdownMenuContent align="end" side="top">
 									<DropdownMenuLabel>AI writing</DropdownMenuLabel>
 									<DropdownMenuItem
 										disabled={!hasSelection}
@@ -395,12 +400,9 @@ export function DocumentEditor({
 							</DropdownMenu>
 						</>
 					) : null}
+					</div>
 				</div>
 			) : null}
-
-			<div className="min-h-0 flex-1 overflow-y-auto">
-				<EditorContent editor={editor} className="h-full" />
-			</div>
 
 			{showAi ? (
 				<>
@@ -455,7 +457,7 @@ function ColorPickerMenu({
 			>
 				{icon}
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start" className="min-w-[10rem]">
+			<DropdownMenuContent align="start" side="top" className="min-w-[10rem]">
 				<DropdownMenuLabel>{label}</DropdownMenuLabel>
 				{colors.map((color) => (
 					<DropdownMenuItem key={color.label} onSelect={() => onSelect(color.value)}>

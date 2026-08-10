@@ -412,6 +412,15 @@ body {
 	pointer-events: none;
 }
 
+.document-editor-toolbar {
+	-webkit-overflow-scrolling: touch;
+	scrollbar-width: none;
+}
+
+.document-editor-toolbar::-webkit-scrollbar {
+	display: none;
+}
+
 .chat-message-content {
 	user-select: text;
 	-webkit-user-select: text;
