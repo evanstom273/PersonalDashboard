@@ -38,3 +38,41 @@ export function applySafetySettingsToRequestBody(
 		safetySettings: getPermissiveSafetySettings(),
 	}
 }
+
+export type PersonGenerationSetting = 'ALLOW_ADULT'
+
+export function getPermissiveImageConfig(): {
+	personGeneration: PersonGenerationSetting
+} {
+	return { personGeneration: 'ALLOW_ADULT' }
+}
+
+export function applyImageGenerationRequestBody(
+	body: Record<string, unknown>,
+	allowMatureContent: boolean,
+): Record<string, unknown> {
+	const withSafety = applySafetySettingsToRequestBody(body, allowMatureContent)
+	if (!allowMatureContent) {
+		return withSafety
+	}
+
+	const generationConfig = (withSafety.generationConfig ?? {}) as Record<
+		string,
+		unknown
+	>
+	const imageConfig = (generationConfig.imageConfig ?? {}) as Record<
+		string,
+		unknown
+	>
+
+	return {
+		...withSafety,
+		generationConfig: {
+			...generationConfig,
+			imageConfig: {
+				...imageConfig,
+				...getPermissiveImageConfig(),
+			},
+		},
+	}
+}

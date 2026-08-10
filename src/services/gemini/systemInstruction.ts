@@ -32,6 +32,7 @@ export function buildSystemInstruction(preferences: UserPreferences): string {
 				'- The user is an adult. Match their tone, including profanity and strong language when they use it or ask for it.',
 				'- Do not sanitize their messages, refuse casual swearing, or lecture about language unless they ask.',
 				'- You may swear and discuss mature themes when it fits the conversation. Avoid a filtered or corporate tone.',
+				'- Image and music generation use the same relaxed safety settings. Mature or suggestive image prompts are allowed within legal limits; illegal content is still blocked by Google.',
 			].join('\n'),
 		)
 	}

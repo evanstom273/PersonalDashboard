@@ -212,11 +212,13 @@ export function SettingsPage() {
 								className="mt-0.5"
 							/>
 							<span>
-								<span className="block font-medium">Allow mature language</span>
+								<span className="block font-medium">Allow mature content</span>
 								<span className="mt-1 block text-muted-foreground">
-									Lets the assistant match your tone — including swearing and
-									mature themes — and relaxes Gemini&apos;s default content
-									filters. Turn off if you want stricter filtering.
+									Lets chat match your tone (including swearing), relaxes
+									Gemini&apos;s adjustable filters for chat, image, and music
+									generation, and allows adult people in generated images.
+									Illegal content (e.g. CSAM) is always blocked by Google. Turn
+									off for stricter filtering.
 								</span>
 							</span>
 						</label>

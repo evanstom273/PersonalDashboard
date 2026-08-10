@@ -1,5 +1,8 @@
 import { geminiFetch, toDataUrl } from '@/services/gemini/client'
-import { applySafetySettingsToRequestBody } from '@/services/gemini/safetySettings'
+import {
+	applyImageGenerationRequestBody,
+	applySafetySettingsToRequestBody,
+} from '@/services/gemini/safetySettings'
 import type { MessageMedia } from '@/storage/types'
 
 export interface ChatMessageInput {
@@ -110,7 +113,7 @@ export async function generateImage(
 		{
 			method: 'POST',
 			body: JSON.stringify(
-				applySafetySettingsToRequestBody(
+				applyImageGenerationRequestBody(
 					{
 						contents: [
 							{
@@ -133,14 +136,14 @@ export async function generateImage(
 	if (parsed.media.length === 0) {
 		const finishReason = response.candidates?.[0]?.finishReason
 		const blockReason = response.promptFeedback?.blockReason
-		const detail = finishReason
-			? `Finish reason: ${finishReason}.`
-			: blockReason
-				? `Blocked: ${blockReason}.`
+		const detail = blockReason
+			? `Blocked by Gemini: ${blockReason}. Illegal content (e.g. CSAM) is always blocked; some mature prompts may still be rejected.`
+			: finishReason
+				? `Finish reason: ${finishReason}.`
 				: 'The image model returned text only.'
 
 		throw new Error(
-			`Image generation did not return a file. ${detail} Start your message with "generate an image of…" and confirm your image model in the + menu.`,
+			`Image generation did not return a file. ${detail} Confirm your image model in the + menu and check Settings → Allow mature content.`,
 		)
 	}
 
