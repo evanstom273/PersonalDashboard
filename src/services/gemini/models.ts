@@ -1,4 +1,4 @@
-export type ModelCategory = 'chat' | 'image' | 'music' | 'video'
+export type ModelCategory = 'chat' | 'image' | 'music'
 
 export interface GeminiModelDefinition {
 	id: string
@@ -50,18 +50,6 @@ export const GEMINI_MODELS: GeminiModelDefinition[] = [
 		description: 'Short musical clips up to 30 seconds',
 		category: 'music',
 	},
-	{
-		id: 'veo-3.1-generate-preview',
-		name: 'Veo 3.1',
-		description: 'Cinematic video generation with synced audio',
-		category: 'video',
-	},
-	{
-		id: 'veo-3.1-lite-generate-preview',
-		name: 'Veo 3.1 Lite',
-		description: 'Efficient video generation and editing',
-		category: 'video',
-	},
 ]
 
 const modelMap = new Map(GEMINI_MODELS.map((model) => [model.id, model]))
@@ -80,5 +68,4 @@ export const MODEL_CATEGORY_LABELS: Record<ModelCategory, string> = {
 	chat: 'Chat',
 	image: 'Image',
 	music: 'Music',
-	video: 'Video',
 }

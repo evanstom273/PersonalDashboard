@@ -1,4 +1,4 @@
-import { Bot, ExternalLink, FileText, Loader2, Music, User, Video } from 'lucide-react'
+import { Bot, ExternalLink, FileText, Loader2, Music, User } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -51,8 +51,7 @@ export function ChatMessages({
 					<p className="text-sm text-muted-foreground">
 						One continuous thread with {aiName}. Switch between Gemini 3.6
 						Flash and 3.1 Pro, ask for document help, or try phrases like
-						&quot;generate an image of…&quot;, &quot;generate music&quot;, or
-						&quot;create a video&quot;.
+						&quot;generate an image of…&quot; or &quot;generate music&quot;.
 					</p>
 				</div>
 			</div>
@@ -155,7 +154,12 @@ function MessageRow({
 						)}
 					>
 						{showMediaFirst
-							? message.media?.map((media, index) => (
+							? message.media
+									?.filter(
+										(item): item is Extract<typeof item, { type: 'image' | 'audio' }> =>
+											item.type === 'image' || item.type === 'audio',
+									)
+									.map((media, index) => (
 									<MediaPreview
 										key={`${message.id}-media-${index}`}
 										media={media}
@@ -189,7 +193,12 @@ function MessageRow({
 						</div>
 
 						{!showMediaFirst
-							? message.media?.map((media, index) => (
+							? message.media
+									?.filter(
+										(item): item is Extract<typeof item, { type: 'image' | 'audio' }> =>
+											item.type === 'image' || item.type === 'audio',
+									)
+									.map((media, index) => (
 									<MediaPreview
 										key={`${message.id}-media-${index}`}
 										media={media}
@@ -312,9 +321,8 @@ function MediaPreview({
 	media: NonNullable<StoredMessage['media']>[number]
 	className?: string
 }) {
-	const label =
-		media.type === 'image' ? 'Image' : media.type === 'audio' ? 'Music' : 'Video'
-	const Icon = media.type === 'audio' ? Music : media.type === 'video' ? Video : null
+	const label = media.type === 'image' ? 'Image' : 'Music'
+	const Icon = media.type === 'audio' ? Music : null
 
 	return (
 		<div className={cn('min-w-0 overflow-hidden rounded-xl ring-1 ring-border', className)}>
@@ -325,20 +333,12 @@ function MediaPreview({
 			<div className="min-w-0 overflow-hidden bg-background p-2">
 				{media.type === 'image' ? (
 					<MediaLightbox
-						kind="image"
 						src={media.dataUrl}
 						alt="Generated image"
 						className="ring-0"
 					/>
-				) : media.type === 'audio' ? (
-					<audio controls src={media.dataUrl} className="w-full max-w-full" />
 				) : (
-					<MediaLightbox
-						kind="video"
-						src={media.dataUrl}
-						alt="Generated video"
-						className="ring-0"
-					/>
+					<audio controls src={media.dataUrl} className="w-full max-w-full" />
 				)}
 			</div>
 		</div>

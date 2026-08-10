@@ -18,13 +18,7 @@ export const MUSIC_MODEL_IDS = [
 	'lyria-3-clip-preview',
 ] as const
 
-export const VIDEO_MODEL_IDS = [
-	'veo-3.1-generate-preview',
-	'veo-3.1-lite-generate-preview',
-] as const
-
 export const DEFAULT_IMAGE_MODEL_ID = 'gemini-3.1-flash-image'
 export const DEFAULT_MUSIC_MODEL_ID = 'lyria-3-pro-preview'
-export const DEFAULT_VIDEO_MODEL_ID = 'veo-3.1-lite-generate-preview'
 
-export type GenerationIntent = 'image' | 'music' | 'video'
+export type GenerationIntent = 'image' | 'music'

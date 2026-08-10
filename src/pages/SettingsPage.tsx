@@ -394,13 +394,13 @@ export function SettingsPage() {
 					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
 						<h2 className="text-lg font-medium">Available models</h2>
 						<p className="text-sm text-muted-foreground">
-							Use the + menu in chat to pick your default chat, image, music, and
-							video models. Say things like &quot;generate an image of…&quot; or
-							&quot;create a video&quot; and the app uses your chosen model for
+							Use the + menu in chat to pick your default chat, image, and music
+							models. Say things like &quot;generate an image of…&quot; or
+							&quot;generate music&quot; and the app uses your chosen model for
 							that type.
 						</p>
 						<div className="space-y-4">
-							{(['chat', 'image', 'music', 'video'] as const).map((category) => (
+							{(['chat', 'image', 'music'] as const).map((category) => (
 								<div key={category}>
 									<h3 className="mb-2 text-sm font-medium text-muted-foreground">
 										{MODEL_CATEGORY_LABELS[category]}

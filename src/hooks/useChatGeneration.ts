@@ -99,7 +99,11 @@ export function useChatGeneration({
 				.map((message) => ({
 					role: message.role,
 					content: message.content,
-					mediaTypes: message.media?.map((item) => item.type),
+					mediaTypes: message.media
+						?.map((item) => item.type)
+						.filter((type): type is 'image' | 'audio' =>
+							type === 'image' || type === 'audio',
+						),
 				}))
 
 			const resolved = resolvePromptIntent(
@@ -110,7 +114,7 @@ export function useChatGeneration({
 			)
 
 			if (resolved.intent !== 'chat' && !text.trim()) {
-				setError('Add a prompt for image, music, or video generation.')
+				setError('Add a prompt for image or music generation.')
 				setIsGenerating(false)
 				return
 			}
@@ -227,7 +231,7 @@ export function useChatGeneration({
 						assistantText =
 							trimmedText &&
 							!/^generation completed\.?$/i.test(trimmedText) &&
-							!/^generated (image|video|music):?\.?$/i.test(trimmedText)
+							!/^generated (image|music):?\.?$/i.test(trimmedText)
 								? trimmedText
 								: `${intentLabel} generated with ${modelUsed?.name ?? resolved.modelId}.`
 					} else {

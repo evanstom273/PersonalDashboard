@@ -127,8 +127,7 @@ export function ChatPage() {
 						/>
 					</div>
 					<p className="text-xs text-muted-foreground">
-						Try &quot;generate an image of…&quot;, &quot;generate music&quot;, or
-						&quot;create a video&quot;
+						Try &quot;generate an image of…&quot; or &quot;generate music&quot;
 						{lastIntent ? ` · last: ${lastIntent}` : ''}
 					</p>
 				</div>
@@ -176,7 +175,6 @@ export function ChatPage() {
 				selectedChatModelId={preferences.defaultModelId}
 				selectedImageModelId={preferences.defaultImageModelId}
 				selectedMusicModelId={preferences.defaultMusicModelId}
-				selectedVideoModelId={preferences.defaultVideoModelId}
 				forcedNextIntent={forcedNextIntent}
 				onForceNextIntent={setForcedNextIntent}
 				onWebSearchChange={setWebSearchEnabled}
@@ -188,9 +186,6 @@ export function ChatPage() {
 				}}
 				onMusicModelChange={(modelId) => {
 					void saveModelPreference({ defaultMusicModelId: modelId })
-				}}
-				onVideoModelChange={(modelId) => {
-					void saveModelPreference({ defaultVideoModelId: modelId })
 				}}
 				onSubmit={(payload) => {
 					void handleSubmit(payload)

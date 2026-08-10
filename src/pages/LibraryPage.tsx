@@ -9,7 +9,6 @@ import {
 	Pencil,
 	Search,
 	Trash2,
-	Video,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -41,7 +40,6 @@ const LIBRARY_TABS = [
 	{ id: 'documents', label: 'Documents', icon: FileText },
 	{ id: 'images', label: 'Images', icon: Image },
 	{ id: 'music', label: 'Music', icon: Music },
-	{ id: 'videos', label: 'Videos', icon: Video },
 ] as const
 
 type LibraryTab = (typeof LIBRARY_TABS)[number]['id']
@@ -66,8 +64,8 @@ export function LibraryPage() {
 				<div>
 					<h1 className="text-xl font-semibold md:text-2xl">Library</h1>
 					<p className="mt-1 text-sm text-muted-foreground">
-						Documents, images, music, and videos from uploads and generation.
-						Everything here can be downloaded.
+						Documents, images, and music from uploads and generation. Everything
+						here can be downloaded.
 					</p>
 				</div>
 
@@ -107,14 +105,12 @@ export function LibraryPage() {
 						<DocumentsSection query={query} />
 					) : (
 						<MediaSection
-							kind={activeTab === 'images' ? 'image' : activeTab === 'music' ? 'audio' : 'video'}
+							kind={activeTab === 'images' ? 'image' : 'audio'}
 							query={query}
 							emptyLabel={
 								activeTab === 'images'
 									? 'No images yet. Upload one with + in chat or generate an image.'
-									: activeTab === 'music'
-										? 'No music yet. Generate music in chat to save it here.'
-										: 'No videos yet. Generate a video in chat to save it here.'
+									: 'No music yet. Generate music in chat to save it here.'
 							}
 						/>
 					)}
@@ -445,7 +441,6 @@ function MediaCard({
 			<div className="mt-4 min-w-0 overflow-hidden">
 				{item.kind === 'image' ? (
 					<MediaLightbox
-						kind="image"
 						src={item.dataUrl}
 						alt={item.title}
 						title={item.title}
@@ -453,14 +448,6 @@ function MediaCard({
 				) : null}
 				{item.kind === 'audio' ? (
 					<audio controls src={item.dataUrl} className="w-full max-w-full" />
-				) : null}
-				{item.kind === 'video' ? (
-					<MediaLightbox
-						kind="video"
-						src={item.dataUrl}
-						alt={item.title}
-						title={item.title}
-					/>
 				) : null}
 			</div>
 		</div>
