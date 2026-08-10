@@ -4,6 +4,27 @@ export type StoreName =
 	| 'cache'
 	| 'documents'
 	| 'libraryMedia'
+	| 'memories'
+
+export type MemoryCategory =
+	| 'preference'
+	| 'fact'
+	| 'project'
+	| 'decision'
+	| 'other'
+
+export interface MemoryEntry {
+	id: string
+	content: string
+	category: MemoryCategory
+	archivedFromMessageCount: number
+	createdAt: number
+}
+
+export const MEMORY_ARCHIVE_INTERVAL_OPTIONS = [5, 10, 15, 20] as const
+
+export type MemoryArchiveInterval =
+	(typeof MEMORY_ARCHIVE_INTERVAL_OPTIONS)[number]
 
 export type LibraryMediaKind = 'image' | 'audio' | 'video'
 
@@ -28,6 +49,7 @@ export interface UserPreferences {
 	userName: string
 	aiName: string
 	aiBehaviorInstructions: string
+	memoryArchiveInterval: MemoryArchiveInterval
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -39,6 +61,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	userName: '',
 	aiName: '',
 	aiBehaviorInstructions: '',
+	memoryArchiveInterval: 20,
 }
 
 export interface DocumentRecord {
@@ -61,6 +84,7 @@ export interface ConversationRecord {
 	title: string
 	modelId: string
 	messages: StoredMessage[]
+	memoryArchiveCursor: number
 	createdAt: number
 	updatedAt: number
 }

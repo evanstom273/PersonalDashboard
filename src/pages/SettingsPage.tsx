@@ -1,4 +1,4 @@
-import { ExternalLink, KeyRound, PlugZap, Save, Sparkles, UserRound } from 'lucide-react'
+import { ExternalLink, Brain, KeyRound, PlugZap, Save, Sparkles, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -6,6 +6,10 @@ import { Separator } from '@/components/ui/separator'
 import { usePreferencesContext } from '@/providers/ChatProvider'
 import { validateApiKey } from '@/services/gemini/validate'
 import { GEMINI_MODELS, MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
+import {
+	MEMORY_ARCHIVE_INTERVAL_OPTIONS,
+	type MemoryArchiveInterval,
+} from '@/storage/types'
 
 export function SettingsPage() {
 	const { preferences, savePreferences, isLoading } = usePreferencesContext()
@@ -13,6 +17,8 @@ export function SettingsPage() {
 	const [userName, setUserName] = useState('')
 	const [aiName, setAiName] = useState('')
 	const [aiBehaviorInstructions, setAiBehaviorInstructions] = useState('')
+	const [memoryArchiveInterval, setMemoryArchiveInterval] =
+		useState<MemoryArchiveInterval>(20)
 	const [savedApiKey, setSavedApiKey] = useState(false)
 	const [savedIdentity, setSavedIdentity] = useState(false)
 	const [isSavingApiKey, setIsSavingApiKey] = useState(false)
@@ -27,6 +33,7 @@ export function SettingsPage() {
 			setUserName(preferences.userName)
 			setAiName(preferences.aiName)
 			setAiBehaviorInstructions(preferences.aiBehaviorInstructions)
+			setMemoryArchiveInterval(preferences.memoryArchiveInterval)
 		}
 	}, [isLoading, preferences])
 
@@ -58,6 +65,19 @@ export function SettingsPage() {
 		} finally {
 			setIsSavingIdentity(false)
 		}
+	}
+
+	async function handleMemoryIntervalChange(value: number): Promise<void> {
+		const interval = MEMORY_ARCHIVE_INTERVAL_OPTIONS.includes(
+			value as MemoryArchiveInterval,
+		)
+			? (value as MemoryArchiveInterval)
+			: 20
+		setMemoryArchiveInterval(interval)
+		await savePreferences({
+			...preferences,
+			memoryArchiveInterval: interval,
+		})
 	}
 
 	async function handleValidate(): Promise<void> {
@@ -152,6 +172,52 @@ export function SettingsPage() {
 								<span className="text-sm text-primary">Identity saved</span>
 							) : null}
 						</div>
+					</section>
+
+					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+						<div className="flex items-center gap-2">
+							<Brain className="h-5 w-5 text-primary" />
+							<h2 className="text-lg font-medium">Memory archival</h2>
+						</div>
+						<p className="text-sm text-muted-foreground">
+							After this many new chat messages, the assistant reads the batch and
+							archives durable facts into Memory. Lower values update memory more
+							often; higher values wait for more context per archive pass.
+						</p>
+						<div className="space-y-3">
+							<div className="flex items-center justify-between text-sm">
+								<span className="text-muted-foreground">Archive every</span>
+								<span className="font-medium">
+									{memoryArchiveInterval} messages
+								</span>
+							</div>
+							<input
+								type="range"
+								min={0}
+								max={MEMORY_ARCHIVE_INTERVAL_OPTIONS.length - 1}
+								step={1}
+								value={Math.max(
+									0,
+									MEMORY_ARCHIVE_INTERVAL_OPTIONS.indexOf(
+										memoryArchiveInterval,
+									),
+								)}
+								onChange={(event) => {
+									const index = Number(event.target.value)
+									const next = MEMORY_ARCHIVE_INTERVAL_OPTIONS[index] ?? 20
+									void handleMemoryIntervalChange(next)
+								}}
+								className="w-full accent-primary"
+							/>
+							<div className="flex justify-between text-xs text-muted-foreground">
+								{MEMORY_ARCHIVE_INTERVAL_OPTIONS.map((option) => (
+									<span key={option}>{option}</span>
+								))}
+							</div>
+						</div>
+						<p className="text-xs text-muted-foreground">
+							View archived facts anytime from the Memory tab in the sidebar.
+						</p>
 					</section>
 
 					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
