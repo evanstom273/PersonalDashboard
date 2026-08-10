@@ -340,7 +340,8 @@ body {
 
 .document-editor-content h1,
 .document-editor-content h2,
-.document-editor-content h3 {
+.document-editor-content h3,
+.document-editor-content h4 {
 	font-weight: 600;
 	margin: 1.25rem 0 0.75rem;
 }
@@ -355,6 +356,21 @@ body {
 
 .document-editor-content h3 {
 	font-size: 1.125rem;
+}
+
+.document-editor-content h4 {
+	font-size: 1rem;
+}
+
+.document-editor-content hr {
+	margin: 1.5rem 0;
+	border: none;
+	border-top: 1px solid var(--border);
+}
+
+.document-editor-content mark {
+	border-radius: 0.125rem;
+	padding: 0.05em 0.15em;
 }
 
 .document-editor-content p {

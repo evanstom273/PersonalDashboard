@@ -78,16 +78,22 @@ function serializeMarkdownNode(node: ParentNode): string {
 
 		switch (tag) {
 			case 'H1':
-				parts.push(`# ${element.textContent?.trim() ?? ''}`)
+				parts.push(headingMarkdown(element, 1))
 				break
 			case 'H2':
-				parts.push(`## ${element.textContent?.trim() ?? ''}`)
+				parts.push(headingMarkdown(element, 2))
 				break
 			case 'H3':
-				parts.push(`### ${element.textContent?.trim() ?? ''}`)
+				parts.push(headingMarkdown(element, 3))
+				break
+			case 'H4':
+				parts.push(headingMarkdown(element, 4))
+				break
+			case 'HR':
+				parts.push('---')
 				break
 			case 'P':
-				parts.push(inlineMarkdown(element))
+				parts.push(blockMarkdown(element, 'p'))
 				break
 			case 'BLOCKQUOTE':
 				parts.push(
@@ -123,6 +129,25 @@ function serializeMarkdownNode(node: ParentNode): string {
 	return parts.filter(Boolean).join('\n\n')
 }
 
+function headingMarkdown(element: HTMLElement, level: number): string {
+	const prefix = '#'.repeat(level)
+	const align = element.style.textAlign
+	const text = inlineMarkdown(element)
+	if (align && align !== 'left' && align !== 'start') {
+		return `<h${level} style="text-align: ${align}">${text}</h${level}>`
+	}
+	return `${prefix} ${text}`
+}
+
+function blockMarkdown(element: HTMLElement, tag: string): string {
+	const align = element.style.textAlign
+	const content = inlineMarkdown(element)
+	if (align && align !== 'left' && align !== 'start') {
+		return `<${tag} style="text-align: ${align}">${content}</${tag}>`
+	}
+	return content
+}
+
 function inlineMarkdown(element: HTMLElement): string {
 	let result = ''
 
@@ -140,20 +165,87 @@ function inlineMarkdown(element: HTMLElement): string {
 		const text = el.textContent ?? ''
 
 		if (el.tagName === 'STRONG' || el.tagName === 'B') {
-			result += `**${text}**`
+			result += `**${serializeInlineChildren(el)}**`
 		} else if (el.tagName === 'EM' || el.tagName === 'I') {
-			result += `*${text}*`
+			result += `*${serializeInlineChildren(el)}*`
 		} else if (el.tagName === 'A') {
 			const href = el.getAttribute('href') ?? ''
-			result += href ? `[${text}](${href})` : text
+			const linkText = serializeInlineChildren(el)
+			result += href ? `[${linkText}](${href})` : linkText
 		} else if (el.tagName === 'CODE') {
 			result += `\`${text}\``
+		} else if (el.tagName === 'SPAN') {
+			const color = el.style.color
+			const inner = serializeInlineChildren(el)
+			if (color) {
+				result += `<span style="color: ${color}">${inner}</span>`
+			} else {
+				result += inner
+			}
+		} else if (el.tagName === 'MARK') {
+			const bg = el.style.backgroundColor
+			const inner = serializeInlineChildren(el)
+			if (bg) {
+				result += `<mark style="background-color: ${bg}">${inner}</mark>`
+			} else {
+				result += `<mark>${inner}</mark>`
+			}
+		} else {
+			result += serializeInlineChildren(el)
+		}
+	}
+
+	return result.trim()
+}
+
+function serializeInlineChildren(element: HTMLElement): string {
+	let result = ''
+
+	for (const child of Array.from(element.childNodes)) {
+		if (child.nodeType === Node.TEXT_NODE) {
+			result += child.textContent ?? ''
+			continue
+		}
+
+		if (child.nodeType !== Node.ELEMENT_NODE) {
+			continue
+		}
+
+		const el = child as HTMLElement
+		const text = el.textContent ?? ''
+
+		if (el.tagName === 'STRONG' || el.tagName === 'B') {
+			result += `**${serializeInlineChildren(el)}**`
+		} else if (el.tagName === 'EM' || el.tagName === 'I') {
+			result += `*${serializeInlineChildren(el)}*`
+		} else if (el.tagName === 'A') {
+			const href = el.getAttribute('href') ?? ''
+			const linkText = serializeInlineChildren(el)
+			result += href ? `[${linkText}](${href})` : linkText
+		} else if (el.tagName === 'CODE') {
+			result += `\`${text}\``
+		} else if (el.tagName === 'SPAN') {
+			const color = el.style.color
+			const inner = serializeInlineChildren(el)
+			if (color) {
+				result += `<span style="color: ${color}">${inner}</span>`
+			} else {
+				result += inner
+			}
+		} else if (el.tagName === 'MARK') {
+			const bg = el.style.backgroundColor
+			const inner = serializeInlineChildren(el)
+			if (bg) {
+				result += `<mark style="background-color: ${bg}">${inner}</mark>`
+			} else {
+				result += `<mark>${inner}</mark>`
+			}
 		} else {
 			result += text
 		}
 	}
 
-	return result.trim()
+	return result
 }
 
 export function markdownToHtml(markdown: string): string {
