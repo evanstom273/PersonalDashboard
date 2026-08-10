@@ -263,7 +263,7 @@ export function ChatInput({
 			return
 		}
 
-		startListening(isReviewing ? prompt : '')
+		void startListening(isReviewing ? prompt : '')
 	}
 
 	function handleContinue(): void {
@@ -283,7 +283,7 @@ export function ChatInput({
 	return (
 		<form
 			onSubmit={handleSubmit}
-			className="chat-input-bar z-30 shrink-0 border-t border-border px-4 py-3 md:px-8 md:py-4"
+			className="chat-input-bar z-30 shrink-0 border-t border-border px-3 py-2.5 md:px-8 md:py-4"
 		>
 			{isListening ? (
 				<div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 text-xs text-primary">
@@ -424,7 +424,7 @@ export function ChatInput({
 						disabled={inputDisabled}
 						readOnly={isListening}
 						rows={1}
-						className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
+						className="max-h-32 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60 md:min-h-[44px] md:px-3"
 					/>
 
 					{isListening ? (
@@ -472,7 +472,7 @@ export function ChatInput({
 
 			<p className="mx-auto mt-2 hidden max-w-3xl text-center text-xs text-muted-foreground md:block">
 				Use <span className="font-medium text-foreground">+</span> to attach files or
-				pick image/music/video mode. Type{' '}
+				choose models. Type{' '}
 				<span className="font-medium text-foreground">@</span> to reference documents.
 			</p>
 		</form>
