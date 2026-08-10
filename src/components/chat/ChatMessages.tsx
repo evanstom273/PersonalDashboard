@@ -5,10 +5,15 @@ import { ChatMarkdown } from '@/components/chat/ChatMarkdown'
 import { MessageActions } from '@/components/chat/MessageActions'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { StoredMessage } from '@/storage/types'
+import { formatMessageTime } from '@/utils/dateTime'
 import { cn } from '@/utils/cn'
 
 interface ChatMessagesProps {
 	messages: StoredMessage[]
+	streamingAssistant?: {
+		id: string
+		content: string
+	} | null
 	isGenerating: boolean
 	aiName: string
 	onConfirmDelete: (
@@ -21,6 +26,7 @@ interface ChatMessagesProps {
 
 export function ChatMessages({
 	messages,
+	streamingAssistant,
 	isGenerating,
 	aiName,
 	onConfirmDelete,
@@ -30,7 +36,7 @@ export function ChatMessages({
 
 	useEffect(() => {
 		bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-	}, [messages, isGenerating])
+	}, [messages, isGenerating, streamingAssistant?.content])
 
 	if (messages.length === 0 && !isGenerating) {
 		return (
@@ -64,7 +70,21 @@ export function ChatMessages({
 							onCancelDelete={onCancelDelete}
 						/>
 					))}
-					{isGenerating ? (
+					{streamingAssistant ? (
+						<MessageRow
+							message={{
+								id: streamingAssistant.id,
+								role: 'assistant',
+								content: streamingAssistant.content,
+								createdAt: Date.now(),
+							}}
+							aiName={aiName}
+							onConfirmDelete={onConfirmDelete}
+							onCancelDelete={onCancelDelete}
+							isStreaming
+						/>
+					) : null}
+					{isGenerating && !streamingAssistant?.content ? (
 						<div className="flex items-center gap-3 border-t border-border/40 py-6 text-sm text-muted-foreground">
 							<Loader2 className="h-4 w-4 animate-spin" />
 							{aiName} is thinking…
@@ -82,11 +102,13 @@ function MessageRow({
 	aiName,
 	onConfirmDelete,
 	onCancelDelete,
+	isStreaming = false,
 }: {
 	message: StoredMessage
 	aiName: string
 	onConfirmDelete: ChatMessagesProps['onConfirmDelete']
 	onCancelDelete: ChatMessagesProps['onCancelDelete']
+	isStreaming?: boolean
 }) {
 	const contentRef = useRef<HTMLDivElement>(null)
 	const isUser = message.role === 'user'
@@ -107,9 +129,19 @@ function MessageRow({
 				<MessageAvatar isUser={isUser} aiName={aiName} />
 
 				<div className={cn('min-w-0 flex-1', isUser && 'flex flex-col items-end')}>
-					<p className="mb-1.5 text-xs font-medium text-muted-foreground">
-						{isUser ? 'You' : aiName}
-					</p>
+					<div
+						className={cn(
+							'mb-1.5 flex flex-wrap items-center gap-2',
+							isUser && 'justify-end',
+						)}
+					>
+						<p className="text-xs font-medium text-muted-foreground">
+							{isUser ? 'You' : aiName}
+						</p>
+						<span className="text-xs text-muted-foreground/80">
+							{isStreaming ? 'Now' : formatMessageTime(message.createdAt)}
+						</span>
+					</div>
 
 					<div
 						className={cn(
@@ -130,9 +162,14 @@ function MessageRow({
 						>
 							{isUser ? (
 								message.content
-							) : (
+							) : message.content ? (
 								<ChatMarkdown content={message.content} />
-							)}
+							) : isStreaming ? (
+								<span className="inline-flex items-center gap-2 text-muted-foreground">
+									<Loader2 className="h-4 w-4 animate-spin" />
+									Thinking…
+								</span>
+							) : null}
 						</div>
 
 						{message.media?.map((media, index) => (
@@ -175,11 +212,13 @@ function MessageRow({
 						) : null}
 					</div>
 
-					<MessageActions
-						contentRef={contentRef}
-						text={message.content}
-						className={cn('mt-2', isUser && 'justify-end')}
-					/>
+					{!isStreaming ? (
+						<MessageActions
+							contentRef={contentRef}
+							text={message.content}
+							className={cn('mt-2', isUser && 'justify-end')}
+						/>
+					) : null}
 				</div>
 			</div>
 		</article>

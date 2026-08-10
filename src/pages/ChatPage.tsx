@@ -15,7 +15,7 @@ import { runModelGeneration } from '@/services/gemini'
 import { saveMessageMediaToLibrary } from '@/services/library/libraryMediaService'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
 import type { ChatSubmitPayload } from '@/types/chat'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
 import { ChatInput } from '@/components/chat/ChatInput'
@@ -41,6 +41,12 @@ export function ChatPage() {
 	const [webSearchEnabled, setWebSearchEnabled] = useState(false)
 	const [forcedNextIntent, setForcedNextIntent] =
 		useState<GenerationIntent | null>(null)
+	const [streamingAssistant, setStreamingAssistant] = useState<{
+		id: string
+		content: string
+	} | null>(null)
+	const streamingContentRef = useRef('')
+	const abortControllerRef = useRef<AbortController | null>(null)
 
 	const aiName = getConfiguredAiName(preferences)
 	const hasApiKey = preferences.geminiApiKey.trim().length > 0
@@ -54,6 +60,7 @@ export function ChatPage() {
 			(conversation ? getUnarchivedMessages(conversation) : []).map((message) => ({
 				role: message.role,
 				content: message.content,
+				createdAt: message.createdAt,
 			})),
 		[conversation],
 	)
@@ -69,6 +76,8 @@ export function ChatPage() {
 	)
 
 	const handleClearChat = useCallback(async () => {
+		abortControllerRef.current?.abort()
+		setStreamingAssistant(null)
 		await clearConversation()
 		setLastIntent(null)
 		setError(null)
@@ -94,6 +103,11 @@ export function ChatPage() {
 
 			setError(null)
 			setIsGenerating(true)
+			setStreamingAssistant(null)
+			streamingContentRef.current = ''
+
+			const abortController = new AbortController()
+			abortControllerRef.current = abortController
 
 			const modelPreferences = getGenerationModelPreferences(preferences)
 			const activeForcedIntent = forcedNextIntent
@@ -123,6 +137,8 @@ export function ChatPage() {
 					dataUrl: attachment.dataUrl!,
 				}))
 
+			let assistantMessageId = crypto.randomUUID()
+
 			try {
 				await ensureConversation()
 
@@ -150,6 +166,7 @@ export function ChatPage() {
 									role: 'user' as const,
 									content: text,
 									media: userMessage.media,
+									createdAt: userMessage.createdAt,
 								},
 							]
 						: []
@@ -159,12 +176,35 @@ export function ChatPage() {
 				let pendingDeleteConfirmation: StoredMessage['pendingDeleteConfirmation']
 
 				if (resolved.intent === 'chat') {
+					streamingContentRef.current = ''
+					setStreamingAssistant({ id: assistantMessageId, content: '' })
+
 					const chatResult = await generateChatWithTools(
 						preferences.geminiApiKey,
 						resolved.modelId,
 						history,
 						preferences,
-						{ useWebSearch: useWebSearch },
+						{
+							useWebSearch: useWebSearch,
+							signal: abortController.signal,
+							onTextDelta: (delta) => {
+								streamingContentRef.current += delta
+								setStreamingAssistant((current) =>
+									current
+										? {
+												...current,
+												content: streamingContentRef.current,
+											}
+										: null,
+								)
+							},
+							onToolActivity: () => {
+								streamingContentRef.current = ''
+								setStreamingAssistant((current) =>
+									current ? { ...current, content: '' } : null,
+								)
+							},
+						},
 					)
 					assistantText = chatResult.text
 					assistantMedia =
@@ -183,7 +223,7 @@ export function ChatPage() {
 				}
 
 				const assistantMessage: StoredMessage = {
-					id: crypto.randomUUID(),
+					id: assistantMessageId,
 					role: 'assistant',
 					content: assistantText,
 					media: assistantMedia,
@@ -195,6 +235,8 @@ export function ChatPage() {
 					[assistantMessage],
 					preferences.defaultModelId,
 				)
+				setStreamingAssistant(null)
+				streamingContentRef.current = ''
 
 				if (resolved.intent === 'chat') {
 					queueMemoryArchive(
@@ -213,12 +255,35 @@ export function ChatPage() {
 					})
 				}
 			} catch (generationError) {
+				if (
+					generationError instanceof DOMException &&
+					generationError.name === 'AbortError'
+				) {
+					const partialContent = streamingContentRef.current.trim()
+					if (partialContent) {
+						await appendMessages([
+							{
+								id: assistantMessageId,
+								role: 'assistant',
+								content: partialContent,
+								createdAt: Date.now(),
+							},
+						])
+					}
+					setStreamingAssistant(null)
+					streamingContentRef.current = ''
+					return
+				}
+
 				setError(
 					generationError instanceof Error
 						? generationError.message
 						: 'Generation failed',
 				)
+				setStreamingAssistant(null)
+				streamingContentRef.current = ''
 			} finally {
+				abortControllerRef.current = null
 				setIsGenerating(false)
 			}
 		},
@@ -315,6 +380,7 @@ export function ChatPage() {
 
 			<ChatMessages
 				messages={conversation?.messages ?? []}
+				streamingAssistant={streamingAssistant}
 				isGenerating={isGenerating}
 				aiName={aiName}
 				onConfirmDelete={handleConfirmDelete}
@@ -347,7 +413,10 @@ export function ChatPage() {
 				onSubmit={(payload) => {
 					void handleSubmit(payload)
 				}}
-				onStop={() => setIsGenerating(false)}
+				onStop={() => {
+					abortControllerRef.current?.abort()
+					setIsGenerating(false)
+				}}
 			/>
 		</div>
 	)
