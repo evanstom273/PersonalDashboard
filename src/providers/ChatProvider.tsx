@@ -1,5 +1,6 @@
 import { useChatGeneration } from '@/hooks/useChatGeneration'
 import { useReminderFireHandler } from '@/hooks/useReminderFireHandler'
+import { useNativeReminderNotificationHandler } from '@/hooks/useNativeReminderNotificationHandler'
 import { useReminderOsSync } from '@/hooks/useReminderOsSync'
 import { useReminderScheduler } from '@/hooks/useReminderScheduler'
 import { useMainConversation, usePreferences } from '@/hooks/useChatStorage'
@@ -90,6 +91,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		appendMessages: conversationState.appendMessages,
 		isChatRoute,
 	})
+
+	useNativeReminderNotificationHandler()
 
 	return (
 		<PreferencesContext.Provider value={preferencesState}>
