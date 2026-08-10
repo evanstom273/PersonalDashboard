@@ -126,16 +126,20 @@ export function AppShell() {
 						Chat
 					</Button>
 
-					<div className="min-w-0 flex-1">
-						<div className="flex items-center gap-2">
-							<p className="truncate text-sm font-semibold">{mobileHeaderTitle}</p>
+					<div className="min-w-0 flex-1 overflow-hidden">
+						<div className="flex min-w-0 items-center gap-2 overflow-hidden">
+							<p className="min-w-0 flex-1 truncate text-sm font-semibold">
+								{mobileHeaderTitle}
+							</p>
 							{isChatRoute ? (
-								<ChatConversationActions
-									conversation={conversation}
-									isGenerating={isGenerating}
-									onClear={handleClearChat}
-									onImport={handleImportChat}
-								/>
+								<div className="shrink-0">
+									<ChatConversationActions
+										conversation={conversation}
+										isGenerating={isGenerating}
+										onClear={handleClearChat}
+										onImport={handleImportChat}
+									/>
+								</div>
 							) : null}
 						</div>
 						{isGenerating && !isChatRoute ? (

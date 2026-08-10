@@ -352,7 +352,7 @@ export function ChatInput({
 	return (
 		<form
 			onSubmit={handleSubmit}
-			className="chat-input-bar z-30 shrink-0 border-t border-border px-3 py-2.5 md:px-8 md:py-4"
+			className="chat-input-bar z-30 w-full max-w-full shrink-0 overflow-hidden border-t border-border px-3 py-2.5 md:px-8 md:py-4"
 		>
 			{isListening ? (
 				<div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 text-xs text-primary">
@@ -455,7 +455,7 @@ export function ChatInput({
 				</div>
 			) : null}
 
-			<div className="relative mx-auto max-w-3xl">
+			<div className="relative mx-auto w-full min-w-0 max-w-3xl">
 				{isMentionMenuOpen ? (
 					<DocumentMentionMenu
 						documents={filteredDocuments}

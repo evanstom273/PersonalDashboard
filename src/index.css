@@ -172,6 +172,17 @@ body {
 .chat-message-content {
 	user-select: text;
 	-webkit-user-select: text;
+	min-width: 0;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+.chat-markdown {
+	min-width: 0;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	word-break: break-word;
 }
 
 .chat-markdown > :first-child {
@@ -211,6 +222,8 @@ body {
 .chat-markdown ol {
 	margin: 0.75rem 0;
 	padding-left: 1.5rem;
+	overflow-wrap: anywhere;
+	word-break: break-word;
 }
 
 .chat-markdown ul {
