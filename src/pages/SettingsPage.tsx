@@ -229,9 +229,11 @@ export function SettingsPage() {
 					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
 						<h2 className="text-lg font-medium">Available models</h2>
 						<p className="text-sm text-muted-foreground">
-							Home lets you switch between Gemini 3.6 Flash and 3.1 Pro. Say
-							&quot;generate image&quot;, &quot;generate music&quot;, or
-							&quot;generate video&quot; in chat to use the models below.
+							Home lets you switch between Gemini 3.6 Flash and 3.1 Pro. Try
+							phrases like &quot;generate an image of…&quot;, &quot;generate
+							music&quot;, or &quot;create a video&quot; in chat — the app picks
+							the lightest suitable image, music, or video model from the list
+							below based on your prompt.
 						</p>
 						<div className="space-y-4">
 							{(['chat', 'image', 'music', 'video'] as const).map((category) => (

@@ -6,6 +6,7 @@ import type { MessageMedia, PendingDeleteConfirmation, UserPreferences } from '@
 
 interface GeminiPart {
 	text?: string
+	thoughtSignature?: string
 	functionCall?: {
 		name: string
 		args?: Record<string, unknown>
@@ -71,32 +72,42 @@ export async function generateChatWithTools(
 		const modelContent = response.candidates?.[0]?.content
 		const parts = modelContent?.parts ?? []
 
-		const functionCall = parts.find((part) => part.functionCall)?.functionCall
-		if (functionCall?.name) {
+		const functionCallParts = parts.filter(
+			(part) => part.functionCall?.name,
+		)
+
+		if (functionCallParts.length > 0) {
+			// Preserve the full model response (including thoughtSignature on
+			// functionCall parts). Rebuilding parts strips required signatures.
 			contents.push({
-				role: 'model',
-				parts: [{ functionCall }],
+				role: modelContent?.role ?? 'model',
+				parts,
 			})
 
-			const toolResult = await executeDocumentToolCall(
-				functionCall.name,
-				functionCall.args ?? {},
-			)
+			const functionResponseParts: GeminiPart[] = []
 
-			if (toolResult.pendingDeleteConfirmation) {
-				pendingDeleteConfirmation = toolResult.pendingDeleteConfirmation
+			for (const part of functionCallParts) {
+				const functionCall = part.functionCall!
+				const toolResult = await executeDocumentToolCall(
+					functionCall.name,
+					functionCall.args ?? {},
+				)
+
+				if (toolResult.pendingDeleteConfirmation) {
+					pendingDeleteConfirmation = toolResult.pendingDeleteConfirmation
+				}
+
+				functionResponseParts.push({
+					functionResponse: {
+						name: toolResult.name,
+						response: toolResult.response,
+					},
+				})
 			}
 
 			contents.push({
 				role: 'user',
-				parts: [
-					{
-						functionResponse: {
-							name: toolResult.name,
-							response: toolResult.response,
-						},
-					},
-				],
+				parts: functionResponseParts,
 			})
 
 			continue

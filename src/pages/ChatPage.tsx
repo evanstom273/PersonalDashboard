@@ -183,8 +183,9 @@ export function ChatPage() {
 				<div>
 					<h1 className="text-lg font-semibold">Home</h1>
 					<p className="text-xs text-muted-foreground">
-						One continuous conversation with {aiName} · say &quot;generate
-						image&quot;, &quot;generate music&quot;, or &quot;generate video&quot;
+						One continuous conversation with {aiName} · try &quot;generate an
+						image of…&quot;, &quot;generate music&quot;, or &quot;create a
+						video&quot;
 						{lastIntent ? ` · last: ${lastIntent}` : ''}
 					</p>
 				</div>

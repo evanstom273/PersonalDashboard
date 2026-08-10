@@ -1,5 +1,5 @@
-import { Bot, Loader2, User } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { Bot, Check, Copy, Loader2, User } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { StoredMessage } from '@/storage/types'
@@ -25,10 +25,25 @@ export function ChatMessages({
 	onCancelDelete,
 }: ChatMessagesProps) {
 	const bottomRef = useRef<HTMLDivElement>(null)
+	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
 
 	useEffect(() => {
 		bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
 	}, [messages, isGenerating])
+
+	const handleCopy = useCallback(async (message: StoredMessage) => {
+		try {
+			await navigator.clipboard.writeText(message.content)
+			setCopiedMessageId(message.id)
+			window.setTimeout(() => {
+				setCopiedMessageId((current) =>
+					current === message.id ? null : current,
+				)
+			}, 2000)
+		} catch {
+			// Clipboard access can fail in insecure contexts.
+		}
+	}, [])
 
 	if (messages.length === 0 && !isGenerating) {
 		return (
@@ -40,8 +55,9 @@ export function ChatMessages({
 					<h2 className="text-lg font-semibold">Your conversation</h2>
 					<p className="text-sm text-muted-foreground">
 						One continuous thread with {aiName}. Switch between Gemini 3.6
-						Flash and 3.1 Pro, ask for document help, or say &quot;generate
-						image&quot;, &quot;generate music&quot;, or &quot;generate video&quot;.
+						Flash and 3.1 Pro, ask for document help, or try phrases like
+						&quot;generate an image of…&quot;, &quot;generate music&quot;, or
+						&quot;create a video&quot;.
 					</p>
 				</div>
 			</div>
@@ -51,12 +67,16 @@ export function ChatMessages({
 	return (
 		<div className="min-h-0 flex-1 overflow-hidden">
 			<ScrollArea className="h-full px-4 md:px-8">
-				<div className="mx-auto flex max-w-3xl flex-col gap-6 py-4">
+				<div className="mx-auto flex max-w-3xl select-none flex-col gap-6 py-4">
 					{messages.map((message) => (
 						<MessageBubble
 							key={message.id}
 							message={message}
 							aiName={aiName}
+							isCopied={copiedMessageId === message.id}
+							onCopy={() => {
+								void handleCopy(message)
+							}}
 							onConfirmDelete={onConfirmDelete}
 							onCancelDelete={onCancelDelete}
 						/>
@@ -77,11 +97,15 @@ export function ChatMessages({
 function MessageBubble({
 	message,
 	aiName,
+	isCopied,
+	onCopy,
 	onConfirmDelete,
 	onCancelDelete,
 }: {
 	message: StoredMessage
 	aiName: string
+	isCopied: boolean
+	onCopy: () => void
 	onConfirmDelete: ChatMessagesProps['onConfirmDelete']
 	onCancelDelete: ChatMessagesProps['onCancelDelete']
 }) {
@@ -89,7 +113,7 @@ function MessageBubble({
 
 	return (
 		<div
-			className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}
+			className={cn('flex gap-3 select-none', isUser ? 'justify-end' : 'justify-start')}
 		>
 			{!isUser ? (
 				<div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
@@ -98,15 +122,36 @@ function MessageBubble({
 			) : null}
 			<div
 				className={cn(
-					'max-w-[85%] space-y-3 rounded-2xl px-4 py-3 text-sm leading-relaxed',
+					'group relative max-w-[85%] select-text space-y-3 rounded-2xl px-4 py-3 text-sm leading-relaxed',
 					isUser
 						? 'bg-secondary text-secondary-foreground ring-1 ring-border'
 						: 'bg-card text-card-foreground',
 				)}
 			>
-				{!isUser ? (
-					<p className="text-xs font-medium text-muted-foreground">{aiName}</p>
-				) : null}
+				<div className="flex items-start justify-between gap-2">
+					{!isUser ? (
+						<p className="text-xs font-medium text-muted-foreground">{aiName}</p>
+					) : (
+						<span className="text-xs font-medium text-muted-foreground">You</span>
+					)}
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className={cn(
+							'-mr-1 -mt-1 h-7 w-7 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
+							isCopied && 'opacity-100',
+						)}
+						onClick={onCopy}
+						aria-label={isCopied ? 'Copied message' : 'Copy message'}
+					>
+						{isCopied ? (
+							<Check className="h-3.5 w-3.5" />
+						) : (
+							<Copy className="h-3.5 w-3.5" />
+						)}
+					</Button>
+				</div>
 				<p className="whitespace-pre-wrap">{message.content}</p>
 				{message.media?.map((media, index) => (
 					<MediaPreview key={`${message.id}-media-${index}`} media={media} />
