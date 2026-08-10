@@ -266,7 +266,9 @@ export function useChatGeneration({
 				}
 
 				void requestNotificationPermission().then(() => {
-					notifyGenerationComplete(aiName, assistantText)
+					void notifyGenerationComplete(aiName, assistantText, {
+						isChatRoute: isChatRouteRef.current,
+					})
 				})
 			} catch (generationError) {
 				if (
