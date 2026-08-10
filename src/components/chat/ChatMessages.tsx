@@ -59,9 +59,9 @@ export function ChatMessages({
 	}
 
 	return (
-		<div className="min-h-0 flex-1 overflow-hidden">
-			<ScrollArea className="h-full">
-				<div className="mx-auto w-full max-w-3xl px-4 py-2 md:px-6">
+		<div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+			<ScrollArea className="h-full w-full max-w-full">
+				<div className="mx-auto box-border w-full min-w-0 max-w-3xl px-4 py-2 md:px-6">
 					{messages.map((message) => (
 						<MessageRow
 							key={message.id}
@@ -119,14 +119,14 @@ function MessageRow({
 	return (
 		<article
 			className={cn(
-				'border-b border-border/40 py-5 last:border-b-0',
+				'min-w-0 max-w-full overflow-hidden border-b border-border/40 py-5 last:border-b-0',
 				isUser ? 'flex justify-end' : 'flex justify-start',
 			)}
 		>
 			<div
 				className={cn(
-					'flex w-full gap-3 md:gap-4',
-					isUser ? 'max-w-[88%] flex-row-reverse' : 'max-w-full',
+					'flex min-w-0 max-w-full gap-3 md:gap-4',
+					isUser ? 'w-full max-w-[88%] flex-row-reverse' : 'w-full',
 				)}
 			>
 				<MessageAvatar isUser={isUser} aiName={aiName} />
@@ -148,9 +148,9 @@ function MessageRow({
 
 					<div
 						className={cn(
-							'w-full',
+							'min-w-0 max-w-full overflow-hidden',
 							isUser &&
-								'max-w-full rounded-[1.25rem] bg-secondary px-4 py-3 ring-1 ring-border/60',
+								'rounded-[1.25rem] bg-secondary px-4 py-3 ring-1 ring-border/60',
 						)}
 					>
 						{showMediaFirst
@@ -293,7 +293,7 @@ function DocumentLinkCard({
 		<Link
 			to={`/library/documents/${link.id}`}
 			className={cn(
-				'mt-3 flex items-center gap-3 rounded-xl border border-border bg-secondary/40 px-4 py-3 transition-colors hover:bg-secondary/70',
+				'mt-3 flex min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-xl border border-border bg-secondary/40 px-4 py-3 transition-colors hover:bg-secondary/70',
 				className,
 			)}
 		>
