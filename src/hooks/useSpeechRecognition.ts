@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+	ensureMicrophonePermission,
 	getSpeechRecognitionConstructor,
+	getSpeechRecognitionErrorMessage,
 	isSpeechRecognitionSupported,
 } from '@/utils/speechRecognition'
 
@@ -15,7 +17,7 @@ interface UseSpeechRecognitionResult {
 	status: SpeechRecognitionStatus
 	transcript: string
 	error: string | null
-	startListening: (baseText?: string) => void
+	startListening: (baseText?: string) => Promise<void>
 	continueListening: () => void
 	cancelListening: () => void
 }
@@ -32,6 +34,10 @@ export function useSpeechRecognition(
 	const recognitionRef = useRef<SpeechRecognition | null>(null)
 	const committedRef = useRef('')
 	const baseTextRef = useRef('')
+	const statusRef = useRef<SpeechRecognitionStatus>('idle')
+	const restartTimeoutRef = useRef<number | null>(null)
+
+	statusRef.current = status
 
 	const updateTranscript = useCallback(
 		(next: string) => {
@@ -41,10 +47,18 @@ export function useSpeechRecognition(
 		[onTranscriptChange],
 	)
 
-	const stopRecognition = useCallback(() => {
-		recognitionRef.current?.stop()
-		recognitionRef.current = null
+	const clearRestartTimeout = useCallback(() => {
+		if (restartTimeoutRef.current !== null) {
+			window.clearTimeout(restartTimeoutRef.current)
+			restartTimeoutRef.current = null
+		}
 	}, [])
+
+	const stopRecognition = useCallback(() => {
+		clearRestartTimeout()
+		recognitionRef.current?.abort()
+		recognitionRef.current = null
+	}, [clearRestartTimeout])
 
 	const cancelListening = useCallback(() => {
 		stopRecognition()
@@ -61,28 +75,8 @@ export function useSpeechRecognition(
 		setError(null)
 	}, [stopRecognition])
 
-	const startListening = useCallback(
-		(baseText = '') => {
-			const SpeechRecognitionCtor = getSpeechRecognitionConstructor()
-			if (!SpeechRecognitionCtor) {
-				setError('Speech recognition is not supported in this browser.')
-				return
-			}
-
-			stopRecognition()
-
-			const trimmedBase = baseText.trim()
-			baseTextRef.current = trimmedBase
-			committedRef.current = trimmedBase
-			updateTranscript(trimmedBase)
-			setError(null)
-			setStatus('listening')
-
-			const recognition = new SpeechRecognitionCtor()
-			recognition.continuous = true
-			recognition.interimResults = true
-			recognition.lang = navigator.language || 'en-US'
-
+	const bindRecognition = useCallback(
+		(recognition: SpeechRecognition, restart: () => void) => {
 			recognition.onresult = (event: SpeechRecognitionEvent) => {
 				let interim = ''
 
@@ -100,17 +94,21 @@ export function useSpeechRecognition(
 					}
 				}
 
-				updateTranscript(
-					joinTranscriptParts(committedRef.current, interim),
-				)
+				updateTranscript(joinTranscriptParts(committedRef.current, interim))
 			}
 
 			recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-				if (event.error === 'aborted' || event.error === 'no-speech') {
+				if (event.error === 'aborted') {
 					return
 				}
 
-				setError(event.message || `Speech recognition error: ${event.error}`)
+				if (event.error === 'no-speech' && statusRef.current === 'listening') {
+					return
+				}
+
+				setError(
+					event.message || getSpeechRecognitionErrorMessage(event.error),
+				)
 				setStatus('review')
 				stopRecognition()
 			}
@@ -119,31 +117,82 @@ export function useSpeechRecognition(
 				if (recognitionRef.current === recognition) {
 					recognitionRef.current = null
 				}
-			}
 
-			recognitionRef.current = recognition
+				if (statusRef.current !== 'listening') {
+					return
+				}
 
-			try {
-				recognition.start()
-			} catch (startError) {
-				setError(
-					startError instanceof Error
-						? startError.message
-						: 'Could not start speech recognition.',
-				)
-				setStatus('idle')
-				recognitionRef.current = null
+				clearRestartTimeout()
+				restartTimeoutRef.current = window.setTimeout(() => {
+					if (statusRef.current === 'listening') {
+						restart()
+					}
+				}, 200)
 			}
 		},
-		[stopRecognition, updateTranscript],
+		[clearRestartTimeout, stopRecognition, updateTranscript],
+	)
+
+	const startListening = useCallback(
+		async (baseText = '') => {
+			const SpeechRecognitionCtor = getSpeechRecognitionConstructor()
+			if (!SpeechRecognitionCtor) {
+				setError('Speech recognition is not supported in this browser.')
+				return
+			}
+
+			const permission = await ensureMicrophonePermission()
+			if (!permission.ok) {
+				setError(permission.message)
+				setStatus('idle')
+				return
+			}
+
+			stopRecognition()
+
+			const trimmedBase = baseText.trim()
+			baseTextRef.current = trimmedBase
+			committedRef.current = trimmedBase
+			updateTranscript(trimmedBase)
+			setError(null)
+			setStatus('listening')
+
+			const launch = (): void => {
+				if (statusRef.current !== 'listening') {
+					return
+				}
+
+				const recognition = new SpeechRecognitionCtor()
+				recognition.continuous = true
+				recognition.interimResults = true
+				recognition.lang = navigator.language || 'en-US'
+
+				bindRecognition(recognition, launch)
+				recognitionRef.current = recognition
+
+				try {
+					recognition.start()
+				} catch (startError) {
+					setError(
+						startError instanceof Error
+							? startError.message
+							: 'Could not start speech recognition.',
+					)
+					setStatus('idle')
+					recognitionRef.current = null
+				}
+			}
+
+			launch()
+		},
+		[bindRecognition, stopRecognition, updateTranscript],
 	)
 
 	useEffect(() => {
 		return () => {
-			recognitionRef.current?.abort()
-			recognitionRef.current = null
+			stopRecognition()
 		}
-	}, [])
+	}, [stopRecognition])
 
 	return {
 		isSupported,

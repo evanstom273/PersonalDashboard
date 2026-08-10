@@ -223,6 +223,8 @@ export function SettingsPage() {
 						<p className="text-sm text-muted-foreground">
 							The mic on the home page uses your browser&apos;s built-in speech
 							recognition. It does not call the Gemini API or use your API key.
+							On Android, allow microphone access when prompted — installed PWAs
+							need permission just like the browser.
 						</p>
 					</section>
 

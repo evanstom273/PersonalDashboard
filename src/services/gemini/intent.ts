@@ -38,12 +38,17 @@ const INTENT_PATTERNS: IntentPattern[] = [
 	{
 		intent: 'image',
 		regex:
-			/^(?:create|make|draw)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|photo|illustration|artwork)\s+(?:of|for|showing|about)\s+([\s\S]+)$/i,
+			/^(?:create|make|draw|render|design)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|photo|illustration|artwork)\s+(?:of|for|showing|about)\s+([\s\S]+)$/i,
 	},
 	{
 		intent: 'image',
 		regex:
-			/^(?:create|make|draw)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|photo|illustration|artwork)(?:[:\s,-]+([\s\S]*))?$/i,
+			/^(?:create|make|draw|render|design)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|photo|illustration|artwork)(?:[:\s,-]+([\s\S]*))?$/i,
+	},
+	{
+		intent: 'image',
+		regex:
+			/^(?:can you|could you|please)\s+(?:generate|create|make|draw)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|photo|illustration|artwork)\s*(?:of|for|showing|about)?\s*([\s\S]*)$/i,
 	},
 	// Music
 	{
@@ -77,6 +82,27 @@ const INTENT_PATTERNS: IntentPattern[] = [
 	},
 ]
 
+const LOOSE_INTENT_PATTERNS: IntentPattern[] = [
+	{
+		intent: 'image',
+		regex:
+			/\b(?:generate|create|make|draw|render|design)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|photo|illustration|artwork|poster)\b/i,
+	},
+	{
+		intent: 'image',
+		regex:
+			/\b(?:image|picture|photo|illustration|artwork|poster)\s+(?:of|for|showing|about|depicting)\s+/i,
+	},
+	{
+		intent: 'music',
+		regex: /\b(?:generate|create|make|compose)\s+(?:me\s+)?(?:an?\s+)?(?:music|song|track|beat|jingle)\b/i,
+	},
+	{
+		intent: 'video',
+		regex: /\b(?:generate|create|make)\s+(?:me\s+)?(?:an?\s+)?video\b/i,
+	},
+]
+
 function resolveGenerationPrompt(
 	trimmed: string,
 	detail: string | undefined,
@@ -85,11 +111,29 @@ function resolveGenerationPrompt(
 	return normalizedDetail && normalizedDetail.length > 0 ? normalizedDetail : trimmed
 }
 
+function detectLooseIntent(trimmed: string): GenerationIntent | null {
+	for (const { intent, regex } of LOOSE_INTENT_PATTERNS) {
+		if (regex.test(trimmed)) {
+			return intent
+		}
+	}
+	return null
+}
+
 export function resolvePromptIntent(
 	text: string,
 	models: GenerationModelPreferences,
+	forcedIntent?: GenerationIntent | null,
 ): ResolvedPrompt {
 	const trimmed = text.trim()
+
+	if (forcedIntent) {
+		return {
+			intent: forcedIntent,
+			modelId: getModelIdForIntent(forcedIntent, models),
+			prompt: trimmed,
+		}
+	}
 
 	for (const { intent, regex } of INTENT_PATTERNS) {
 		const match = trimmed.match(regex)
@@ -100,6 +144,15 @@ export function resolvePromptIntent(
 				modelId: getModelIdForIntent(intent, models),
 				prompt,
 			}
+		}
+	}
+
+	const looseIntent = detectLooseIntent(trimmed)
+	if (looseIntent) {
+		return {
+			intent: looseIntent,
+			modelId: getModelIdForIntent(looseIntent, models),
+			prompt: trimmed,
 		}
 	}
 

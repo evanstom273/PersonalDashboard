@@ -16,6 +16,8 @@ import { insertDocumentMention, buildDocumentMention } from '@/utils/documentMen
 import { createDocument } from '@/services/documents/documentService'
 import { normalizeDocumentContent } from '@/utils/documentContent'
 import type { ChatAttachment, ChatSubmitPayload } from '@/types/chat'
+import type { GenerationIntent } from '@/services/gemini/constants'
+import { MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
 import {
 	getFileBaseName,
 	isImageFile,
@@ -38,6 +40,8 @@ interface ChatInputProps {
 	onImageModelChange: (modelId: string) => void
 	onMusicModelChange: (modelId: string) => void
 	onVideoModelChange: (modelId: string) => void
+	forcedNextIntent: GenerationIntent | null
+	onForceNextIntent: (intent: GenerationIntent | null) => void
 	onSubmit: (payload: ChatSubmitPayload) => void
 	onStop?: () => void
 }
@@ -55,6 +59,8 @@ export function ChatInput({
 	onImageModelChange,
 	onMusicModelChange,
 	onVideoModelChange,
+	forcedNextIntent,
+	onForceNextIntent,
 	onSubmit,
 	onStop,
 }: ChatInputProps) {
@@ -263,7 +269,7 @@ export function ChatInput({
 			return
 		}
 
-		startListening(isReviewing ? prompt : '')
+		void startListening(isReviewing ? prompt : '')
 	}
 
 	function handleContinue(): void {
@@ -283,7 +289,7 @@ export function ChatInput({
 	return (
 		<form
 			onSubmit={handleSubmit}
-			className="chat-input-bar z-30 shrink-0 border-t border-border px-4 py-3 md:px-8 md:py-4"
+			className="chat-input-bar z-30 shrink-0 border-t border-border px-3 py-2.5 md:px-8 md:py-4"
 		>
 			{isListening ? (
 				<div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 text-xs text-primary">
@@ -313,18 +319,36 @@ export function ChatInput({
 				</div>
 			) : null}
 
-			{webSearchEnabled ? (
+			{webSearchEnabled || forcedNextIntent ? (
 				<div className="mx-auto mb-2 flex max-w-3xl flex-wrap items-center gap-2">
-					<span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground ring-1 ring-border">
-						Web search on
-					</span>
-					<button
-						type="button"
-						className="text-xs text-muted-foreground underline-offset-4 hover:underline"
-						onClick={() => onWebSearchChange(false)}
-					>
-						Turn off
-					</button>
+					{forcedNextIntent ? (
+						<>
+							<span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
+								Next: {MODEL_CATEGORY_LABELS[forcedNextIntent]} generation
+							</span>
+							<button
+								type="button"
+								className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+								onClick={() => onForceNextIntent(null)}
+							>
+								Cancel
+							</button>
+						</>
+					) : null}
+					{webSearchEnabled ? (
+						<>
+							<span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground ring-1 ring-border">
+								Web search on
+							</span>
+							<button
+								type="button"
+								className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+								onClick={() => onWebSearchChange(false)}
+							>
+								Turn off
+							</button>
+						</>
+					) : null}
 				</div>
 			) : null}
 
@@ -384,6 +408,8 @@ export function ChatInput({
 						onImageModelChange={onImageModelChange}
 						onMusicModelChange={onMusicModelChange}
 						onVideoModelChange={onVideoModelChange}
+						forcedNextIntent={forcedNextIntent}
+						onForceNextIntent={onForceNextIntent}
 						onDocumentUpload={(file) => {
 							void handleDocumentUpload(file)
 						}}
@@ -424,7 +450,7 @@ export function ChatInput({
 						disabled={inputDisabled}
 						readOnly={isListening}
 						rows={1}
-						className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
+						className="max-h-32 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60 md:min-h-[44px] md:px-3"
 					/>
 
 					{isListening ? (
@@ -472,7 +498,7 @@ export function ChatInput({
 
 			<p className="mx-auto mt-2 hidden max-w-3xl text-center text-xs text-muted-foreground md:block">
 				Use <span className="font-medium text-foreground">+</span> to attach files or
-				pick image/music/video mode. Type{' '}
+				choose models. Type{' '}
 				<span className="font-medium text-foreground">@</span> to reference documents.
 			</p>
 		</form>

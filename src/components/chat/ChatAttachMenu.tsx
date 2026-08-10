@@ -1,26 +1,24 @@
 import {
+	ChevronDown,
 	FileText,
 	Globe,
 	ImagePlus,
-	MessageSquare,
 	Music,
 	Plus,
 	Video,
 } from 'lucide-react'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 	ModelMenuItem,
 } from '@/components/ui/dropdown-menu'
 import { CHAT_MODEL_IDS } from '@/services/gemini/constants'
+import type { GenerationIntent } from '@/services/gemini/constants'
 import {
 	getModelById,
 	getModelsByCategory,
@@ -41,12 +39,15 @@ interface ChatAttachMenuProps {
 	onImageModelChange: (modelId: string) => void
 	onMusicModelChange: (modelId: string) => void
 	onVideoModelChange: (modelId: string) => void
+	forcedNextIntent: GenerationIntent | null
+	onForceNextIntent: (intent: GenerationIntent | null) => void
 	onDocumentUpload: (file: File) => void
 	onImageUpload: (file: File) => void
 }
 
+type ExpandableCategory = Exclude<ModelCategory, 'chat'>
+
 const CATEGORY_ICONS = {
-	chat: MessageSquare,
 	image: ImagePlus,
 	music: Music,
 	video: Video,
@@ -64,28 +65,45 @@ export function ChatAttachMenu({
 	onImageModelChange,
 	onMusicModelChange,
 	onVideoModelChange,
+	forcedNextIntent,
+	onForceNextIntent,
 	onDocumentUpload,
 	onImageUpload,
 }: ChatAttachMenuProps) {
 	const documentInputRef = useRef<HTMLInputElement>(null)
 	const imageInputRef = useRef<HTMLInputElement>(null)
+	const [menuOpen, setMenuOpen] = useState(false)
+	const [expandedCategory, setExpandedCategory] =
+		useState<ExpandableCategory | null>(null)
+
 	const chatModels = CHAT_MODEL_IDS.map((id) => getModelById(id)).filter(
 		(model) => model !== undefined,
 	)
 
-	const selectedByCategory: Record<Exclude<ModelCategory, 'chat'>, string> = {
+	const selectedByCategory: Record<ExpandableCategory, string> = {
 		image: selectedImageModelId,
 		music: selectedMusicModelId,
 		video: selectedVideoModelId,
 	}
 
 	const onModelChangeByCategory: Record<
-		Exclude<ModelCategory, 'chat'>,
+		ExpandableCategory,
 		(modelId: string) => void
 	> = {
 		image: onImageModelChange,
 		music: onMusicModelChange,
 		video: onVideoModelChange,
+	}
+
+	function handleMenuOpenChange(open: boolean): void {
+		setMenuOpen(open)
+		if (!open) {
+			setExpandedCategory(null)
+		}
+	}
+
+	function toggleCategory(category: ExpandableCategory): void {
+		setExpandedCategory((current) => (current === category ? null : category))
 	}
 
 	return (
@@ -117,16 +135,21 @@ export function ChatAttachMenu({
 				}}
 			/>
 
-			<DropdownMenu>
+			<DropdownMenu modal={false} open={menuOpen} onOpenChange={handleMenuOpenChange}>
 				<DropdownMenuTrigger
 					hideChevron
 					disabled={disabled}
-					className="h-10 w-10 shrink-0 justify-center p-0"
+					className="h-9 w-9 shrink-0 justify-center p-0 md:h-10 md:w-10"
 					aria-label="Attach files or choose models"
 				>
 					<Plus className="h-4 w-4" />
 				</DropdownMenuTrigger>
-				<DropdownMenuContent side="top" align="start" className="w-72">
+				<DropdownMenuContent
+					side="top"
+					align="start"
+					collisionPadding={12}
+					className="w-[min(17rem,calc(100vw-1.5rem))] max-h-[min(70svh,24rem)] overflow-y-auto"
+				>
 					<DropdownMenuLabel>Attach</DropdownMenuLabel>
 					<DropdownMenuItem
 						onSelect={() => {
@@ -164,14 +187,26 @@ export function ChatAttachMenu({
 						/>
 					))}
 
+					<DropdownMenuSeparator />
+					<DropdownMenuLabel>Generation models</DropdownMenuLabel>
 					{(['image', 'music', 'video'] as const).map((category) => {
 						const Icon = CATEGORY_ICONS[category]
 						const selectedModel = getModelById(selectedByCategory[category])
 						const models = getModelsByCategory(category)
+						const isExpanded = expandedCategory === category
 
 						return (
-							<DropdownMenuSub key={category}>
-								<DropdownMenuSubTrigger className="flex items-start gap-3 py-2.5">
+							<div key={category}>
+								<DropdownMenuItem
+									onSelect={(event) => {
+										event.preventDefault()
+										toggleCategory(category)
+									}}
+									className={cn(
+										'flex items-start gap-3 py-2.5',
+										isExpanded && 'bg-accent/60',
+									)}
+								>
 									<Icon className="mt-0.5 h-4 w-4 shrink-0" />
 									<span className="min-w-0 flex-1">
 										<span className="block font-medium">
@@ -181,22 +216,48 @@ export function ChatAttachMenu({
 											{selectedModel?.name ?? 'Select model'}
 										</span>
 									</span>
-								</DropdownMenuSubTrigger>
-								<DropdownMenuSubContent className="w-72">
-									<DropdownMenuLabel>
-										{MODEL_CATEGORY_LABELS[category]} model
-									</DropdownMenuLabel>
-									{models.map((model) => (
-										<ModelMenuItem
-											key={model.id}
-											label={model.name}
-											description={model.description}
-											selected={model.id === selectedByCategory[category]}
-											onSelect={() => onModelChangeByCategory[category](model.id)}
-										/>
-									))}
-								</DropdownMenuSubContent>
-							</DropdownMenuSub>
+									<ChevronDown
+										className={cn(
+											'mt-0.5 h-4 w-4 shrink-0 opacity-60 transition-transform',
+											isExpanded && 'rotate-180',
+										)}
+									/>
+								</DropdownMenuItem>
+								{isExpanded ? (
+									<>
+										<DropdownMenuItem
+											onSelect={(event) => {
+												event.preventDefault()
+												onForceNextIntent(
+													forcedNextIntent === category ? null : category,
+												)
+											}}
+											className={cn(
+												'py-2 pl-8 text-xs',
+												forcedNextIntent === category && 'bg-primary/10',
+											)}
+										>
+											<span className="font-medium">
+												{forcedNextIntent === category
+													? 'Next message uses this model ✓'
+													: 'Use for next message only'}
+											</span>
+										</DropdownMenuItem>
+										{models.map((model) => (
+											<ModelMenuItem
+												key={model.id}
+												label={model.name}
+												description={model.description}
+												selected={model.id === selectedByCategory[category]}
+												onSelect={() =>
+													onModelChangeByCategory[category](model.id)
+												}
+												className="pl-8"
+											/>
+										))}
+									</>
+								) : null}
+							</div>
 						)
 					})}
 				</DropdownMenuContent>
@@ -220,7 +281,10 @@ function ToggleMenuItem({
 }) {
 	return (
 		<DropdownMenuItem
-			onSelect={onSelect}
+			onSelect={(event) => {
+				event.preventDefault()
+				onSelect()
+			}}
 			className={cn('flex items-start gap-3 py-2.5', selected && 'bg-accent/60')}
 		>
 			<Icon className="mt-0.5 h-4 w-4 shrink-0" />

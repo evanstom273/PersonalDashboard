@@ -1,5 +1,6 @@
 import { usePreferencesContext, useMainConversationContext } from '@/providers/ChatProvider'
 import { generateChatWithTools } from '@/services/gemini/chatWithTools'
+import type { GenerationIntent } from '@/services/gemini/constants'
 import { confirmDocumentDeletion } from '@/services/gemini/documentTools'
 import { getIntentLabel, resolvePromptIntent } from '@/services/gemini/intent'
 import { getGenerationModelPreferences } from '@/services/gemini/modelPreferences'
@@ -9,25 +10,47 @@ import { runModelGeneration } from '@/services/gemini'
 import { saveMessageMediaToLibrary } from '@/services/library/libraryMediaService'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
 import type { ChatSubmitPayload } from '@/types/chat'
+import { Trash2 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { ChatMessages } from '@/components/chat/ChatMessages'
 import { ChatModelSelector } from '@/components/chat/ChatModelSelector'
+import { Button } from '@/components/ui/button'
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from '@/components/ui/dialog'
 
 export function ChatPage() {
 	const { preferences, savePreferences } = usePreferencesContext()
-	const { conversation, appendMessages, updateMessage, ensureConversation } =
-		useMainConversationContext()
+	const {
+		conversation,
+		appendMessages,
+		updateMessage,
+		ensureConversation,
+		clearConversation,
+	} = useMainConversationContext()
 
 	const [isGenerating, setIsGenerating] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [lastIntent, setLastIntent] = useState<string | null>(null)
 	const [webSearchEnabled, setWebSearchEnabled] = useState(false)
+	const [forcedNextIntent, setForcedNextIntent] =
+		useState<GenerationIntent | null>(null)
+	const [clearDialogOpen, setClearDialogOpen] = useState(false)
+	const [isClearing, setIsClearing] = useState(false)
 
 	const aiName = getConfiguredAiName(preferences)
 	const selectedModel = getModelById(preferences.defaultModelId)
 	const hasApiKey = preferences.geminiApiKey.trim().length > 0
+	const messageCount = conversation?.messages.length ?? 0
 
 	const chatHistory = useMemo(
 		() =>
@@ -59,7 +82,16 @@ export function ChatPage() {
 			setIsGenerating(true)
 
 			const modelPreferences = getGenerationModelPreferences(preferences)
-			const resolved = resolvePromptIntent(text, modelPreferences)
+			const activeForcedIntent = forcedNextIntent
+			const resolved = resolvePromptIntent(
+				text,
+				modelPreferences,
+				activeForcedIntent,
+			)
+
+			if (activeForcedIntent) {
+				setForcedNextIntent(null)
+			}
 
 			if (resolved.intent !== 'chat' && !text.trim()) {
 				setError('Add a prompt for image, music, or video generation.')
@@ -167,6 +199,7 @@ export function ChatPage() {
 			appendMessages,
 			chatHistory,
 			ensureConversation,
+			forcedNextIntent,
 			hasApiKey,
 			preferences,
 		],
@@ -205,6 +238,59 @@ export function ChatPage() {
 		[appendMessages, updateMessage],
 	)
 
+	const handleClearChat = useCallback(async () => {
+		setIsClearing(true)
+		try {
+			await clearConversation()
+			setLastIntent(null)
+			setError(null)
+			setForcedNextIntent(null)
+			setClearDialogOpen(false)
+		} finally {
+			setIsClearing(false)
+		}
+	}, [clearConversation])
+
+	const clearChatButton = (
+		<Dialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+			<DialogTrigger asChild>
+				<Button
+					variant="outline"
+					size="sm"
+					disabled={messageCount === 0 || isGenerating}
+					className="shrink-0"
+				>
+					<Trash2 className="h-4 w-4" />
+					<span className="hidden sm:inline">Clear chat</span>
+				</Button>
+			</DialogTrigger>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Clear this conversation?</DialogTitle>
+					<DialogDescription>
+						This permanently deletes all {messageCount} message
+						{messageCount === 1 ? '' : 's'} in your continuous chat. Documents
+						and library items are not affected.
+					</DialogDescription>
+				</DialogHeader>
+				<DialogFooter>
+					<DialogClose asChild>
+						<Button variant="outline">Cancel</Button>
+					</DialogClose>
+					<Button
+						variant="destructive"
+						disabled={isClearing}
+						onClick={() => {
+							void handleClearChat()
+						}}
+					>
+						{isClearing ? 'Clearing…' : 'Clear chat'}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	)
+
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-hidden">
 			<header className="hidden shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 md:flex md:px-6">
@@ -217,18 +303,22 @@ export function ChatPage() {
 						{lastIntent ? ` · last: ${lastIntent}` : ''}
 					</p>
 				</div>
-				<ChatModelSelector
-					value={preferences.defaultModelId}
-					onChange={(modelId) => {
-						void saveModelPreference({ defaultModelId: modelId })
-					}}
-				/>
+				<div className="flex flex-wrap items-center gap-2">
+					{clearChatButton}
+					<ChatModelSelector
+						value={preferences.defaultModelId}
+						onChange={(modelId) => {
+							void saveModelPreference({ defaultModelId: modelId })
+						}}
+					/>
+				</div>
 			</header>
 
-			<div className="hidden shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2 md:hidden">
-				<p className="text-xs text-muted-foreground">
-					{selectedModel?.name ?? 'Chat model'} · tap + to attach or choose models
+			<div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2 md:hidden">
+				<p className="min-w-0 text-xs text-muted-foreground">
+					{selectedModel?.name ?? 'Chat model'} · tap + for models
 				</p>
+				{clearChatButton}
 			</div>
 
 			{!hasApiKey ? (
@@ -267,6 +357,8 @@ export function ChatPage() {
 				selectedImageModelId={preferences.defaultImageModelId}
 				selectedMusicModelId={preferences.defaultMusicModelId}
 				selectedVideoModelId={preferences.defaultVideoModelId}
+				forcedNextIntent={forcedNextIntent}
+				onForceNextIntent={setForcedNextIntent}
 				onWebSearchChange={setWebSearchEnabled}
 				onChatModelChange={(modelId) => {
 					void saveModelPreference({ defaultModelId: modelId })
