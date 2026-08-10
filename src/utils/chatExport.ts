@@ -1,5 +1,6 @@
 import { MAIN_CONVERSATION_ID } from '@/services/gemini/constants'
 import type { ConversationRecord, StoredMessage } from '@/storage/types'
+import { buildDownloadFilename } from '@/utils/downloads'
 
 export const CHAT_EXPORT_VERSION = 1
 
@@ -90,9 +91,12 @@ export function downloadChatExport(conversation: ConversationRecord): void {
 	})
 	const url = URL.createObjectURL(blob)
 	const anchor = document.createElement('a')
-	const stamp = new Date().toISOString().slice(0, 10)
 	anchor.href = url
-	anchor.download = `chat-export-${stamp}.json`
+	anchor.download = buildDownloadFilename(
+		'chat-export',
+		'json',
+		conversation.updatedAt,
+	)
 	anchor.click()
 	URL.revokeObjectURL(url)
 }

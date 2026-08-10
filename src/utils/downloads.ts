@@ -30,6 +30,30 @@ export function sanitizeFilename(value: string): string {
 	return sanitized || 'download'
 }
 
+export function formatDownloadTimestamp(timestamp: number): string {
+	const date = new Date(timestamp)
+	const year = date.getFullYear()
+	const month = String(date.getMonth() + 1).padStart(2, '0')
+	const day = String(date.getDate()).padStart(2, '0')
+	const hours = String(date.getHours()).padStart(2, '0')
+	const minutes = String(date.getMinutes()).padStart(2, '0')
+
+	return `${year}-${month}-${day} ${hours}-${minutes}`
+}
+
+export function buildDownloadFilename(
+	title: string,
+	extension: string,
+	timestamp?: number,
+): string {
+	const stamp = formatDownloadTimestamp(timestamp ?? Date.now())
+	const ext = extension.replace(/^\./, '')
+	const maxTitleLength = Math.max(1, 120 - stamp.length - ext.length - 2)
+	const base = sanitizeFilename(title).slice(0, maxTitleLength)
+
+	return `${base} ${stamp}.${ext}`
+}
+
 export function extensionForMimeType(mimeType: string): string {
 	if (mimeType.includes('png')) return 'png'
 	if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpg'
@@ -47,7 +71,7 @@ export function downloadDocument(
 	document: DocumentRecord,
 	format: 'txt' | 'md' | 'pdf',
 ): void {
-	const filename = `${sanitizeFilename(document.title)}.${format}`
+	const filename = buildDownloadFilename(document.title, format, document.updatedAt)
 
 	if (format === 'pdf') {
 		void downloadDocumentPdf(document, filename)
@@ -84,7 +108,8 @@ export function downloadLibraryMediaItem(
 	title: string,
 	mimeType: string,
 	dataUrl: string,
+	timestamp?: number,
 ): void {
 	const extension = extensionForMimeType(mimeType)
-	downloadDataUrl(dataUrl, `${sanitizeFilename(title)}.${extension}`)
+	downloadDataUrl(dataUrl, buildDownloadFilename(title, extension, timestamp))
 }
