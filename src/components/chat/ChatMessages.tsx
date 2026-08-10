@@ -1,5 +1,13 @@
-import { Bot, ExternalLink, FileText, Loader2, Music, User } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import {
+	ArrowDown,
+	Bot,
+	ExternalLink,
+	FileText,
+	Loader2,
+	Music,
+	User,
+} from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ChatMarkdown } from '@/components/chat/ChatMarkdown'
@@ -9,7 +17,10 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import type { MessageDocumentLink, StoredMessage } from '@/storage/types'
 import type { TtsPlaybackStatus } from '@/hooks/useTextToSpeech'
 import { formatMessageTime } from '@/utils/dateTime'
+import { readChatScrollTop, saveChatScrollTop } from '@/utils/chatScrollState'
 import { cn } from '@/utils/cn'
+
+const BOTTOM_THRESHOLD_PX = 80
 
 interface ChatMessagesProps {
 	messages: StoredMessage[]
@@ -49,11 +60,118 @@ export function ChatMessages({
 	onStopSpeech,
 	speechDisabled = false,
 }: ChatMessagesProps) {
-	const bottomRef = useRef<HTMLDivElement>(null)
+	const viewportRef = useRef<HTMLDivElement>(null)
+	const previousMessageCountRef = useRef(messages.length)
+	const hasRestoredScrollRef = useRef(false)
+	const [showScrollToBottom, setShowScrollToBottom] = useState(false)
+
+	const isNearBottom = useCallback((viewport: HTMLElement): boolean => {
+		return (
+			viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <=
+			BOTTOM_THRESHOLD_PX
+		)
+	}, [])
+
+	const updateScrollButtonVisibility = useCallback(() => {
+		const viewport = viewportRef.current
+		if (!viewport) {
+			return
+		}
+
+		setShowScrollToBottom(!isNearBottom(viewport))
+	}, [isNearBottom])
+
+	const scrollToBottom = useCallback(
+		(behavior: ScrollBehavior = 'smooth') => {
+			const viewport = viewportRef.current
+			if (!viewport) {
+				return
+			}
+
+			viewport.scrollTo({
+				top: viewport.scrollHeight,
+				behavior,
+			})
+			saveChatScrollTop(viewport.scrollHeight)
+			setShowScrollToBottom(false)
+		},
+		[],
+	)
+
+	useLayoutEffect(() => {
+		if (hasRestoredScrollRef.current) {
+			return
+		}
+
+		const viewport = viewportRef.current
+		if (!viewport) {
+			return
+		}
+
+		const savedScrollTop = readChatScrollTop()
+		if (savedScrollTop !== null) {
+			viewport.scrollTop = savedScrollTop
+			updateScrollButtonVisibility()
+			hasRestoredScrollRef.current = true
+			return
+		}
+
+		if (messages.length > 0 || streamingAssistant || isGenerating) {
+			viewport.scrollTop = viewport.scrollHeight
+			updateScrollButtonVisibility()
+		}
+
+		hasRestoredScrollRef.current = true
+	}, [
+		isGenerating,
+		messages.length,
+		streamingAssistant,
+		updateScrollButtonVisibility,
+	])
 
 	useEffect(() => {
-		bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-	}, [messages, isGenerating, streamingAssistant?.content])
+		const viewport = viewportRef.current
+		if (!viewport) {
+			return
+		}
+
+		function handleScroll(): void {
+			saveChatScrollTop(viewport!.scrollTop)
+			updateScrollButtonVisibility()
+		}
+
+		viewport.addEventListener('scroll', handleScroll, { passive: true })
+		return () => {
+			viewport.removeEventListener('scroll', handleScroll)
+		}
+	}, [updateScrollButtonVisibility])
+
+	useEffect(() => {
+		return () => {
+			const viewport = viewportRef.current
+			if (viewport) {
+				saveChatScrollTop(viewport.scrollTop)
+			}
+		}
+	}, [])
+
+	useEffect(() => {
+		if (messages.length <= previousMessageCountRef.current) {
+			previousMessageCountRef.current = messages.length
+			return
+		}
+
+		const lastMessage = messages[messages.length - 1]
+		previousMessageCountRef.current = messages.length
+
+		if (lastMessage?.role === 'user') {
+			scrollToBottom('smooth')
+		}
+	}, [messages, scrollToBottom])
+
+	useEffect(() => {
+		updateScrollButtonVisibility()
+	}, [isGenerating, streamingAssistant?.content, updateScrollButtonVisibility])
 
 	if (messages.length === 0 && !isGenerating) {
 		return (
@@ -74,8 +192,8 @@ export function ChatMessages({
 	}
 
 	return (
-		<div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-			<ScrollArea className="h-full w-full max-w-full">
+		<div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+			<ScrollArea viewportRef={viewportRef} className="h-full w-full max-w-full">
 				<div className="mx-auto box-border w-full min-w-0 max-w-3xl px-4 py-2 md:px-6">
 					{messages.map((message) => (
 						<MessageRow
@@ -114,9 +232,23 @@ export function ChatMessages({
 							{aiName} is thinking…
 						</div>
 					) : null}
-					<div ref={bottomRef} />
 				</div>
 			</ScrollArea>
+
+			{showScrollToBottom ? (
+				<div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center">
+					<Button
+						type="button"
+						size="icon"
+						variant="secondary"
+						className="pointer-events-auto h-10 w-10 rounded-full shadow-lg ring-1 ring-border"
+						onClick={() => scrollToBottom('smooth')}
+						aria-label="Scroll to latest message"
+					>
+						<ArrowDown className="h-4 w-4" />
+					</Button>
+				</div>
+			) : null}
 		</div>
 	)
 }
