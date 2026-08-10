@@ -79,6 +79,20 @@ export function ChatInput({
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const promptBeforeSpeechRef = useRef('')
 
+	const adjustTextareaHeight = useCallback(() => {
+		const textarea = textareaRef.current
+		if (!textarea) {
+			return
+		}
+
+		textarea.style.height = '0px'
+		const maxHeight = 128
+		const nextHeight = Math.min(textarea.scrollHeight, maxHeight)
+		textarea.style.height = `${nextHeight}px`
+		textarea.style.overflowY =
+			textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
+	}, [])
+
 	const {
 		isSupported,
 		status,
@@ -113,6 +127,10 @@ export function ChatInput({
 		}
 	}, [isListening, transcript])
 
+	useEffect(() => {
+		adjustTextareaHeight()
+	}, [adjustTextareaHeight, prompt])
+
 	const resetSpeechState = useCallback(() => {
 		if (isListening) {
 			cancelListening()
@@ -145,8 +163,9 @@ export function ChatInput({
 				editingMessage.content.length,
 				editingMessage.content.length,
 			)
+			adjustTextareaHeight()
 		})
-	}, [editingMessage, resetSpeechState])
+	}, [adjustTextareaHeight, editingMessage, resetSpeechState])
 
 	const syncCursor = useCallback(() => {
 		const nextPosition = textareaRef.current?.selectionStart ?? prompt.length
@@ -586,12 +605,12 @@ export function ChatInput({
 								? 'Transcribing…'
 								: isListening
 									? 'Recording…'
-									: 'Message… type @ to reference a document'
+									: 'Message…'
 						}
 						disabled={inputDisabled}
 						readOnly={isListening}
 						rows={1}
-						className="max-h-32 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60 md:min-h-[44px] md:px-3"
+						className="max-h-32 min-h-[40px] flex-1 resize-none overflow-hidden bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60 md:min-h-[44px] md:px-3"
 					/>
 
 					{isListening ? (
