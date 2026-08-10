@@ -1,10 +1,8 @@
 import { ArrowUp, Square } from 'lucide-react'
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button'
-import { getModelById } from '@/services/gemini/models'
 
 interface ChatInputProps {
-	modelId: string
 	disabled?: boolean
 	isGenerating?: boolean
 	onSubmit: (prompt: string) => void
@@ -12,20 +10,12 @@ interface ChatInputProps {
 }
 
 export function ChatInput({
-	modelId,
 	disabled,
 	isGenerating,
 	onSubmit,
 	onStop,
 }: ChatInputProps) {
 	const [prompt, setPrompt] = useState('')
-	const model = getModelById(modelId)
-
-	const placeholder = model
-		? model.category === 'chat'
-			? 'Message Gemini…'
-			: `Describe what to generate with ${model.name}…`
-		: 'Enter a prompt…'
 
 	function handleSubmit(event?: FormEvent): void {
 		event?.preventDefault()
@@ -54,7 +44,7 @@ export function ChatInput({
 					value={prompt}
 					onChange={(event) => setPrompt(event.target.value)}
 					onKeyDown={handleKeyDown}
-					placeholder={placeholder}
+					placeholder='Message Gemini… or "generate image …", "generate music …", "generate video …"'
 					disabled={disabled || isGenerating}
 					rows={1}
 					className="max-h-40 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
@@ -81,8 +71,8 @@ export function ChatInput({
 				)}
 			</div>
 			<p className="mx-auto mt-2 max-w-3xl text-center text-xs text-muted-foreground">
-				Your API key stays in this browser via IndexedDB. Generation uses your
-				linked Gemini key directly.
+				Chat uses Gemini 3.6 Flash or 3.1 Pro. Generation commands pick image,
+				music, or video models automatically.
 			</p>
 		</form>
 	)

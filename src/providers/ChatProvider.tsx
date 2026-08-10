@@ -3,23 +3,26 @@ import {
 	useContext,
 	type ReactNode,
 } from 'react'
-import { useConversations, usePreferences } from '@/hooks/useChatStorage'
+import { useMainConversation, usePreferences } from '@/hooks/useChatStorage'
 
 type PreferencesContextValue = ReturnType<typeof usePreferences>
-type ConversationsContextValue = ReturnType<typeof useConversations>
+type MainConversationContextValue = ReturnType<typeof useMainConversation>
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null)
-const ConversationsContext = createContext<ConversationsContextValue | null>(null)
+const MainConversationContext =
+	createContext<MainConversationContextValue | null>(null)
 
 export function ChatProvider({ children }: { children: ReactNode }) {
 	const preferencesState = usePreferences()
-	const conversationsState = useConversations()
+	const conversationState = useMainConversation(
+		preferencesState.preferences.defaultModelId,
+	)
 
 	return (
 		<PreferencesContext.Provider value={preferencesState}>
-			<ConversationsContext.Provider value={conversationsState}>
+			<MainConversationContext.Provider value={conversationState}>
 				{children}
-			</ConversationsContext.Provider>
+			</MainConversationContext.Provider>
 		</PreferencesContext.Provider>
 	)
 }
@@ -32,10 +35,12 @@ export function usePreferencesContext(): PreferencesContextValue {
 	return context
 }
 
-export function useConversationsContext(): ConversationsContextValue {
-	const context = useContext(ConversationsContext)
+export function useMainConversationContext(): MainConversationContextValue {
+	const context = useContext(MainConversationContext)
 	if (!context) {
-		throw new Error('useConversationsContext must be used within ChatProvider')
+		throw new Error(
+			'useMainConversationContext must be used within ChatProvider',
+		)
 	}
 	return context
 }

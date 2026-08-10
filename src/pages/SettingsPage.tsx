@@ -1,33 +1,33 @@
-import { ExternalLink, KeyRound, Save } from 'lucide-react'
+import { ExternalLink, KeyRound, PlugZap, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ModelSelector } from '@/components/chat/ModelSelector'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { usePreferencesContext } from '@/providers/ChatProvider'
+import { validateApiKey } from '@/services/gemini/validate'
 import { GEMINI_MODELS, MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
 
 export function SettingsPage() {
 	const { preferences, savePreferences, isLoading } = usePreferencesContext()
 	const [apiKey, setApiKey] = useState('')
-	const [defaultModelId, setDefaultModelId] = useState(preferences.defaultModelId)
 	const [saved, setSaved] = useState(false)
 	const [isSaving, setIsSaving] = useState(false)
+	const [isValidating, setIsValidating] = useState(false)
+	const [validationMessage, setValidationMessage] = useState<string | null>(null)
+	const [validationOk, setValidationOk] = useState<boolean | null>(null)
 
 	useEffect(() => {
 		if (!isLoading) {
 			setApiKey(preferences.geminiApiKey)
-			setDefaultModelId(preferences.defaultModelId)
 		}
-	}, [isLoading, preferences])
+	}, [isLoading, preferences.geminiApiKey])
 
 	async function handleSave(): Promise<void> {
 		setIsSaving(true)
 		setSaved(false)
 		try {
 			await savePreferences({
+				...preferences,
 				geminiApiKey: apiKey.trim(),
-				defaultModelId,
 			})
 			setSaved(true)
 		} finally {
@@ -35,9 +35,22 @@ export function SettingsPage() {
 		}
 	}
 
+	async function handleValidate(): Promise<void> {
+		setIsValidating(true)
+		setValidationMessage(null)
+		setValidationOk(null)
+		try {
+			const result = await validateApiKey(apiKey)
+			setValidationOk(result.ok)
+			setValidationMessage(result.message)
+		} finally {
+			setIsValidating(false)
+		}
+	}
+
 	return (
 		<div className="flex h-full flex-col overflow-y-auto">
-			<header className="border-b border-border px-6 py-5">
+			<header className="border-b border-border px-4 py-5 md:px-6">
 				<h1 className="text-2xl font-semibold">Settings</h1>
 				<p className="mt-1 text-sm text-muted-foreground">
 					Connect your own Gemini API key. Keys are stored locally in IndexedDB
@@ -45,7 +58,7 @@ export function SettingsPage() {
 				</p>
 			</header>
 
-			<div className="mx-auto w-full max-w-2xl space-y-8 px-6 py-8">
+			<div className="mx-auto w-full max-w-2xl space-y-8 px-4 py-8 md:px-6">
 				<section className="space-y-4 rounded-xl border border-border bg-card p-5">
 					<div className="flex items-center gap-2">
 						<KeyRound className="h-5 w-5 text-primary" />
@@ -70,23 +83,50 @@ export function SettingsPage() {
 						onChange={(event) => {
 							setApiKey(event.target.value)
 							setSaved(false)
+							setValidationMessage(null)
+							setValidationOk(null)
 						}}
 						placeholder="AIza..."
 						autoComplete="off"
 						className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 					/>
-				</section>
-
-				<section className="space-y-4 rounded-xl border border-border bg-card p-5">
-					<h2 className="text-lg font-medium">Default model</h2>
-					<p className="text-sm text-muted-foreground">
-						Used when starting a new chat from the sidebar.
-					</p>
-					<ModelSelector value={defaultModelId} onChange={setDefaultModelId} />
+					<div className="flex flex-wrap items-center gap-3">
+						<Button onClick={() => void handleSave()} disabled={isSaving}>
+							<Save className="h-4 w-4" />
+							{isSaving ? 'Saving…' : 'Save key'}
+						</Button>
+						<Button
+							variant="outline"
+							onClick={() => void handleValidate()}
+							disabled={isValidating || !apiKey.trim()}
+						>
+							<PlugZap className="h-4 w-4" />
+							{isValidating ? 'Validating…' : 'Validate connection'}
+						</Button>
+						{saved ? (
+							<span className="text-sm text-primary">Key saved</span>
+						) : null}
+					</div>
+					{validationMessage ? (
+						<p
+							className={
+								validationOk
+									? 'text-sm text-primary'
+									: 'text-sm text-destructive'
+							}
+						>
+							{validationMessage}
+						</p>
+					) : null}
 				</section>
 
 				<section className="space-y-4 rounded-xl border border-border bg-card p-5">
 					<h2 className="text-lg font-medium">Available models</h2>
+					<p className="text-sm text-muted-foreground">
+						Home lets you switch between Gemini 3.6 Flash and 3.1 Pro. Say
+						&quot;generate image&quot;, &quot;generate music&quot;, or
+						&quot;generate video&quot; in chat to use the models below.
+					</p>
 					<div className="space-y-4">
 						{(['chat', 'image', 'music', 'video'] as const).map((category) => (
 							<div key={category}>
@@ -114,19 +154,6 @@ export function SettingsPage() {
 				</section>
 
 				<Separator />
-
-				<div className="flex flex-wrap items-center gap-3">
-					<Button onClick={() => void handleSave()} disabled={isSaving}>
-						<Save className="h-4 w-4" />
-						{isSaving ? 'Saving…' : 'Save settings'}
-					</Button>
-					{saved ? (
-						<span className="text-sm text-primary">Settings saved</span>
-					) : null}
-					<Button asChild variant="outline">
-						<Link to="/">Back to chat</Link>
-					</Button>
-				</div>
 			</div>
 		</div>
 	)

@@ -1,76 +1,61 @@
+import { usePreferencesContext, useMainConversationContext } from '@/providers/ChatProvider'
+import { CHAT_MODEL_IDS, type ChatModelId } from '@/services/gemini/constants'
+import { getIntentLabel, resolvePromptIntent } from '@/services/gemini/intent'
+import { getModelById } from '@/services/gemini/models'
+import { runModelGeneration } from '@/services/gemini'
+import type { StoredMessage } from '@/storage/types'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { ChatMessages } from '@/components/chat/ChatMessages'
-import { ModelSelector } from '@/components/chat/ModelSelector'
-import { Button } from '@/components/ui/button'
-import {
-	useConversationsContext,
-	usePreferencesContext,
-} from '@/providers/ChatProvider'
-import { runModelGeneration } from '@/services/gemini'
-import { getModelById } from '@/services/gemini/models'
-import type { StoredMessage } from '@/storage/types'
+import { ChatModelSelector } from '@/components/chat/ChatModelSelector'
 
 export function ChatPage() {
-	const { preferences, savePreferences } = usePreferencesContext()
-	const {
-		activeConversation,
-		activeConversationId,
-		startConversation,
-		appendMessages,
-		selectConversation,
-		updateConversationModel,
-	} = useConversationsContext()
+	const { preferences, savePreferences, isLoading } = usePreferencesContext()
+	const { conversation, appendMessages, ensureConversation } =
+		useMainConversationContext()
 
-	const [selectedModelId, setSelectedModelId] = useState(
+	const [selectedChatModelId, setSelectedChatModelId] = useState(
 		preferences.defaultModelId,
 	)
 	const [isGenerating, setIsGenerating] = useState(false)
 	const [error, setError] = useState<string | null>(null)
+	const [lastIntent, setLastIntent] = useState<string | null>(null)
 
-	const currentModelId = activeConversation?.modelId ?? selectedModelId
-	const selectedModel = getModelById(currentModelId)
+	const selectedModel = getModelById(selectedChatModelId)
 	const hasApiKey = preferences.geminiApiKey.trim().length > 0
 
 	useEffect(() => {
-		if (activeConversation?.modelId) {
-			setSelectedModelId(activeConversation.modelId)
+		if (
+			!isLoading &&
+			CHAT_MODEL_IDS.includes(preferences.defaultModelId as ChatModelId)
+		) {
+			setSelectedChatModelId(preferences.defaultModelId)
 		}
-	}, [activeConversation?.modelId])
+	}, [isLoading, preferences.defaultModelId])
 
 	const chatHistory = useMemo(
 		() =>
-			selectedModel?.category === 'chat'
-				? (activeConversation?.messages ?? []).map((message) => ({
-						role: message.role,
-						content: message.content,
-					}))
-				: [],
-		[activeConversation?.messages, selectedModel?.category],
+			(conversation?.messages ?? []).map((message) => ({
+				role: message.role,
+				content: message.content,
+			})),
+		[conversation?.messages],
 	)
 
 	const handleModelChange = useCallback(
 		async (modelId: string) => {
-			setSelectedModelId(modelId)
+			setSelectedChatModelId(modelId)
 			await savePreferences({
 				...preferences,
 				defaultModelId: modelId,
 			})
-			if (activeConversationId) {
-				await updateConversationModel(activeConversationId, modelId)
-			}
 		},
-		[
-			activeConversationId,
-			preferences,
-			savePreferences,
-			updateConversationModel,
-		],
+		[preferences, savePreferences],
 	)
 
 	const handleSubmit = useCallback(
-		async (prompt: string) => {
+		async (text: string) => {
 			if (!hasApiKey) {
 				setError('Add your Gemini API key in Settings before generating.')
 				return
@@ -79,40 +64,47 @@ export function ChatPage() {
 			setError(null)
 			setIsGenerating(true)
 
-			let conversationId = activeConversationId
+			const resolved = resolvePromptIntent(text, selectedChatModelId)
+			setLastIntent(getIntentLabel(resolved.intent))
 
 			try {
-				if (!conversationId) {
-					const created = await startConversation(currentModelId)
-					conversationId = created.id
-				}
+				await ensureConversation()
 
 				const userMessage: StoredMessage = {
 					id: crypto.randomUUID(),
 					role: 'user',
-					content: prompt,
+					content: text,
 					createdAt: Date.now(),
 				}
+				await appendMessages([userMessage], selectedChatModelId)
 
-				await appendMessages(conversationId, [userMessage], currentModelId)
+				const history =
+					resolved.intent === 'chat'
+						? chatHistory
+						: []
 
 				const result = await runModelGeneration(
 					preferences.geminiApiKey,
-					currentModelId,
-					prompt,
-					chatHistory,
+					resolved.modelId,
+					resolved.prompt,
+					history,
 				)
+
+				const modelUsed = getModelById(resolved.modelId)
+				const prefix =
+					resolved.intent === 'chat'
+						? ''
+						: `[${getIntentLabel(resolved.intent)} · ${modelUsed?.name ?? resolved.modelId}]\n`
 
 				const assistantMessage: StoredMessage = {
 					id: crypto.randomUUID(),
 					role: 'assistant',
-					content: result.text,
+					content: `${prefix}${result.text}`,
 					media: result.media.length > 0 ? result.media : undefined,
 					createdAt: Date.now(),
 				}
 
-				await appendMessages(conversationId, [assistantMessage], currentModelId)
-				await selectConversation(conversationId)
+				await appendMessages([assistantMessage], selectedChatModelId)
 			} catch (generationError) {
 				setError(
 					generationError instanceof Error
@@ -124,41 +116,53 @@ export function ChatPage() {
 			}
 		},
 		[
-			activeConversationId,
 			appendMessages,
 			chatHistory,
-			currentModelId,
+			ensureConversation,
 			hasApiKey,
 			preferences.geminiApiKey,
-			selectConversation,
-			startConversation,
+			selectedChatModelId,
 		],
 	)
 
 	return (
 		<div className="flex h-full flex-col">
-			<header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-6">
+			<header className="hidden flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 md:flex md:px-6">
 				<div>
-					<h1 className="text-lg font-semibold">
-						{activeConversation?.title ?? 'New chat'}
-					</h1>
+					<h1 className="text-lg font-semibold">Home</h1>
 					<p className="text-xs text-muted-foreground">
-						{selectedModel
-							? `${selectedModel.name} · ${selectedModel.description}`
-							: 'Select a model'}
+						One continuous conversation · say &quot;generate image&quot;, &quot;generate
+						music&quot;, or &quot;generate video&quot; to switch modes
+						{lastIntent ? ` · last: ${lastIntent}` : ''}
 					</p>
 				</div>
-				<ModelSelector value={currentModelId} onChange={handleModelChange} />
+				<ChatModelSelector
+					value={selectedChatModelId}
+					onChange={handleModelChange}
+				/>
 			</header>
+
+			<div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2 md:hidden">
+				<p className="text-xs text-muted-foreground">
+					{selectedModel?.name ?? 'Chat model'}
+				</p>
+				<ChatModelSelector
+					value={selectedChatModelId}
+					onChange={handleModelChange}
+				/>
+			</div>
 
 			{!hasApiKey ? (
 				<div className="border-b border-border bg-secondary/40 px-4 py-3 text-sm md:px-6">
 					<span className="text-muted-foreground">
 						No API key configured.{' '}
 					</span>
-					<Button asChild variant="ghost" className="h-auto p-0 text-primary hover:underline">
-						<Link to="/settings">Add your Gemini API key</Link>
-					</Button>
+					<Link
+						to="/settings"
+						className="font-medium text-primary underline-offset-4 hover:underline"
+					>
+						Add your Gemini API key
+					</Link>
 				</div>
 			) : null}
 
@@ -169,12 +173,11 @@ export function ChatPage() {
 			) : null}
 
 			<ChatMessages
-				messages={activeConversation?.messages ?? []}
+				messages={conversation?.messages ?? []}
 				isGenerating={isGenerating}
 			/>
 
 			<ChatInput
-				modelId={currentModelId}
 				disabled={!hasApiKey}
 				isGenerating={isGenerating}
 				onSubmit={(prompt) => {

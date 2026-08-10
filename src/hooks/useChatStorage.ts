@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-	deleteValue,
-	getAllValues,
-	getValue,
-	setValue,
-} from '@/storage/storageService'
+import { MAIN_CONVERSATION_ID } from '@/services/gemini/constants'
+import { getValue, setValue } from '@/storage/storageService'
 import {
 	DEFAULT_PREFERENCES,
 	type ConversationRecord,
@@ -13,26 +9,17 @@ import {
 } from '@/storage/types'
 
 const PREFERENCES_KEY = 'user'
-const CONVERSATION_INDEX_KEY = 'index'
 
-function createConversation(modelId: string): ConversationRecord {
+function createMainConversation(modelId: string): ConversationRecord {
 	const now = Date.now()
 	return {
-		id: crypto.randomUUID(),
-		title: 'New chat',
+		id: MAIN_CONVERSATION_ID,
+		title: 'Chat',
 		modelId,
 		messages: [],
 		createdAt: now,
 		updatedAt: now,
 	}
-}
-
-function deriveTitle(messages: StoredMessage[]): string {
-	const firstUser = messages.find((message) => message.role === 'user')
-	if (!firstUser) {
-		return 'New chat'
-	}
-	return firstUser.content.slice(0, 48) || 'New chat'
 }
 
 export function usePreferences() {
@@ -76,34 +63,23 @@ export function usePreferences() {
 	}
 }
 
-export function useConversations() {
-	const [conversations, setConversations] = useState<ConversationRecord[]>([])
-	const [activeConversationId, setActiveConversationId] = useState<string | null>(
+export function useMainConversation(defaultModelId: string) {
+	const [conversation, setConversation] = useState<ConversationRecord | null>(
 		null,
 	)
 	const [isLoading, setIsLoading] = useState(true)
-
-	const refreshConversations = useCallback(async (): Promise<void> => {
-		const records = await getAllValues<ConversationRecord>('conversations')
-		const sorted = records.sort((a, b) => b.updatedAt - a.updatedAt)
-		setConversations(sorted)
-	}, [])
 
 	useEffect(() => {
 		let cancelled = false
 
 		async function load(): Promise<void> {
-			const records = await getAllValues<ConversationRecord>('conversations')
-			const sorted = records.sort((a, b) => b.updatedAt - a.updatedAt)
-			const index = await getValue<string>('preferences', CONVERSATION_INDEX_KEY)
+			const stored = await getValue<ConversationRecord>(
+				'conversations',
+				MAIN_CONVERSATION_ID,
+			)
 
 			if (!cancelled) {
-				setConversations(sorted)
-				setActiveConversationId(
-					index && sorted.some((item) => item.id === index)
-						? index
-						: sorted[0]?.id ?? null,
-				)
+				setConversation(stored ?? createMainConversation(defaultModelId))
 				setIsLoading(false)
 			}
 		}
@@ -113,100 +89,53 @@ export function useConversations() {
 		return () => {
 			cancelled = true
 		}
-	}, [])
+	}, [defaultModelId])
 
 	const persistConversation = useCallback(
-		async (conversation: ConversationRecord): Promise<void> => {
-			await setValue('conversations', conversation.id, conversation)
-			await refreshConversations()
+		async (next: ConversationRecord): Promise<void> => {
+			setConversation(next)
+			await setValue('conversations', MAIN_CONVERSATION_ID, next)
 		},
-		[refreshConversations],
+		[],
 	)
 
-	const selectConversation = useCallback(async (id: string): Promise<void> => {
-		setActiveConversationId(id)
-		await setValue('preferences', CONVERSATION_INDEX_KEY, id)
-	}, [])
+	const ensureConversation = useCallback(async (): Promise<ConversationRecord> => {
+		const stored = await getValue<ConversationRecord>(
+			'conversations',
+			MAIN_CONVERSATION_ID,
+		)
+		if (stored) {
+			setConversation(stored)
+			return stored
+		}
 
-	const startConversation = useCallback(
-		async (modelId: string): Promise<ConversationRecord> => {
-			const conversation = createConversation(modelId)
-			await persistConversation(conversation)
-			await selectConversation(conversation.id)
-			return conversation
-		},
-		[persistConversation, selectConversation],
-	)
-
-	const deleteConversation = useCallback(
-		async (id: string): Promise<void> => {
-			await deleteValue('conversations', id)
-			await refreshConversations()
-			setActiveConversationId((current) => (current === id ? null : current))
-		},
-		[refreshConversations],
-	)
+		const created = createMainConversation(defaultModelId)
+		await persistConversation(created)
+		return created
+	}, [defaultModelId, persistConversation])
 
 	const appendMessages = useCallback(
 		async (
-			conversationId: string,
 			newMessages: StoredMessage[],
 			modelId?: string,
-		): Promise<ConversationRecord | null> => {
-			const existing = await getValue<ConversationRecord>(
-				'conversations',
-				conversationId,
-			)
-			if (!existing) {
-				return null
-			}
-
-			const messages = [...existing.messages, ...newMessages]
+		): Promise<ConversationRecord> => {
+			const existing = conversation ?? (await ensureConversation())
 			const updated: ConversationRecord = {
 				...existing,
 				modelId: modelId ?? existing.modelId,
-				messages,
-				title: deriveTitle(messages),
+				messages: [...existing.messages, ...newMessages],
 				updatedAt: Date.now(),
 			}
-
 			await persistConversation(updated)
 			return updated
 		},
-		[persistConversation],
+		[conversation, ensureConversation, persistConversation],
 	)
-
-	const updateConversationModel = useCallback(
-		async (conversationId: string, modelId: string): Promise<void> => {
-			const existing = await getValue<ConversationRecord>(
-				'conversations',
-				conversationId,
-			)
-			if (!existing) {
-				return
-			}
-
-			await persistConversation({
-				...existing,
-				modelId,
-				updatedAt: Date.now(),
-			})
-		},
-		[persistConversation],
-	)
-
-	const activeConversation =
-		conversations.find((item) => item.id === activeConversationId) ?? null
 
 	return {
-		conversations,
-		activeConversation,
-		activeConversationId,
+		conversation,
 		isLoading,
-		selectConversation,
-		startConversation,
-		deleteConversation,
 		appendMessages,
-		updateConversationModel,
+		ensureConversation,
 	}
 }

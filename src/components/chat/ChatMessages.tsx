@@ -16,10 +16,11 @@ export function ChatMessages({ messages, isGenerating }: ChatMessagesProps) {
 					<Bot className="h-8 w-8" />
 				</div>
 				<div className="max-w-md space-y-2">
-					<h2 className="text-xl font-semibold">Start a conversation</h2>
+					<h2 className="text-xl font-semibold">Your conversation</h2>
 					<p className="text-sm text-muted-foreground">
-						Choose a model and send a message. Chat, image, music, and video
-						models are available — bring your own Gemini API key in Settings.
+						One continuous thread. Switch between Gemini 3.6 Flash and 3.1 Pro,
+						or say &quot;generate image&quot;, &quot;generate music&quot;, or
+						&quot;generate video&quot; to create media.
 					</p>
 				</div>
 			</div>
