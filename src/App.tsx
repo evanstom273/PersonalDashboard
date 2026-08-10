@@ -10,8 +10,10 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { ChatProvider } from '@/providers/ChatProvider'
 
 export function App() {
+	const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '')
+
 	return (
-		<BrowserRouter>
+		<BrowserRouter basename={routerBasename || undefined}>
 			<ChatProvider>
 				<Routes>
 					<Route element={<AppShell />}>

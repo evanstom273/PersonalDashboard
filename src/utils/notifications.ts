@@ -1,4 +1,4 @@
-const NOTIFICATION_ICON = '/pwa-192x192.png'
+const NOTIFICATION_ICON = `${import.meta.env.BASE_URL}pwa-192x192.png`
 const NOTIFICATION_TAG = 'chat-generation-complete'
 const REMINDER_NOTIFICATION_TAG = 'reminder-due'
 
