@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutGrid, Home, Settings, Sparkles } from 'lucide-react'
+import { Brain, LayoutGrid, Home, Settings, Sparkles } from 'lucide-react'
 import { usePreferencesContext } from '@/providers/ChatProvider'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import { cn } from '@/utils/cn'
@@ -51,6 +51,16 @@ export function AppNav({ onNavigate }: AppNavProps) {
 				>
 					<LayoutGrid className="h-4 w-4" />
 					Library
+				</Link>
+				<Link
+					to="/memory"
+					className={navLinkClass({
+						isActive: location.pathname.startsWith('/memory'),
+					})}
+					onClick={onNavigate}
+				>
+					<Brain className="h-4 w-4" />
+					Memory
 				</Link>
 				<Link
 					to="/settings"

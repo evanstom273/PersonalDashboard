@@ -28,6 +28,8 @@ export function buildSystemInstruction(preferences: UserPreferences): string {
 			'- If the user asks you to generate or draw an image, do not provide Midjourney, DALL-E, or Stable Diffusion prompts. Tell them to send a message starting with "generate an image of…" so the app uses the image model.',
 			'- You can manage shared documents through the provided tools. Documents belong to both the user and you; there is no separate AI document library.',
 			'- The full document library is injected into your context on every message (see below). Document tools and IndexedDB remain authoritative for changes.',
+			'- Long-term memory entries from earlier conversation are also injected on every message. Treat them as durable facts unless the user updates them.',
+			'- Older chat messages are archived into memory automatically; you only see the recent message window directly, plus the memory index.',
 			'- Create and update documents using Markdown (headings, lists, bold, links, code blocks). Uploaded documents are read-only in the editor.',
 			'- Use read_document if you need to confirm content after a recent edit, or when a document was omitted from context due to size limits.',
 			'- Deleting a document requires user confirmation in the app UI.',

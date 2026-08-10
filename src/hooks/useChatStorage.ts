@@ -3,12 +3,38 @@ import { MAIN_CONVERSATION_ID } from '@/services/gemini/constants'
 import { getValue, setValue } from '@/storage/storageService'
 import {
 	DEFAULT_PREFERENCES,
+	MEMORY_ARCHIVE_INTERVAL_OPTIONS,
 	type ConversationRecord,
+	type MemoryArchiveInterval,
 	type StoredMessage,
 	type UserPreferences,
 } from '@/storage/types'
 
 const PREFERENCES_KEY = 'user'
+
+function normalizeMemoryArchiveInterval(value: unknown): MemoryArchiveInterval {
+	if (
+		typeof value === 'number' &&
+		MEMORY_ARCHIVE_INTERVAL_OPTIONS.includes(value as MemoryArchiveInterval)
+	) {
+		return value as MemoryArchiveInterval
+	}
+
+	return DEFAULT_PREFERENCES.memoryArchiveInterval
+}
+
+function normalizeConversation(
+	conversation: ConversationRecord,
+): ConversationRecord {
+	return {
+		...conversation,
+		memoryArchiveCursor:
+			typeof conversation.memoryArchiveCursor === 'number' &&
+			conversation.memoryArchiveCursor >= 0
+				? conversation.memoryArchiveCursor
+				: 0,
+	}
+}
 
 function createMainConversation(modelId: string): ConversationRecord {
 	const now = Date.now()
@@ -17,6 +43,7 @@ function createMainConversation(modelId: string): ConversationRecord {
 		title: 'Chat',
 		modelId,
 		messages: [],
+		memoryArchiveCursor: 0,
 		createdAt: now,
 		updatedAt: now,
 	}
@@ -39,6 +66,9 @@ export function usePreferences() {
 				setPreferencesState({
 					...DEFAULT_PREFERENCES,
 					...stored,
+					memoryArchiveInterval: normalizeMemoryArchiveInterval(
+						stored?.memoryArchiveInterval,
+					),
 				})
 				setIsLoading(false)
 			}
@@ -82,7 +112,11 @@ export function useMainConversation(defaultModelId: string) {
 			)
 
 			if (!cancelled) {
-				setConversation(stored ?? createMainConversation(defaultModelId))
+				setConversation(
+					stored
+						? normalizeConversation(stored)
+						: createMainConversation(defaultModelId),
+				)
 				setIsLoading(false)
 			}
 		}
@@ -96,8 +130,9 @@ export function useMainConversation(defaultModelId: string) {
 
 	const persistConversation = useCallback(
 		async (next: ConversationRecord): Promise<void> => {
-			setConversation(next)
-			await setValue('conversations', MAIN_CONVERSATION_ID, next)
+			const normalized = normalizeConversation(next)
+			setConversation(normalized)
+			await setValue('conversations', MAIN_CONVERSATION_ID, normalized)
 		},
 		[],
 	)
@@ -108,8 +143,9 @@ export function useMainConversation(defaultModelId: string) {
 			MAIN_CONVERSATION_ID,
 		)
 		if (stored) {
-			setConversation(stored)
-			return stored
+			const normalized = normalizeConversation(stored)
+			setConversation(normalized)
+			return normalized
 		}
 
 		const created = createMainConversation(defaultModelId)
@@ -122,11 +158,12 @@ export function useMainConversation(defaultModelId: string) {
 			newMessages: StoredMessage[],
 			modelId?: string,
 		): Promise<ConversationRecord> => {
-			const existing =
+			const existing = normalizeConversation(
 				(await getValue<ConversationRecord>(
 					'conversations',
 					MAIN_CONVERSATION_ID,
-				)) ?? (await ensureConversation())
+				)) ?? (await ensureConversation()),
+			)
 
 			const updated: ConversationRecord = {
 				...existing,
@@ -145,11 +182,12 @@ export function useMainConversation(defaultModelId: string) {
 			messageId: string,
 			patch: Partial<StoredMessage>,
 		): Promise<ConversationRecord> => {
-			const existing =
+			const existing = normalizeConversation(
 				(await getValue<ConversationRecord>(
 					'conversations',
 					MAIN_CONVERSATION_ID,
-				)) ?? (await ensureConversation())
+				)) ?? (await ensureConversation()),
+			)
 
 			const updated: ConversationRecord = {
 				...existing,
@@ -165,15 +203,17 @@ export function useMainConversation(defaultModelId: string) {
 	)
 
 	const clearConversation = useCallback(async (): Promise<ConversationRecord> => {
-		const existing =
+		const existing = normalizeConversation(
 			(await getValue<ConversationRecord>(
 				'conversations',
 				MAIN_CONVERSATION_ID,
-			)) ?? (await ensureConversation())
+			)) ?? (await ensureConversation()),
+		)
 
 		const cleared: ConversationRecord = {
 			...existing,
 			messages: [],
+			memoryArchiveCursor: 0,
 			updatedAt: Date.now(),
 		}
 		await persistConversation(cleared)
@@ -182,11 +222,12 @@ export function useMainConversation(defaultModelId: string) {
 
 	const replaceConversation = useCallback(
 		async (next: ConversationRecord): Promise<ConversationRecord> => {
-			const replaced: ConversationRecord = {
+			const replaced: ConversationRecord = normalizeConversation({
 				...next,
 				id: MAIN_CONVERSATION_ID,
+				memoryArchiveCursor: 0,
 				updatedAt: Date.now(),
-			}
+			})
 			await persistConversation(replaced)
 			return replaced
 		},
@@ -201,5 +242,6 @@ export function useMainConversation(defaultModelId: string) {
 		ensureConversation,
 		clearConversation,
 		replaceConversation,
+		saveConversation: persistConversation,
 	}
 }

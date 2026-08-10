@@ -4,6 +4,7 @@ import { ChatPage } from '@/pages/ChatPage'
 import { DocumentEditorPage } from '@/pages/DocumentEditorPage'
 import { LegacyDocumentRedirect } from '@/pages/LegacyDocumentRedirect'
 import { LibraryPage } from '@/pages/LibraryPage'
+import { MemoryPage } from '@/pages/MemoryPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ChatProvider } from '@/providers/ChatProvider'
 
@@ -16,6 +17,7 @@ export function App() {
 						<Route index element={<ChatPage />} />
 						<Route path="library" element={<LibraryPage />} />
 						<Route path="library/documents/:documentId" element={<DocumentEditorPage />} />
+						<Route path="memory" element={<MemoryPage />} />
 						<Route path="documents" element={<Navigate to="/library" replace />} />
 						<Route path="documents/:documentId" element={<LegacyDocumentRedirect />} />
 						<Route path="settings" element={<SettingsPage />} />
