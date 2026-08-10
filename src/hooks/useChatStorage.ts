@@ -4,11 +4,14 @@ import { getValue, setValue } from '@/storage/storageService'
 import {
 	DEFAULT_PREFERENCES,
 	MEMORY_ARCHIVE_INTERVAL_OPTIONS,
+	TTS_READ_ALOUD_MODE_OPTIONS,
 	type ConversationRecord,
 	type MemoryArchiveInterval,
 	type StoredMessage,
+	type TtsReadAloudMode,
 	type UserPreferences,
 } from '@/storage/types'
+import { normalizeTtsVoiceName } from '@/services/gemini/ttsVoices'
 
 const PREFERENCES_KEY = 'user'
 
@@ -21,6 +24,17 @@ function normalizeMemoryArchiveInterval(value: unknown): MemoryArchiveInterval {
 	}
 
 	return DEFAULT_PREFERENCES.memoryArchiveInterval
+}
+
+function normalizeTtsReadAloudMode(value: unknown): TtsReadAloudMode {
+	if (
+		typeof value === 'string' &&
+		TTS_READ_ALOUD_MODE_OPTIONS.includes(value as TtsReadAloudMode)
+	) {
+		return value as TtsReadAloudMode
+	}
+
+	return DEFAULT_PREFERENCES.ttsReadAloudMode
 }
 
 function normalizeConversation(
@@ -69,6 +83,8 @@ export function usePreferences() {
 					memoryArchiveInterval: normalizeMemoryArchiveInterval(
 						stored?.memoryArchiveInterval,
 					),
+					ttsReadAloudMode: normalizeTtsReadAloudMode(stored?.ttsReadAloudMode),
+					ttsVoiceName: normalizeTtsVoiceName(stored?.ttsVoiceName),
 				})
 				setIsLoading(false)
 			}
@@ -202,6 +218,37 @@ export function useMainConversation(defaultModelId: string) {
 		[ensureConversation, persistConversation],
 	)
 
+	const truncateMessagesFrom = useCallback(
+		async (messageId: string): Promise<ConversationRecord> => {
+			const existing = normalizeConversation(
+				(await getValue<ConversationRecord>(
+					'conversations',
+					MAIN_CONVERSATION_ID,
+				)) ?? (await ensureConversation()),
+			)
+
+			const messageIndex = existing.messages.findIndex(
+				(message) => message.id === messageId,
+			)
+			if (messageIndex === -1) {
+				throw new Error('Message not found.')
+			}
+
+			const updated: ConversationRecord = {
+				...existing,
+				messages: existing.messages.slice(0, messageIndex),
+				memoryArchiveCursor: Math.min(
+					existing.memoryArchiveCursor,
+					messageIndex,
+				),
+				updatedAt: Date.now(),
+			}
+			await persistConversation(updated)
+			return updated
+		},
+		[ensureConversation, persistConversation],
+	)
+
 	const clearConversation = useCallback(async (): Promise<ConversationRecord> => {
 		const existing = normalizeConversation(
 			(await getValue<ConversationRecord>(
@@ -239,6 +286,7 @@ export function useMainConversation(defaultModelId: string) {
 		isLoading,
 		appendMessages,
 		updateMessage,
+		truncateMessagesFrom,
 		ensureConversation,
 		clearConversation,
 		replaceConversation,

@@ -3,10 +3,11 @@ import {
 	useChatGenerationContext,
 	useMainConversationContext,
 	usePreferencesContext,
+	useTextToSpeechContext,
 } from '@/providers/ChatProvider'
 import { confirmDocumentDeletion } from '@/services/gemini/documentTools'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
-import type { UserPreferences } from '@/storage/types'
+import type { StoredMessage, UserPreferences } from '@/storage/types'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
@@ -32,10 +33,21 @@ export function ChatPage() {
 		stopGeneration,
 		clearCompletionNotice,
 	} = useChatGenerationContext()
+	const {
+		activeMessageId: activeSpeechMessageId,
+		status: speechStatus,
+		error: speechError,
+		speakAssistantMessage,
+		stop: stopSpeech,
+		clearError: clearSpeechError,
+	} = useTextToSpeechContext()
 
 	const [webSearchEnabled, setWebSearchEnabled] = useState(false)
 	const [forcedNextIntent, setForcedNextIntent] =
 		useState<GenerationIntent | null>(null)
+	const [editingMessage, setEditingMessage] = useState<StoredMessage | null>(
+		null,
+	)
 
 	const aiName = getConfiguredAiName(preferences)
 	const hasApiKey = preferences.geminiApiKey.trim().length > 0
@@ -56,28 +68,40 @@ export function ChatPage() {
 
 	const handleClearChat = useCallback(async () => {
 		stopGeneration()
+		setEditingMessage(null)
 		await clearConversation()
 		setForcedNextIntent(null)
 	}, [clearConversation, stopGeneration])
 
 	const handleImportChat = useCallback(
 		async (imported: Parameters<typeof replaceConversation>[0]) => {
+			setEditingMessage(null)
 			await replaceConversation(imported)
 			setForcedNextIntent(null)
 		},
 		[replaceConversation],
 	)
 
+	const handleEditUserMessage = useCallback(
+		(message: StoredMessage) => {
+			stopGeneration()
+			setEditingMessage(message)
+		},
+		[stopGeneration],
+	)
+
 	const handleSubmit = useCallback(
 		async (payload: Parameters<typeof submitMessage>[0]) => {
+			stopSpeech()
 			const activeForcedIntent = forcedNextIntent
 			if (activeForcedIntent) {
 				setForcedNextIntent(null)
 			}
 
 			await submitMessage(payload, { forcedNextIntent: activeForcedIntent })
+			setEditingMessage(null)
 		},
-		[forcedNextIntent, submitMessage],
+		[forcedNextIntent, stopSpeech, submitMessage],
 	)
 
 	const handleConfirmDelete = useCallback(
@@ -111,6 +135,17 @@ export function ChatPage() {
 			])
 		},
 		[appendMessages, updateMessage],
+	)
+
+	const handleSpeakMessage = useCallback(
+		(message: StoredMessage) => {
+			clearSpeechError()
+			void speakAssistantMessage({
+				messageId: message.id,
+				text: message.content,
+			})
+		},
+		[clearSpeechError, speakAssistantMessage],
 	)
 
 	return (
@@ -159,13 +194,35 @@ export function ChatPage() {
 				</div>
 			) : null}
 
+			{speechError ? (
+				<div className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-900 dark:text-amber-100 md:px-6">
+					<div className="flex items-start justify-between gap-3">
+						<p>{speechError}</p>
+						<button
+							type="button"
+							className="shrink-0 text-xs underline-offset-4 hover:underline"
+							onClick={clearSpeechError}
+						>
+							Dismiss
+						</button>
+					</div>
+				</div>
+			) : null}
+
 			<ChatMessages
 				messages={conversation?.messages ?? []}
 				streamingAssistant={streamingAssistant}
 				isGenerating={isGenerating}
 				aiName={aiName}
+				editingMessageId={editingMessage?.id ?? null}
+				onEditUserMessage={handleEditUserMessage}
 				onConfirmDelete={handleConfirmDelete}
 				onCancelDelete={handleCancelDelete}
+				activeSpeechMessageId={activeSpeechMessageId}
+				speechStatus={speechStatus}
+				onSpeakMessage={handleSpeakMessage}
+				onStopSpeech={stopSpeech}
+				speechDisabled={!hasApiKey || isGenerating}
 			/>
 
 			<ChatInput
@@ -189,6 +246,8 @@ export function ChatPage() {
 				onMusicModelChange={(modelId) => {
 					void saveModelPreference({ defaultMusicModelId: modelId })
 				}}
+				editingMessage={editingMessage}
+				onCancelEdit={() => setEditingMessage(null)}
 				onSubmit={(payload) => {
 					void handleSubmit(payload)
 				}}

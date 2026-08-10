@@ -12,7 +12,7 @@ import {
 } from '@/services/memory/memoryArchive'
 import { saveMessageMediaToLibrary } from '@/services/library/libraryMediaService'
 import type { ConversationRecord, StoredMessage, UserPreferences } from '@/storage/types'
-import type { ChatSubmitPayload } from '@/types/chat'
+import type { ChatInputMethod, ChatSubmitPayload } from '@/types/chat'
 import {
 	notifyGenerationComplete,
 	requestNotificationPermission,
@@ -25,18 +25,25 @@ interface UseChatGenerationOptions {
 		newMessages: StoredMessage[],
 		modelId?: string,
 	) => Promise<ConversationRecord>
+	truncateMessagesFrom: (messageId: string) => Promise<ConversationRecord>
 	ensureConversation: () => Promise<ConversationRecord>
 	saveConversation: (next: ConversationRecord) => Promise<void>
 	isChatRoute: boolean
+	onAssistantReply?: (payload: {
+		message: StoredMessage
+		inputMethod: ChatInputMethod
+	}) => void
 }
 
 export function useChatGeneration({
 	preferences,
 	conversation,
 	appendMessages,
+	truncateMessagesFrom,
 	ensureConversation,
 	saveConversation,
 	isChatRoute,
+	onAssistantReply,
 }: UseChatGenerationOptions) {
 	const [isGenerating, setIsGenerating] = useState(false)
 	const [error, setError] = useState<string | null>(null)
@@ -74,7 +81,13 @@ export function useChatGeneration({
 
 	const submitMessage = useCallback(
 		async (
-			{ text, attachments, webSearchEnabled: useWebSearch }: ChatSubmitPayload,
+			{
+				text,
+				attachments,
+				webSearchEnabled: useWebSearch,
+				editFromMessageId,
+				inputMethod,
+			}: ChatSubmitPayload,
 			options?: { forcedNextIntent?: GenerationIntent | null },
 		) => {
 			const hasApiKey = preferences.geminiApiKey.trim().length > 0
@@ -94,7 +107,13 @@ export function useChatGeneration({
 
 			const modelPreferences = getGenerationModelPreferences(preferences)
 			const activeForcedIntent = options?.forcedNextIntent ?? null
-			const recentMessages = (conversation?.messages ?? [])
+
+			let activeConversation = conversation
+			if (editFromMessageId) {
+				activeConversation = await truncateMessagesFrom(editFromMessageId)
+			}
+
+			const recentMessages = (activeConversation?.messages ?? [])
 				.slice(-8)
 				.map((message) => ({
 					role: message.role,
@@ -121,7 +140,9 @@ export function useChatGeneration({
 
 			setLastIntent(getIntentLabel(resolved.intent))
 
-			const chatHistory = (conversation ? getUnarchivedMessages(conversation) : []).map(
+			const chatHistory = (
+				activeConversation ? getUnarchivedMessages(activeConversation) : []
+			).map(
 				(message) => ({
 					role: message.role,
 					content: message.content,
@@ -274,6 +295,17 @@ export function useChatGeneration({
 					})
 				}
 
+				if (
+					resolved.intent === 'chat' &&
+					assistantText.trim() &&
+					onAssistantReply
+				) {
+					onAssistantReply({
+						message: assistantMessage,
+						inputMethod,
+					})
+				}
+
 				const aiName = getConfiguredAiName(preferences)
 				if (!isChatRouteRef.current) {
 					setCompletionNotice(`${aiName} finished replying.`)
@@ -325,8 +357,10 @@ export function useChatGeneration({
 			appendMessages,
 			conversation,
 			ensureConversation,
+			onAssistantReply,
 			preferences,
 			saveConversation,
+			truncateMessagesFrom,
 		],
 	)
 

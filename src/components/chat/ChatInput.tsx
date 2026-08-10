@@ -17,8 +17,9 @@ import { createDocument } from '@/services/documents/documentService'
 import {
 	ingestUploadedDocumentContent,
 } from '@/utils/documentContent'
-import type { ChatAttachment, ChatSubmitPayload } from '@/types/chat'
+import type { ChatAttachment, ChatInputMethod, ChatSubmitPayload } from '@/types/chat'
 import type { GenerationIntent } from '@/services/gemini/constants'
+import type { StoredMessage } from '@/storage/types'
 import { MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
 import {
 	getFileBaseName,
@@ -46,6 +47,8 @@ interface ChatInputProps {
 	onForceNextIntent: (intent: GenerationIntent | null) => void
 	onSubmit: (payload: ChatSubmitPayload) => void
 	onStop?: () => void
+	editingMessage?: StoredMessage | null
+	onCancelEdit?: () => void
 }
 
 export function ChatInput({
@@ -65,12 +68,16 @@ export function ChatInput({
 	onForceNextIntent,
 	onSubmit,
 	onStop,
+	editingMessage = null,
+	onCancelEdit,
 }: ChatInputProps) {
 	const [prompt, setPrompt] = useState('')
 	const [cursorPosition, setCursorPosition] = useState(0)
 	const [attachments, setAttachments] = useState<ChatAttachment[]>([])
 	const [attachError, setAttachError] = useState<string | null>(null)
+	const [inputMethod, setInputMethod] = useState<ChatInputMethod>('typed')
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
+	const promptBeforeSpeechRef = useRef('')
 
 	const {
 		isSupported,
@@ -116,6 +123,30 @@ export function ChatInput({
 			cancelListening()
 		}
 	}, [cancelListening, isListening, isReviewing])
+
+	useEffect(() => {
+		if (!editingMessage) {
+			return
+		}
+
+		setPrompt(editingMessage.content)
+		setCursorPosition(editingMessage.content.length)
+		setAttachments(storedMediaToAttachments(editingMessage.media))
+		setAttachError(null)
+		resetSpeechState()
+
+		requestAnimationFrame(() => {
+			const textarea = textareaRef.current
+			if (!textarea) {
+				return
+			}
+			textarea.focus()
+			textarea.setSelectionRange(
+				editingMessage.content.length,
+				editingMessage.content.length,
+			)
+		})
+	}, [editingMessage, resetSpeechState])
 
 	const syncCursor = useCallback(() => {
 		const nextPosition = textareaRef.current?.selectionStart ?? prompt.length
@@ -172,12 +203,16 @@ export function ChatInput({
 			text: messageText,
 			attachments,
 			webSearchEnabled,
+			inputMethod,
+			editFromMessageId: editingMessage?.id,
 		})
 		setPrompt('')
 		setCursorPosition(0)
 		setAttachments([])
 		setAttachError(null)
+		setInputMethod('typed')
 		resetSpeechState()
+		onCancelEdit?.()
 	}
 
 	async function handleDocumentUploads(files: File[]): Promise<void> {
@@ -331,22 +366,33 @@ export function ChatInput({
 			return
 		}
 
-		void startListening(isReviewing ? prompt : '')
+		promptBeforeSpeechRef.current = prompt
+		void startListening(prompt)
 	}
 
 	function handleContinue(): void {
 		void continueListening().then((nextTranscript) => {
-			setPrompt(nextTranscript.trim())
-			setCursorPosition(nextTranscript.trim().length)
+			const nextPrompt = nextTranscript.trim()
+			setPrompt(nextPrompt)
+			setCursorPosition(nextPrompt.length)
+			setInputMethod('speech')
 		})
 	}
 
 	function handleCancelSpeech(): void {
 		cancelListening()
-		if (isListening) {
-			setPrompt('')
-			setCursorPosition(0)
+		if (isListening || isTranscribing) {
+			setPrompt(promptBeforeSpeechRef.current)
+			setCursorPosition(promptBeforeSpeechRef.current.length)
 		}
+	}
+
+	function handleCancelMessageEdit(): void {
+		setPrompt('')
+		setCursorPosition(0)
+		setAttachments([])
+		setAttachError(null)
+		onCancelEdit?.()
 	}
 
 	return (
@@ -370,7 +416,24 @@ export function ChatInput({
 				</div>
 			) : null}
 
-			{isReviewing && prompt.trim() ? (
+			{editingMessage ? (
+				<div className="mx-auto mb-2 flex max-w-3xl items-center justify-between gap-2 text-xs text-primary">
+					<span>
+						Editing message — send to replace this and following replies.
+					</span>
+					{onCancelEdit ? (
+						<button
+							type="button"
+							className="shrink-0 text-muted-foreground underline-offset-4 hover:underline"
+							onClick={handleCancelMessageEdit}
+						>
+							Cancel edit
+						</button>
+					) : null}
+				</div>
+			) : null}
+
+			{isReviewing && prompt.trim() && !editingMessage ? (
 				<div className="mx-auto mb-2 max-w-3xl text-xs text-muted-foreground">
 					Edit your message below, then send when ready.
 				</div>
@@ -511,6 +574,9 @@ export function ChatInput({
 						onChange={(event) => {
 							setPrompt(event.target.value)
 							setCursorPosition(event.target.selectionStart)
+							if (!isListening && !isTranscribing) {
+								setInputMethod('typed')
+							}
 						}}
 						onClick={syncCursor}
 						onKeyUp={syncCursor}
@@ -578,4 +644,22 @@ export function ChatInput({
 			</p>
 		</form>
 	)
+}
+
+function storedMediaToAttachments(
+	media: StoredMessage['media'],
+): ChatAttachment[] {
+	if (!media?.length) {
+		return []
+	}
+
+	return media
+		.filter((item) => item.type === 'image')
+		.map((item, index) => ({
+			id: crypto.randomUUID(),
+			type: 'image' as const,
+			name: `Image ${index + 1}`,
+			dataUrl: item.dataUrl,
+			mimeType: item.mimeType,
+		}))
 }
