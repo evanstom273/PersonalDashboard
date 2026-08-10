@@ -34,6 +34,25 @@ export function shouldAutoPlayAssistantSpeech(
 	return false
 }
 
+function dataUrlToBlob(dataUrl: string): Blob {
+	const commaIndex = dataUrl.indexOf(',')
+	if (commaIndex === -1) {
+		throw new Error('Invalid speech audio data.')
+	}
+
+	const header = dataUrl.slice(0, commaIndex)
+	const base64 = dataUrl.slice(commaIndex + 1)
+	const mimeType = header.match(/^data:([^;,]+)/)?.[1] ?? 'audio/wav'
+	const binary = atob(base64)
+	const bytes = new Uint8Array(binary.length)
+
+	for (let index = 0; index < binary.length; index += 1) {
+		bytes[index] = binary.charCodeAt(index)
+	}
+
+	return new Blob([bytes], { type: mimeType })
+}
+
 export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 	const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
 	const [status, setStatus] = useState<TtsPlaybackStatus>('idle')
@@ -51,8 +70,7 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 		}
 	}, [])
 
-	const stop = useCallback(() => {
-		requestIdRef.current += 1
+	const stopPlayback = useCallback(() => {
 		const audio = audioRef.current
 		if (audio) {
 			audio.pause()
@@ -61,9 +79,14 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 			audio.onerror = null
 		}
 		revokeObjectUrl()
+	}, [revokeObjectUrl])
+
+	const stop = useCallback(() => {
+		requestIdRef.current += 1
+		stopPlayback()
 		setActiveMessageId(null)
 		setStatus('idle')
-	}, [revokeObjectUrl])
+	}, [stopPlayback])
 
 	const clearError = useCallback(() => {
 		setError(null)
@@ -79,9 +102,9 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 
 	const playDataUrl = useCallback(
 		async (messageId: string, dataUrl: string, requestId: number) => {
-			stop()
+			stopPlayback()
 
-			const blob = await fetch(dataUrl).then((response) => response.blob())
+			const blob = dataUrlToBlob(dataUrl)
 			if (requestId !== requestIdRef.current) {
 				return
 			}
@@ -91,7 +114,33 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 
 			const audio = audioRef.current ?? new Audio()
 			audioRef.current = audio
+			audio.preload = 'auto'
+			audio.setAttribute('playsinline', 'true')
 			audio.src = objectUrl
+
+			await new Promise<void>((resolve, reject) => {
+				const handleReady = () => {
+					cleanup()
+					resolve()
+				}
+				const handleFailure = () => {
+					cleanup()
+					reject(new Error('Could not decode speech audio.'))
+				}
+				const cleanup = () => {
+					audio.removeEventListener('canplaythrough', handleReady)
+					audio.removeEventListener('error', handleFailure)
+				}
+
+				audio.addEventListener('canplaythrough', handleReady, { once: true })
+				audio.addEventListener('error', handleFailure, { once: true })
+				audio.load()
+			})
+
+			if (requestId !== requestIdRef.current) {
+				return
+			}
+
 			audio.onended = () => {
 				if (requestId !== requestIdRef.current) {
 					return
@@ -118,12 +167,12 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 				stop()
 				const message =
 					playError instanceof Error && playError.name === 'NotAllowedError'
-						? 'Speech playback was blocked by the browser. Tap the speaker button to listen.'
+						? 'Speech playback was blocked by the browser. Tap Listen again to start audio.'
 						: 'Could not start speech playback.'
 				setError(message)
 			}
 		},
-		[stop],
+		[stop, stopPlayback],
 	)
 
 	const speakAssistantMessage = useCallback(
@@ -144,6 +193,8 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 				stop()
 				return
 			}
+
+			stopPlayback()
 
 			const requestId = requestIdRef.current + 1
 			requestIdRef.current = requestId
@@ -189,6 +240,7 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 			preferences,
 			status,
 			stop,
+			stopPlayback,
 		],
 	)
 
@@ -199,6 +251,8 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 				setError('Add your Gemini API key in Settings to preview voices.')
 				return
 			}
+
+			stopPlayback()
 
 			const requestId = requestIdRef.current + 1
 			requestIdRef.current = requestId
@@ -235,29 +289,16 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 				)
 			}
 		},
-		[playDataUrl, preferences, stop],
+		[playDataUrl, preferences, stop, stopPlayback],
 	)
 
 	useEffect(() => {
 		return () => {
 			requestIdRef.current += 1
-			const audio = audioRef.current
-			if (audio) {
-				audio.pause()
-				audio.onended = null
-				audio.onerror = null
-			}
-			if (objectUrlRef.current) {
-				URL.revokeObjectURL(objectUrlRef.current)
-			}
-			for (const entry of cacheRef.current.values()) {
-				if (entry.dataUrl.startsWith('blob:')) {
-					URL.revokeObjectURL(entry.dataUrl)
-				}
-			}
+			stopPlayback()
 			cacheRef.current.clear()
 		}
-	}, [])
+	}, [stopPlayback])
 
 	return {
 		activeMessageId,
