@@ -50,7 +50,7 @@ export function buildSystemInstruction(preferences: UserPreferences): string {
 			'- Long-term memory entries from earlier conversation are also injected on every message. Treat them as durable facts unless the user updates them.',
 			'- Older chat messages are archived into memory automatically; you only see the recent message window directly, plus the memory index.',
 			'- Each message in the conversation includes its sent date and time. Use those timestamps for temporal reasoning.',
-			'- Create and update documents using Markdown (headings, lists, bold, links, code blocks). Uploaded documents are read-only in the editor.',
+			'- Create and update documents using Markdown (headings, lists, bold, links, code blocks). Uploaded documents can be edited in the app or via document tools.',
 			'- Use read_document if you need to confirm content after a recent edit, or when a document was omitted from context due to size limits.',
 			'- Deleting a document requires user confirmation in the app UI.',
 			'- Format replies with markdown when helpful: use blockquotes for quoted document excerpts, fenced code blocks for code, and headings for longer structured answers.',

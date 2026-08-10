@@ -204,7 +204,10 @@ export async function executeDocumentToolCall(
 			if (document.readOnly) {
 				return {
 					name,
-					response: { error: 'This uploaded document is read-only.' },
+					response: {
+						error:
+							'This document is read-only and cannot be updated.',
+					},
 				}
 			}
 

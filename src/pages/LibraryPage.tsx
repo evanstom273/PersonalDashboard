@@ -213,7 +213,7 @@ function DocumentsSection({ query }: { query: string }) {
 								<p className="mt-1 text-xs text-muted-foreground">
 									Created {formatTimestamp(document.createdAt)} · Modified{' '}
 									{formatTimestamp(document.updatedAt)}
-									{document.readOnly ? ' · Read-only upload' : ''}
+									{document.source === 'upload' ? ' · Uploaded' : ''}
 								</p>
 							</div>
 
