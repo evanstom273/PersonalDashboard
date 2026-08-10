@@ -226,6 +226,17 @@ export function SettingsPage() {
 						</p>
 					</section>
 
+					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
+						<h2 className="text-lg font-medium">Web search</h2>
+						<p className="text-sm text-muted-foreground">
+							Enable <span className="font-medium text-foreground">Web search</span>{' '}
+							from the + menu in chat to look up wikis and current info via Google.
+							Gemini 3 includes about 5,000 search queries per month free, then
+							roughly $14 per 1,000 queries — billed per search the model runs, not
+							per chat message.
+						</p>
+					</section>
+
 					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
 						<h2 className="text-lg font-medium">Available models</h2>
 						<p className="text-sm text-muted-foreground">
