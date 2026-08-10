@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ChatMarkdown } from '@/components/chat/ChatMarkdown'
 import { MessageActions } from '@/components/chat/MessageActions'
+import { MediaLightbox } from '@/components/media/MediaLightbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { MessageDocumentLink, StoredMessage } from '@/storage/types'
 import { formatMessageTime } from '@/utils/dateTime'
@@ -316,25 +317,27 @@ function MediaPreview({
 	const Icon = media.type === 'audio' ? Music : media.type === 'video' ? Video : null
 
 	return (
-		<div className={cn('overflow-hidden rounded-xl ring-1 ring-border', className)}>
+		<div className={cn('min-w-0 overflow-hidden rounded-xl ring-1 ring-border', className)}>
 			<div className="flex items-center gap-2 border-b border-border/60 bg-secondary/40 px-3 py-2 text-xs font-medium text-muted-foreground">
 				{Icon ? <Icon className="h-3.5 w-3.5" /> : null}
 				{label}
 			</div>
-			<div className="bg-background p-2">
+			<div className="min-w-0 overflow-hidden bg-background p-2">
 				{media.type === 'image' ? (
-					<img
+					<MediaLightbox
+						kind="image"
 						src={media.dataUrl}
-						alt="Generated"
-						className="max-h-64 w-full rounded-lg object-contain md:max-h-96"
+						alt="Generated image"
+						className="ring-0"
 					/>
 				) : media.type === 'audio' ? (
-					<audio controls src={media.dataUrl} className="w-full" />
+					<audio controls src={media.dataUrl} className="w-full max-w-full" />
 				) : (
-					<video
-						controls
+					<MediaLightbox
+						kind="video"
 						src={media.dataUrl}
-						className="max-h-64 w-full rounded-lg md:max-h-96"
+						alt="Generated video"
+						className="ring-0"
 					/>
 				)}
 			</div>

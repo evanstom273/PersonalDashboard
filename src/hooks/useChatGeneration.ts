@@ -94,10 +94,19 @@ export function useChatGeneration({
 
 			const modelPreferences = getGenerationModelPreferences(preferences)
 			const activeForcedIntent = options?.forcedNextIntent ?? null
+			const recentMessages = (conversation?.messages ?? [])
+				.slice(-8)
+				.map((message) => ({
+					role: message.role,
+					content: message.content,
+					mediaTypes: message.media?.map((item) => item.type),
+				}))
+
 			const resolved = resolvePromptIntent(
 				text,
 				modelPreferences,
 				activeForcedIntent,
+				recentMessages,
 			)
 
 			if (resolved.intent !== 'chat' && !text.trim()) {
