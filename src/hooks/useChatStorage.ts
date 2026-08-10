@@ -202,6 +202,37 @@ export function useMainConversation(defaultModelId: string) {
 		[ensureConversation, persistConversation],
 	)
 
+	const truncateMessagesFrom = useCallback(
+		async (messageId: string): Promise<ConversationRecord> => {
+			const existing = normalizeConversation(
+				(await getValue<ConversationRecord>(
+					'conversations',
+					MAIN_CONVERSATION_ID,
+				)) ?? (await ensureConversation()),
+			)
+
+			const messageIndex = existing.messages.findIndex(
+				(message) => message.id === messageId,
+			)
+			if (messageIndex === -1) {
+				throw new Error('Message not found.')
+			}
+
+			const updated: ConversationRecord = {
+				...existing,
+				messages: existing.messages.slice(0, messageIndex),
+				memoryArchiveCursor: Math.min(
+					existing.memoryArchiveCursor,
+					messageIndex,
+				),
+				updatedAt: Date.now(),
+			}
+			await persistConversation(updated)
+			return updated
+		},
+		[ensureConversation, persistConversation],
+	)
+
 	const clearConversation = useCallback(async (): Promise<ConversationRecord> => {
 		const existing = normalizeConversation(
 			(await getValue<ConversationRecord>(
@@ -239,6 +270,7 @@ export function useMainConversation(defaultModelId: string) {
 		isLoading,
 		appendMessages,
 		updateMessage,
+		truncateMessagesFrom,
 		ensureConversation,
 		clearConversation,
 		replaceConversation,

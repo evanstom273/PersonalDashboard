@@ -25,6 +25,7 @@ interface UseChatGenerationOptions {
 		newMessages: StoredMessage[],
 		modelId?: string,
 	) => Promise<ConversationRecord>
+	truncateMessagesFrom: (messageId: string) => Promise<ConversationRecord>
 	ensureConversation: () => Promise<ConversationRecord>
 	saveConversation: (next: ConversationRecord) => Promise<void>
 	isChatRoute: boolean
@@ -34,6 +35,7 @@ export function useChatGeneration({
 	preferences,
 	conversation,
 	appendMessages,
+	truncateMessagesFrom,
 	ensureConversation,
 	saveConversation,
 	isChatRoute,
@@ -74,7 +76,12 @@ export function useChatGeneration({
 
 	const submitMessage = useCallback(
 		async (
-			{ text, attachments, webSearchEnabled: useWebSearch }: ChatSubmitPayload,
+			{
+				text,
+				attachments,
+				webSearchEnabled: useWebSearch,
+				editFromMessageId,
+			}: ChatSubmitPayload,
 			options?: { forcedNextIntent?: GenerationIntent | null },
 		) => {
 			const hasApiKey = preferences.geminiApiKey.trim().length > 0
@@ -94,7 +101,13 @@ export function useChatGeneration({
 
 			const modelPreferences = getGenerationModelPreferences(preferences)
 			const activeForcedIntent = options?.forcedNextIntent ?? null
-			const recentMessages = (conversation?.messages ?? [])
+
+			let activeConversation = conversation
+			if (editFromMessageId) {
+				activeConversation = await truncateMessagesFrom(editFromMessageId)
+			}
+
+			const recentMessages = (activeConversation?.messages ?? [])
 				.slice(-8)
 				.map((message) => ({
 					role: message.role,
@@ -121,7 +134,9 @@ export function useChatGeneration({
 
 			setLastIntent(getIntentLabel(resolved.intent))
 
-			const chatHistory = (conversation ? getUnarchivedMessages(conversation) : []).map(
+			const chatHistory = (
+				activeConversation ? getUnarchivedMessages(activeConversation) : []
+			).map(
 				(message) => ({
 					role: message.role,
 					content: message.content,
@@ -327,6 +342,7 @@ export function useChatGeneration({
 			ensureConversation,
 			preferences,
 			saveConversation,
+			truncateMessagesFrom,
 		],
 	)
 

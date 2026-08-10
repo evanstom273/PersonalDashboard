@@ -1,4 +1,4 @@
-import { Check, Copy, TextSelect } from 'lucide-react'
+import { Check, Copy, Pencil, TextSelect } from 'lucide-react'
 import { useCallback, useState, type RefObject } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/utils/cn'
@@ -7,12 +7,16 @@ interface MessageActionsProps {
 	contentRef: RefObject<HTMLElement | null>
 	text: string
 	className?: string
+	onEdit?: () => void
+	editDisabled?: boolean
 }
 
 export function MessageActions({
 	contentRef,
 	text,
 	className,
+	onEdit,
+	editDisabled = false,
 }: MessageActionsProps) {
 	const [copied, setCopied] = useState(false)
 
@@ -42,6 +46,20 @@ export function MessageActions({
 
 	return (
 		<div className={cn('flex items-center gap-1', className)}>
+			{onEdit ? (
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					className="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+					disabled={editDisabled}
+					onClick={onEdit}
+					aria-label="Edit message"
+				>
+					<Pencil className="h-3.5 w-3.5" />
+					Edit
+				</Button>
+			) : null}
 			<Button
 				type="button"
 				variant="ghost"

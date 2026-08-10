@@ -18,6 +18,8 @@ interface ChatMessagesProps {
 	} | null
 	isGenerating: boolean
 	aiName: string
+	editingMessageId?: string | null
+	onEditUserMessage?: (message: StoredMessage) => void
 	onConfirmDelete: (
 		messageId: string,
 		documentId: string,
@@ -31,6 +33,8 @@ export function ChatMessages({
 	streamingAssistant,
 	isGenerating,
 	aiName,
+	editingMessageId = null,
+	onEditUserMessage,
 	onConfirmDelete,
 	onCancelDelete,
 }: ChatMessagesProps) {
@@ -67,6 +71,9 @@ export function ChatMessages({
 							key={message.id}
 							message={message}
 							aiName={aiName}
+							isEditing={editingMessageId === message.id}
+							onEditUserMessage={onEditUserMessage}
+							editDisabled={isGenerating}
 							onConfirmDelete={onConfirmDelete}
 							onCancelDelete={onCancelDelete}
 						/>
@@ -101,12 +108,18 @@ export function ChatMessages({
 function MessageRow({
 	message,
 	aiName,
+	onEditUserMessage,
+	editDisabled = false,
+	isEditing = false,
 	onConfirmDelete,
 	onCancelDelete,
 	isStreaming = false,
 }: {
 	message: StoredMessage
 	aiName: string
+	onEditUserMessage?: (message: StoredMessage) => void
+	editDisabled?: boolean
+	isEditing?: boolean
 	onConfirmDelete: ChatMessagesProps['onConfirmDelete']
 	onCancelDelete: ChatMessagesProps['onCancelDelete']
 	isStreaming?: boolean
@@ -151,6 +164,7 @@ function MessageRow({
 							'min-w-0 max-w-full overflow-hidden',
 							isUser &&
 								'rounded-[1.25rem] bg-secondary px-4 py-3 ring-1 ring-border/60',
+							isUser && isEditing && 'ring-2 ring-primary/50',
 						)}
 					>
 						{showMediaFirst
@@ -251,6 +265,12 @@ function MessageRow({
 							contentRef={contentRef}
 							text={message.content}
 							className={cn('mt-2', isUser && 'justify-end')}
+							onEdit={
+								isUser && onEditUserMessage
+									? () => onEditUserMessage(message)
+									: undefined
+							}
+							editDisabled={editDisabled}
 						/>
 					) : null}
 				</div>

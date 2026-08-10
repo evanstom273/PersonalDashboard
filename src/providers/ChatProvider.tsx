@@ -28,6 +28,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		preferences: preferencesState.preferences,
 		conversation: conversationState.conversation,
 		appendMessages: conversationState.appendMessages,
+		truncateMessagesFrom: conversationState.truncateMessagesFrom,
 		ensureConversation: conversationState.ensureConversation,
 		saveConversation: conversationState.saveConversation,
 		isChatRoute: location.pathname === '/',

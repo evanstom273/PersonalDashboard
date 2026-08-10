@@ -11,4 +11,5 @@ export interface ChatSubmitPayload {
 	text: string
 	attachments: ChatAttachment[]
 	webSearchEnabled: boolean
+	editFromMessageId?: string
 }

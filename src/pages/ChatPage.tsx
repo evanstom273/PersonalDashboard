@@ -6,7 +6,7 @@ import {
 } from '@/providers/ChatProvider'
 import { confirmDocumentDeletion } from '@/services/gemini/documentTools'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
-import type { UserPreferences } from '@/storage/types'
+import type { StoredMessage, UserPreferences } from '@/storage/types'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
@@ -36,6 +36,9 @@ export function ChatPage() {
 	const [webSearchEnabled, setWebSearchEnabled] = useState(false)
 	const [forcedNextIntent, setForcedNextIntent] =
 		useState<GenerationIntent | null>(null)
+	const [editingMessage, setEditingMessage] = useState<StoredMessage | null>(
+		null,
+	)
 
 	const aiName = getConfiguredAiName(preferences)
 	const hasApiKey = preferences.geminiApiKey.trim().length > 0
@@ -56,16 +59,26 @@ export function ChatPage() {
 
 	const handleClearChat = useCallback(async () => {
 		stopGeneration()
+		setEditingMessage(null)
 		await clearConversation()
 		setForcedNextIntent(null)
 	}, [clearConversation, stopGeneration])
 
 	const handleImportChat = useCallback(
 		async (imported: Parameters<typeof replaceConversation>[0]) => {
+			setEditingMessage(null)
 			await replaceConversation(imported)
 			setForcedNextIntent(null)
 		},
 		[replaceConversation],
+	)
+
+	const handleEditUserMessage = useCallback(
+		(message: StoredMessage) => {
+			stopGeneration()
+			setEditingMessage(message)
+		},
+		[stopGeneration],
 	)
 
 	const handleSubmit = useCallback(
@@ -76,6 +89,7 @@ export function ChatPage() {
 			}
 
 			await submitMessage(payload, { forcedNextIntent: activeForcedIntent })
+			setEditingMessage(null)
 		},
 		[forcedNextIntent, submitMessage],
 	)
@@ -164,6 +178,8 @@ export function ChatPage() {
 				streamingAssistant={streamingAssistant}
 				isGenerating={isGenerating}
 				aiName={aiName}
+				editingMessageId={editingMessage?.id ?? null}
+				onEditUserMessage={handleEditUserMessage}
 				onConfirmDelete={handleConfirmDelete}
 				onCancelDelete={handleCancelDelete}
 			/>
@@ -189,6 +205,8 @@ export function ChatPage() {
 				onMusicModelChange={(modelId) => {
 					void saveModelPreference({ defaultMusicModelId: modelId })
 				}}
+				editingMessage={editingMessage}
+				onCancelEdit={() => setEditingMessage(null)}
 				onSubmit={(payload) => {
 					void handleSubmit(payload)
 				}}
