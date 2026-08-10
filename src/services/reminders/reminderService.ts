@@ -158,7 +158,12 @@ export async function listDueReminders(now = Date.now()): Promise<ReminderRecord
 export async function markReminderFired(
 	reminder: ReminderRecord,
 	now = Date.now(),
-): Promise<ReminderRecord> {
+): Promise<ReminderRecord | undefined> {
+	if (reminder.recurrence === 'none') {
+		await deleteReminder(reminder.id)
+		return undefined
+	}
+
 	const advanced = advanceReminderSchedule(
 		reminder.scheduledAt,
 		reminder.recurrence,

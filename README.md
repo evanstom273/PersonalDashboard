@@ -42,6 +42,28 @@ npm run build
 npm run preview
 ```
 
+## Android app (Capacitor)
+
+Background reminders use Capacitor Local Notifications when running as the native Android app (the installed PWA cannot reliably fire alerts while closed).
+
+### Prerequisites
+
+- [Android Studio](https://developer.android.com/studio)
+- JDK 17+
+
+### Build and run
+
+```bash
+npm run build:android
+npm run cap:open:android
+```
+
+In Android Studio: **Run** on a device or emulator. On first launch, open **Settings → App → Enable notifications** so scheduled reminders can alert while the app is closed.
+
+To ship an APK/AAB: **Build → Generate Signed Bundle / APK**.
+
+The web/PWA build for GitHub Pages still uses `VITE_BASE_PATH=/personal-ai/` via CI. The Android build uses `VITE_BASE_PATH=/` (set in `build:android`).
+
 ## Project structure
 
 ```text

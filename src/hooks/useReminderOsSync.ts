@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
 import {
-	canUseNotificationTriggers,
-	syncReminderNotificationTriggers,
-} from '@/services/reminders/reminderNotificationTriggers'
+	canUseBackgroundReminderNotifications,
+	syncBackgroundReminderNotifications,
+} from '@/services/reminders/reminderBackgroundNotifications'
 import { subscribeRemindersChanged } from '@/services/reminders/reminderService'
 import type { UserPreferences } from '@/storage/types'
 import { getNotificationPermission } from '@/utils/notifications'
+import { canUseNativeReminderNotifications } from '@/services/reminders/reminderNativeNotifications'
 
 interface UseReminderOsSyncOptions {
 	preferences: UserPreferences
@@ -17,18 +18,25 @@ export function useReminderOsSync({
 	enabled = true,
 }: UseReminderOsSyncOptions): void {
 	useEffect(() => {
-		if (!enabled || !canUseNotificationTriggers()) {
+		if (!enabled || !canUseBackgroundReminderNotifications()) {
 			return
 		}
 
 		let cancelled = false
 
 		async function sync(): Promise<void> {
-			if (cancelled || getNotificationPermission() !== 'granted') {
+			if (cancelled) {
 				return
 			}
 
-			await syncReminderNotificationTriggers(preferences)
+			if (
+				!canUseNativeReminderNotifications() &&
+				getNotificationPermission() !== 'granted'
+			) {
+				return
+			}
+
+			await syncBackgroundReminderNotifications(preferences)
 		}
 
 		void sync()

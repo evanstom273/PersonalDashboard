@@ -17,9 +17,10 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { usePreferencesContext, useTextToSpeechContext } from '@/providers/ChatProvider'
 import { validateApiKey } from '@/services/gemini/validate'
 import {
-	canUseNotificationTriggers,
-	syncReminderNotificationTriggers,
-} from '@/services/reminders/reminderNotificationTriggers'
+	requestBackgroundReminderNotificationPermission,
+	syncBackgroundReminderNotifications,
+} from '@/services/reminders/reminderBackgroundNotifications'
+import { canUseNotificationTriggers } from '@/services/reminders/reminderNotificationTriggers'
 import { GEMINI_TTS_VOICES } from '@/services/gemini/ttsVoices'
 import { GEMINI_MODELS, MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
 import {
@@ -33,6 +34,7 @@ import {
 	isStandaloneDisplayMode,
 	requestNotificationPermission,
 } from '@/utils/notifications'
+import { isCapacitorNativePlatform } from '@/utils/capacitor'
 import { cn } from '@/utils/cn'
 
 const SETTINGS_TABS = [
@@ -159,6 +161,25 @@ export function SettingsPage() {
 
 	async function handleEnableNotifications(): Promise<void> {
 		setNotificationMessage(null)
+
+		if (isCapacitorNativePlatform()) {
+			const granted = await requestBackgroundReminderNotificationPermission()
+			setNotificationPermission(granted ? 'granted' : 'denied')
+
+			if (granted) {
+				await syncBackgroundReminderNotifications(preferences)
+				setNotificationMessage(
+					'Notifications enabled. Scheduled reminders can alert you while the Android app is closed.',
+				)
+				return
+			}
+
+			setNotificationMessage(
+				'Notifications are blocked. Enable them in Android settings for Gemini Chat.',
+			)
+			return
+		}
+
 		if (!canUseNotifications()) {
 			setNotificationMessage('Notifications are not supported in this browser.')
 			return
@@ -168,7 +189,7 @@ export function SettingsPage() {
 		setNotificationPermission(permission)
 
 		if (permission === 'granted') {
-			await syncReminderNotificationTriggers(preferences)
+			await syncBackgroundReminderNotifications(preferences)
 			setNotificationMessage(
 				canUseNotificationTriggers() && isStandaloneDisplayMode()
 					? 'Notifications enabled. Chat replies and scheduled reminders can alert you while the app is closed on this Android install.'
@@ -776,11 +797,15 @@ function AppTab({
 					the assistant posts a chat message and can show a system notification.
 				</p>
 				<p className="text-sm text-muted-foreground">
-					{canUseNotificationTriggers() && isStandaloneDisplayMode()
+					{isCapacitorNativePlatform()
 						? notificationPermission === 'granted'
-							? 'This Android install can fire reminder alerts while the PWA is closed. Tap the notification or reopen the app to deliver the chat message.'
-							: 'Enable notifications above to schedule background reminder alerts on Android.'
-						: 'Background reminder alerts need the installed Android PWA in Chrome. Otherwise, keep the app open for on-time delivery.'}
+							? 'The Android app can fire reminder alerts while it is closed. Tap the notification to open chat and deliver the message.'
+							: 'Enable notifications above so scheduled reminders can alert you while the app is closed.'
+						: canUseNotificationTriggers() && isStandaloneDisplayMode()
+							? notificationPermission === 'granted'
+								? 'This Android install can fire reminder alerts while the PWA is closed. Tap the notification or reopen the app to deliver the chat message.'
+								: 'Enable notifications above to schedule background reminder alerts on Android.'
+							: 'For reliable background reminders, install the Android app (Capacitor). In the browser, keep the app open for on-time delivery.'}
 				</p>
 			</section>
 
