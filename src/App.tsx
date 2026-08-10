@@ -6,6 +6,7 @@ import { HomePage } from '@/pages/HomePage'
 import { LegacyDocumentRedirect } from '@/pages/LegacyDocumentRedirect'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { MemoryPage } from '@/pages/MemoryPage'
+import { ProjectBoardPage } from '@/pages/ProjectBoardPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ChatProvider } from '@/providers/ChatProvider'
 
@@ -21,6 +22,7 @@ export function App() {
 						<Route path="home" element={<HomePage />} />
 						<Route path="chat" element={<ChatPage />} />
 						<Route path="library" element={<LibraryPage />} />
+						<Route path="library/projects/:projectId" element={<ProjectBoardPage />} />
 						<Route path="library/documents/:documentId" element={<DocumentEditorPage />} />
 						<Route path="memory" element={<MemoryPage />} />
 						<Route path="documents" element={<Navigate to="/library" replace />} />

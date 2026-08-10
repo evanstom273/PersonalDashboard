@@ -1,5 +1,10 @@
 import { executeDocumentToolCall, DOCUMENT_TOOL_DECLARATIONS } from '@/services/gemini/documentTools'
 import {
+	executeProjectToolCall,
+	isProjectToolName,
+	PROJECT_TOOL_DECLARATIONS,
+} from '@/services/projects/projectTools'
+import {
 	executeReminderToolCall,
 	isReminderToolName,
 	REMINDER_TOOL_DECLARATIONS,
@@ -135,6 +140,20 @@ export async function generateChatWithTools(
 					continue
 				}
 
+				if (isProjectToolName(functionCall.name)) {
+					const toolResult = await executeProjectToolCall(
+						functionCall.name,
+						functionCall.args ?? {},
+					)
+					functionResponseParts.push({
+						functionResponse: {
+							name: toolResult.name,
+							response: toolResult.response,
+						},
+					})
+					continue
+				}
+
 				const toolResult = await executeDocumentToolCall(
 					functionCall.name,
 					functionCall.args ?? {},
@@ -233,7 +252,11 @@ function buildMessageParts(message: ChatMessageInput): GeminiPart[] {
 }
 
 function buildChatTools(useWebSearch: boolean): Array<Record<string, unknown>> {
-	const declarations = [...DOCUMENT_TOOL_DECLARATIONS, ...REMINDER_TOOL_DECLARATIONS]
+	const declarations = [
+		...DOCUMENT_TOOL_DECLARATIONS,
+		...PROJECT_TOOL_DECLARATIONS,
+		...REMINDER_TOOL_DECLARATIONS,
+	]
 
 	if (useWebSearch) {
 		return [

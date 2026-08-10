@@ -24,6 +24,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { MediaLightbox } from '@/components/media/MediaLightbox'
 import { ScheduleSection } from '@/components/schedule/ScheduleSection'
+import { ProjectsSection } from '@/components/projects/ProjectsSection'
 import { useDocuments } from '@/hooks/useDocuments'
 import { useLibraryMedia } from '@/hooks/useLibraryMedia'
 import {
@@ -38,6 +39,11 @@ import {
 	downloadLibraryMediaItem,
 } from '@/utils/downloads'
 import { cn } from '@/utils/cn'
+import {
+	resolveLibraryStateFromParams,
+	type LibraryDocumentTab,
+	type LibrarySection,
+} from '@/navigation/swipeNav'
 
 const LIBRARY_SECTIONS = [
 	{ id: 'schedule', label: 'Schedule', icon: CalendarClock },
@@ -51,36 +57,13 @@ const DOCUMENT_TABS = [
 	{ id: 'music', label: 'Music', icon: Music },
 ] as const
 
-type LibrarySection = (typeof LIBRARY_SECTIONS)[number]['id']
-type DocumentTab = (typeof DOCUMENT_TABS)[number]['id']
-
-function isLibrarySection(value: string | null): value is LibrarySection {
-	return LIBRARY_SECTIONS.some((section) => section.id === value)
-}
-
-function isDocumentTab(value: string | null): value is DocumentTab {
-	return DOCUMENT_TABS.some((tab) => tab.id === value)
-}
+type DocumentTab = LibraryDocumentTab
 
 function resolveLibraryState(searchParams: URLSearchParams): {
 	section: LibrarySection
 	documentTab: DocumentTab
 } {
-	const sectionParam = searchParams.get('section')
-	const tabParam = searchParams.get('tab')
-
-	if (isLibrarySection(sectionParam)) {
-		return {
-			section: sectionParam,
-			documentTab: isDocumentTab(tabParam) ? tabParam : 'documents',
-		}
-	}
-
-	if (isDocumentTab(tabParam)) {
-		return { section: 'documents', documentTab: tabParam }
-	}
-
-	return { section: 'documents', documentTab: 'documents' }
+	return resolveLibraryStateFromParams(searchParams)
 }
 
 export function LibraryPage() {
@@ -168,10 +151,7 @@ export function LibraryPage() {
 					{activeSection === 'schedule' ? (
 						<ScheduleSection />
 					) : activeSection === 'projects' ? (
-						<PlaceholderSection
-							title="Projects"
-							description="Track ongoing work and link related documents. This space is ready for when projects land."
-						/>
+						<ProjectsSection />
 					) : activeDocumentTab === 'documents' ? (
 						<DocumentsSection query={query} />
 					) : (
@@ -187,21 +167,6 @@ export function LibraryPage() {
 					)}
 				</div>
 			</ScrollArea>
-		</div>
-	)
-}
-
-function PlaceholderSection({
-	title,
-	description,
-}: {
-	title: string
-	description: string
-}) {
-	return (
-		<div className="library-placeholder rounded-2xl border border-dashed border-border/80 px-6 py-14 text-center">
-			<p className="text-sm font-medium text-foreground">{title}</p>
-			<p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{description}</p>
 		</div>
 	)
 }
