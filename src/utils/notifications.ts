@@ -107,7 +107,7 @@ export async function notifyGenerationComplete(
 		icon,
 		badge: icon,
 		tag: NOTIFICATION_TAG,
-		data: { url: '/' },
+		data: { url: '/chat' },
 	}
 
 	const shown = await showServiceWorkerNotification(title, {

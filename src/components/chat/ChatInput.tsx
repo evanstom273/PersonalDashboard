@@ -495,7 +495,7 @@ export function ChatInput({
 					{attachments.map((attachment) => (
 						<div
 							key={attachment.id}
-							className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs"
+							className="flex items-center gap-2 rounded-full surface-panel px-3 py-1.5 text-xs"
 						>
 							{attachment.type === 'image' && attachment.dataUrl ? (
 								<img
@@ -530,7 +530,7 @@ export function ChatInput({
 
 				<div
 					className={cn(
-						'flex items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm',
+						'flex items-end gap-2 surface-glass rounded-2xl p-2 shadow-sm',
 						isListening ? 'border-primary/50 ring-1 ring-primary/30' : 'border-border',
 					)}
 				>

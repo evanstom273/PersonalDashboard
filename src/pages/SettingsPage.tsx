@@ -1,13 +1,23 @@
-import { ExternalLink, Brain, Bell, KeyRound, PlugZap, Save, Sparkles, UserRound, Volume2 } from 'lucide-react'
+import {
+	Bell,
+	Brain,
+	ExternalLink,
+	KeyRound,
+	Mic,
+	PlugZap,
+	Save,
+	Sparkles,
+	UserRound,
+	Volume2,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
-import { usePreferencesContext } from '@/providers/ChatProvider'
+import { usePreferencesContext, useTextToSpeechContext } from '@/providers/ChatProvider'
 import { validateApiKey } from '@/services/gemini/validate'
 import { GEMINI_TTS_VOICES } from '@/services/gemini/ttsVoices'
 import { GEMINI_MODELS, MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
-import { useTextToSpeechContext } from '@/providers/ChatProvider'
 import {
 	MEMORY_ARCHIVE_INTERVAL_OPTIONS,
 	type MemoryArchiveInterval,
@@ -18,8 +28,27 @@ import {
 	getNotificationPermission,
 	requestNotificationPermission,
 } from '@/utils/notifications'
+import { cn } from '@/utils/cn'
+
+const SETTINGS_TABS = [
+	{ id: 'profile', label: 'Profile', icon: UserRound },
+	{ id: 'memory', label: 'Memory', icon: Brain },
+	{ id: 'api', label: 'API', icon: KeyRound },
+	{ id: 'voice', label: 'Voice', icon: Volume2 },
+	{ id: 'app', label: 'App', icon: Bell },
+] as const
+
+type SettingsTab = (typeof SETTINGS_TABS)[number]['id']
+
+function isSettingsTab(value: string | null): value is SettingsTab {
+	return SETTINGS_TABS.some((tab) => tab.id === value)
+}
 
 export function SettingsPage() {
+	const [searchParams, setSearchParams] = useSearchParams()
+	const tabParam = searchParams.get('tab')
+	const activeTab: SettingsTab = isSettingsTab(tabParam) ? tabParam : 'profile'
+
 	const { preferences, savePreferences, isLoading } = usePreferencesContext()
 	const { previewVoice, status: speechStatus } = useTextToSpeechContext()
 	const [apiKey, setApiKey] = useState('')
@@ -58,6 +87,10 @@ export function SettingsPage() {
 			setTtsVoiceName(preferences.ttsVoiceName)
 		}
 	}, [isLoading, preferences])
+
+	function setActiveTab(tab: SettingsTab): void {
+		setSearchParams(tab === 'profile' ? {} : { tab })
+	}
 
 	async function handleSaveApiKey(): Promise<void> {
 		setIsSavingApiKey(true)
@@ -161,158 +194,315 @@ export function SettingsPage() {
 
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-hidden">
-			<header className="shrink-0 border-b border-border px-4 py-4 md:px-6">
-				<h1 className="text-xl font-semibold md:text-2xl">Settings</h1>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Configure identity, behaviour, and your bring-your-own Gemini API key.
-				</p>
+			<header className="shrink-0 border-b border-border/80 px-4 py-3 md:px-6">
+				<div className="library-section-tabs flex gap-1 overflow-x-auto rounded-xl p-1">
+					{SETTINGS_TABS.map(({ id, label, icon: Icon }) => (
+						<button
+							key={id}
+							type="button"
+							onClick={() => setActiveTab(id)}
+							className={cn(
+								'inline-flex min-w-[4.5rem] flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium transition-colors sm:text-sm',
+								activeTab === id
+									? 'surface-tab-active text-foreground'
+									: 'text-muted-foreground hover:text-foreground',
+							)}
+						>
+							<Icon className="h-4 w-4 shrink-0" />
+							<span className="truncate">{label}</span>
+						</button>
+					))}
+				</div>
 			</header>
 
-			<ScrollArea className="h-full min-h-0 flex-1">
-				<div className="mx-auto w-full max-w-2xl space-y-6 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:space-y-8 md:px-6 md:py-8">
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
-						<div className="flex items-center gap-2">
-							<UserRound className="h-5 w-5 text-primary" />
-							<h2 className="text-lg font-medium">Your name</h2>
-						</div>
-						<p className="text-sm text-muted-foreground">
-							This tells the assistant what to call you in future responses.
-						</p>
+			<ScrollArea className="min-h-0 flex-1">
+				<div className="mx-auto w-full max-w-2xl px-4 py-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:px-6 md:py-6">
+					{activeTab === 'profile' ? (
+						<ProfileTab
+							userName={userName}
+							aiName={aiName}
+							aiBehaviorInstructions={aiBehaviorInstructions}
+							allowMatureContent={allowMatureContent}
+							savedIdentity={savedIdentity}
+							isSavingIdentity={isSavingIdentity}
+							onUserNameChange={(value) => {
+								setUserName(value)
+								setSavedIdentity(false)
+							}}
+							onAiNameChange={(value) => {
+								setAiName(value)
+								setSavedIdentity(false)
+							}}
+							onBehaviorChange={(value) => {
+								setAiBehaviorInstructions(value)
+								setSavedIdentity(false)
+							}}
+							onAllowMatureContentChange={(value) => {
+								setAllowMatureContent(value)
+								setSavedIdentity(false)
+							}}
+							onSave={() => void handleSaveIdentity()}
+						/>
+					) : null}
+
+					{activeTab === 'memory' ? (
+						<MemoryTab
+							memoryArchiveInterval={memoryArchiveInterval}
+							onIntervalChange={(value) => void handleMemoryIntervalChange(value)}
+						/>
+					) : null}
+
+					{activeTab === 'api' ? (
+						<ApiTab
+							apiKey={apiKey}
+							savedApiKey={savedApiKey}
+							isSavingApiKey={isSavingApiKey}
+							isValidating={isValidating}
+							validationMessage={validationMessage}
+							validationOk={validationOk}
+							onApiKeyChange={(value) => {
+								setApiKey(value)
+								setSavedApiKey(false)
+								setValidationMessage(null)
+								setValidationOk(null)
+							}}
+							onSave={() => void handleSaveApiKey()}
+							onValidate={() => void handleValidate()}
+						/>
+					) : null}
+
+					{activeTab === 'voice' ? (
+						<VoiceTab
+							ttsReadAloudMode={ttsReadAloudMode}
+							ttsVoiceName={ttsVoiceName}
+							hasApiKey={preferences.geminiApiKey.trim().length > 0}
+							speechStatus={speechStatus}
+							onReadAloudModeChange={(value) =>
+								void handleTtsReadAloudModeChange(value)
+							}
+							onVoiceChange={(value) => void handleTtsVoiceChange(value)}
+							onPreview={() => void previewVoice(ttsVoiceName)}
+						/>
+					) : null}
+
+					{activeTab === 'app' ? (
+						<AppTab
+							notificationPermission={notificationPermission}
+							notificationMessage={notificationMessage}
+							onEnableNotifications={() => void handleEnableNotifications()}
+						/>
+					) : null}
+				</div>
+			</ScrollArea>
+		</div>
+	)
+}
+
+function ProfileTab({
+	userName,
+	aiName,
+	aiBehaviorInstructions,
+	allowMatureContent,
+	savedIdentity,
+	isSavingIdentity,
+	onUserNameChange,
+	onAiNameChange,
+	onBehaviorChange,
+	onAllowMatureContentChange,
+	onSave,
+}: {
+	userName: string
+	aiName: string
+	aiBehaviorInstructions: string
+	allowMatureContent: boolean
+	savedIdentity: boolean
+	isSavingIdentity: boolean
+	onUserNameChange: (value: string) => void
+	onAiNameChange: (value: string) => void
+	onBehaviorChange: (value: string) => void
+	onAllowMatureContentChange: (value: boolean) => void
+	onSave: () => void
+}) {
+	return (
+		<div className="space-y-5">
+			<TabIntro
+				title="Profile & personality"
+				description="How you and your assistant are named, and how replies should feel."
+			/>
+
+			<section className="surface-panel space-y-5 rounded-xl p-5">
+				<div className="grid gap-5 sm:grid-cols-2">
+					<FieldGroup
+						icon={UserRound}
+						label="Your name"
+						hint="What the assistant should call you."
+					>
 						<input
 							value={userName}
-							onChange={(event) => {
-								setUserName(event.target.value)
-								setSavedIdentity(false)
-							}}
+							onChange={(event) => onUserNameChange(event.target.value)}
 							placeholder="Your name"
-							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+							className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						/>
-					</section>
+					</FieldGroup>
 
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
-						<div className="flex items-center gap-2">
-							<Sparkles className="h-5 w-5 text-primary" />
-							<h2 className="text-lg font-medium">AI name</h2>
-						</div>
-						<p className="text-sm text-muted-foreground">
-							Choose any name for your assistant. This name is used across the
-							app interface and in system instructions.
-						</p>
+					<FieldGroup
+						icon={Sparkles}
+						label="AI name"
+						hint="Shown in the app and sent to Gemini."
+					>
 						<input
 							value={aiName}
-							onChange={(event) => {
-								setAiName(event.target.value)
-								setSavedIdentity(false)
-							}}
+							onChange={(event) => onAiNameChange(event.target.value)}
 							placeholder="Assistant"
-							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+							className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						/>
-					</section>
+					</FieldGroup>
+				</div>
 
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
-						<h2 className="text-lg font-medium">How should your AI respond?</h2>
-						<p className="text-sm text-muted-foreground">
-							Free-form behavioural instructions. Keep it short with traits like
-							&quot;Warm, conversational, witty, direct, British English&quot; or
-							write a longer custom prompt.
-						</p>
-						<textarea
-							value={aiBehaviorInstructions}
-							onChange={(event) => {
-								setAiBehaviorInstructions(event.target.value)
-								setSavedIdentity(false)
-							}}
-							rows={8}
-							placeholder="Warm, conversational, witty, direct, British English"
-							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
-						/>
-						<label className="flex items-start gap-3 rounded-lg border border-border/60 px-3 py-3 text-sm">
-							<input
-								type="checkbox"
-								checked={allowMatureContent}
-								onChange={(event) => {
-									setAllowMatureContent(event.target.checked)
-									setSavedIdentity(false)
-								}}
-								className="mt-0.5"
-							/>
-							<span>
-								<span className="block font-medium">Allow mature content</span>
-								<span className="mt-1 block text-muted-foreground">
-									Lets chat match your tone (including swearing), relaxes
-									Gemini&apos;s adjustable filters for chat, image, and music
-									generation, and allows adult people in generated images.
-									Illegal content (e.g. CSAM) is always blocked by Google. Turn
-									off for stricter filtering.
-								</span>
-							</span>
-						</label>
-						<div className="flex flex-wrap items-center gap-3">
-							<Button
-								onClick={() => void handleSaveIdentity()}
-								disabled={isSavingIdentity}
-							>
-								<Save className="h-4 w-4" />
-								{isSavingIdentity ? 'Saving…' : 'Save identity'}
-							</Button>
-							{savedIdentity ? (
-								<span className="text-sm text-primary">Identity saved</span>
-							) : null}
-						</div>
-					</section>
+				<FieldGroup
+					label="How should your AI respond?"
+					hint='Traits like "Warm, witty, direct, British English" — or a longer custom prompt.'
+				>
+					<textarea
+						value={aiBehaviorInstructions}
+						onChange={(event) => onBehaviorChange(event.target.value)}
+						rows={6}
+						placeholder="Warm, conversational, witty, direct, British English"
+						className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+					/>
+				</FieldGroup>
 
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
-						<div className="flex items-center gap-2">
-							<Brain className="h-5 w-5 text-primary" />
-							<h2 className="text-lg font-medium">Memory archival</h2>
-						</div>
-						<p className="text-sm text-muted-foreground">
-							After this many new chat messages, the assistant reads the batch and
-							archives durable facts into Memory. Lower values update memory more
-							often; higher values wait for more context per archive pass.
-						</p>
-						<div className="space-y-3">
-							<div className="flex items-center justify-between text-sm">
-								<span className="text-muted-foreground">Archive every</span>
-								<span className="font-medium">
-									{memoryArchiveInterval} messages
-								</span>
-							</div>
-							<input
-								type="range"
-								min={0}
-								max={MEMORY_ARCHIVE_INTERVAL_OPTIONS.length - 1}
-								step={1}
-								value={Math.max(
-									0,
-									MEMORY_ARCHIVE_INTERVAL_OPTIONS.indexOf(
-										memoryArchiveInterval,
-									),
-								)}
-								onChange={(event) => {
-									const index = Number(event.target.value)
-									const next = MEMORY_ARCHIVE_INTERVAL_OPTIONS[index] ?? 20
-									void handleMemoryIntervalChange(next)
-								}}
-								className="w-full accent-primary"
-							/>
-							<div className="flex justify-between text-xs text-muted-foreground">
-								{MEMORY_ARCHIVE_INTERVAL_OPTIONS.map((option) => (
-									<span key={option}>{option}</span>
-								))}
-							</div>
-						</div>
-						<p className="text-xs text-muted-foreground">
-							View archived facts anytime from the Memory tab in the sidebar.
-						</p>
-					</section>
+				<label className="flex items-start gap-3 rounded-lg border border-border/60 px-3 py-3 text-sm">
+					<input
+						type="checkbox"
+						checked={allowMatureContent}
+						onChange={(event) => onAllowMatureContentChange(event.target.checked)}
+						className="mt-0.5"
+					/>
+					<span>
+						<span className="block font-medium">Allow mature content</span>
+						<span className="mt-1 block text-muted-foreground">
+							Matches your tone (including swearing), relaxes adjustable Gemini
+							filters for chat, image, and music, and allows adult people in
+							generated images. Illegal content is always blocked. Turn off for
+							stricter filtering.
+						</span>
+					</span>
+				</label>
 
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
-						<div className="flex items-center gap-2">
-							<KeyRound className="h-5 w-5 text-primary" />
-							<h2 className="text-lg font-medium">Gemini API key</h2>
-						</div>
-						<p className="text-sm text-muted-foreground">
+				<div className="flex flex-wrap items-center gap-3 border-t border-border/60 pt-4">
+					<Button onClick={onSave} disabled={isSavingIdentity}>
+						<Save className="h-4 w-4" />
+						{isSavingIdentity ? 'Saving…' : 'Save profile'}
+					</Button>
+					{savedIdentity ? (
+						<span className="text-sm text-primary">Profile saved</span>
+					) : null}
+				</div>
+			</section>
+		</div>
+	)
+}
+
+function MemoryTab({
+	memoryArchiveInterval,
+	onIntervalChange,
+}: {
+	memoryArchiveInterval: MemoryArchiveInterval
+	onIntervalChange: (value: number) => void
+}) {
+	return (
+		<div className="space-y-5">
+			<TabIntro
+				title="Memory"
+				description="Control how often chat facts get archived for future conversations."
+			/>
+
+			<section className="surface-panel space-y-4 rounded-xl p-5">
+				<p className="text-sm text-muted-foreground">
+					After this many new chat messages, the assistant reads the batch and
+					archives durable facts into Memory. Lower values update more often;
+					higher values wait for more context per pass.
+				</p>
+
+				<div className="space-y-3">
+					<div className="flex items-center justify-between text-sm">
+						<span className="text-muted-foreground">Archive every</span>
+						<span className="font-medium">{memoryArchiveInterval} messages</span>
+					</div>
+					<input
+						type="range"
+						min={0}
+						max={MEMORY_ARCHIVE_INTERVAL_OPTIONS.length - 1}
+						step={1}
+						value={Math.max(
+							0,
+							MEMORY_ARCHIVE_INTERVAL_OPTIONS.indexOf(memoryArchiveInterval),
+						)}
+						onChange={(event) => {
+							const index = Number(event.target.value)
+							const next = MEMORY_ARCHIVE_INTERVAL_OPTIONS[index] ?? 20
+							onIntervalChange(next)
+						}}
+						className="w-full accent-primary"
+					/>
+					<div className="flex justify-between text-xs text-muted-foreground">
+						{MEMORY_ARCHIVE_INTERVAL_OPTIONS.map((option) => (
+							<span key={option}>{option}</span>
+						))}
+					</div>
+				</div>
+			</section>
+
+			<section className="surface-panel rounded-xl p-5">
+				<p className="text-sm text-muted-foreground">
+					<Link
+						to="/memory"
+						className="font-medium text-primary underline-offset-4 hover:underline"
+					>
+						Open Memory
+					</Link>{' '}
+					to browse archived facts from chat.
+				</p>
+			</section>
+		</div>
+	)
+}
+
+function ApiTab({
+	apiKey,
+	savedApiKey,
+	isSavingApiKey,
+	isValidating,
+	validationMessage,
+	validationOk,
+	onApiKeyChange,
+	onSave,
+	onValidate,
+}: {
+	apiKey: string
+	savedApiKey: boolean
+	isSavingApiKey: boolean
+	isValidating: boolean
+	validationMessage: string | null
+	validationOk: boolean | null
+	onApiKeyChange: (value: string) => void
+	onSave: () => void
+	onValidate: () => void
+}) {
+	return (
+		<div className="space-y-5">
+			<TabIntro
+				title="API & models"
+				description="Your Gemini key stays on-device. Pick default models from the + menu in chat."
+			/>
+
+			<section className="surface-panel space-y-4 rounded-xl p-5">
+				<FieldGroup
+					icon={KeyRound}
+					label="Gemini API key"
+					hint={
+						<>
 							Get a key from{' '}
 							<a
 								href="https://aistudio.google.com/apikey"
@@ -324,239 +514,299 @@ export function SettingsPage() {
 								<ExternalLink className="h-3.5 w-3.5" />
 							</a>
 							. Your key never leaves this device except when calling Gemini.
-						</p>
-						<input
-							type="password"
-							value={apiKey}
-							onChange={(event) => {
-								setApiKey(event.target.value)
-								setSavedApiKey(false)
-								setValidationMessage(null)
-								setValidationOk(null)
-							}}
-							placeholder="AIza..."
-							autoComplete="off"
-							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
-						/>
-						<div className="flex flex-wrap items-center gap-3">
-							<Button
-								onClick={() => void handleSaveApiKey()}
-								disabled={isSavingApiKey}
-							>
-								<Save className="h-4 w-4" />
-								{isSavingApiKey ? 'Saving…' : 'Save key'}
-							</Button>
-							<Button
-								variant="outline"
-								onClick={() => void handleValidate()}
-								disabled={isValidating || !apiKey.trim()}
-							>
-								<PlugZap className="h-4 w-4" />
-								{isValidating ? 'Validating…' : 'Validate connection'}
-							</Button>
-							{savedApiKey ? (
-								<span className="text-sm text-primary">Key saved</span>
-							) : null}
-						</div>
-						{validationMessage ? (
-							<p
-								className={
-									validationOk
-										? 'text-sm text-primary'
-										: 'text-sm text-destructive'
-								}
-							>
-								{validationMessage}
-							</p>
-						) : null}
-					</section>
+						</>
+					}
+				>
+					<input
+						type="password"
+						value={apiKey}
+						onChange={(event) => onApiKeyChange(event.target.value)}
+						placeholder="AIza..."
+						autoComplete="off"
+						className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+					/>
+				</FieldGroup>
 
-					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
-						<h2 className="text-lg font-medium">Voice input</h2>
-						<p className="text-sm text-muted-foreground">
-							On desktop, the mic uses your browser&apos;s speech recognition.
-							On Android and installed apps, it records a short clip and sends
-							it to your default chat model for transcription using your Gemini
-							API key. Allow microphone access when prompted.
-						</p>
-						<p className="text-sm text-muted-foreground">
-							Tap the mic, speak, then tap Continue to transcribe. If voice
-							input still fails in an installed app, open the site in Chrome
-							instead of the home-screen shortcut.
-						</p>
-					</section>
-
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
-						<div className="flex items-center gap-2">
-							<Volume2 className="h-5 w-5 text-primary" />
-							<h2 className="text-lg font-medium">Voice output</h2>
-						</div>
-						<p className="text-sm text-muted-foreground">
-							Have Gemini read assistant replies aloud using the Gemini TTS
-							model. Chat text is always shown normally — speech is an optional
-							output layer on top.
-						</p>
-
-						<div className="space-y-2">
-							<label
-								htmlFor="tts-read-aloud-mode"
-								className="text-sm font-medium"
-							>
-								Read responses aloud
-							</label>
-							<select
-								id="tts-read-aloud-mode"
-								value={ttsReadAloudMode}
-								onChange={(event) => {
-									void handleTtsReadAloudModeChange(
-										event.target.value as TtsReadAloudMode,
-									)
-								}}
-								className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
-							>
-								<option value="never">Never</option>
-								<option value="after_speech">When I use the microphone</option>
-								<option value="always">Always</option>
-							</select>
-						</div>
-
-						<div className="space-y-2">
-							<label htmlFor="tts-voice-name" className="text-sm font-medium">
-								Speaking voice
-							</label>
-							<div className="flex flex-wrap items-center gap-3">
-								<select
-									id="tts-voice-name"
-									value={ttsVoiceName}
-									onChange={(event) => {
-										void handleTtsVoiceChange(event.target.value)
-									}}
-									className="min-w-0 flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
-								>
-									{GEMINI_TTS_VOICES.map((voice) => (
-										<option key={voice.name} value={voice.name}>
-											{voice.name} — {voice.description}
-										</option>
-									))}
-								</select>
-								<Button
-									type="button"
-									variant="outline"
-									disabled={
-										!preferences.geminiApiKey.trim() ||
-										speechStatus === 'loading' ||
-										speechStatus === 'playing'
-									}
-									onClick={() => {
-										void previewVoice(ttsVoiceName)
-									}}
-								>
-									<Volume2 className="h-4 w-4" />
-									{speechStatus === 'loading' ? 'Loading…' : 'Preview'}
-								</Button>
-							</div>
-							<p className="text-sm text-muted-foreground">
-								Uses your saved Gemini API key and the{' '}
-								<span className="font-medium text-foreground">
-									gemini-3.1-flash-tts-preview
-								</span>{' '}
-								model. Manual playback only runs when you tap Listen on a reply.
-							</p>
-						</div>
-					</section>
-
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
-						<div className="flex items-center gap-2">
-							<Bell className="h-5 w-5 text-primary" />
-							<h2 className="text-lg font-medium">Android &amp; system notifications</h2>
-						</div>
-						<p className="text-sm text-muted-foreground">
-							Get a real phone notification when a chat reply finishes while you are
-							in another app, or browsing Library / Memory / Settings in the installed
-							PWA. Tap the notification to jump back to chat.
-						</p>
-						<p className="text-sm text-muted-foreground">
-							Status:{' '}
-							<span className="font-medium text-foreground">
-								{notificationPermission === 'granted'
-									? 'Enabled'
-									: notificationPermission === 'denied'
-										? 'Blocked'
-										: 'Not enabled yet'}
-							</span>
-						</p>
-						{notificationPermission !== 'granted' ? (
-							<Button
-								variant="outline"
-								onClick={() => void handleEnableNotifications()}
-							>
-								<Bell className="h-4 w-4" />
-								Enable notifications
-							</Button>
-						) : null}
-						{notificationMessage ? (
-							<p className="text-sm text-muted-foreground">{notificationMessage}</p>
-						) : null}
-					</section>
-
-					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
-						<h2 className="text-lg font-medium">Background replies</h2>
-						<p className="text-sm text-muted-foreground">
-							Chat keeps generating if you switch to Library, Memory, or Settings.
-							You will see an in-app banner while a reply is in progress. With
-							notifications enabled, Android also shows a system tray alert when the
-							reply is ready.
-						</p>
-					</section>
-
-					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
-						<h2 className="text-lg font-medium">Web search</h2>
-						<p className="text-sm text-muted-foreground">
-							Enable <span className="font-medium text-foreground">Web search</span>{' '}
-							from the + menu in chat to look up wikis and current info via Google.
-							Gemini 3 includes about 5,000 search queries per month free, then
-							roughly $14 per 1,000 queries — billed per search the model runs, not
-							per chat message.
-						</p>
-					</section>
-
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
-						<h2 className="text-lg font-medium">Available models</h2>
-						<p className="text-sm text-muted-foreground">
-							Use the + menu in chat to pick your default chat, image, and music
-							models. Say things like &quot;generate an image of…&quot; or
-							&quot;generate music&quot; and the app uses your chosen model for
-							that type.
-						</p>
-						<div className="space-y-4">
-							{(['chat', 'image', 'music'] as const).map((category) => (
-								<div key={category}>
-									<h3 className="mb-2 text-sm font-medium text-muted-foreground">
-										{MODEL_CATEGORY_LABELS[category]}
-									</h3>
-									<ul className="space-y-2">
-										{GEMINI_MODELS.filter(
-											(model) => model.category === category,
-										).map((model) => (
-											<li
-												key={model.id}
-												className="rounded-lg border border-border/60 px-3 py-2 text-sm"
-											>
-												<p className="font-medium">{model.name}</p>
-												<p className="text-xs text-muted-foreground">
-													{model.id} — {model.description}
-												</p>
-											</li>
-										))}
-									</ul>
-								</div>
-							))}
-						</div>
-					</section>
-
-					<Separator />
+				<div className="flex flex-wrap items-center gap-3">
+					<Button onClick={onSave} disabled={isSavingApiKey}>
+						<Save className="h-4 w-4" />
+						{isSavingApiKey ? 'Saving…' : 'Save key'}
+					</Button>
+					<Button
+						variant="outline"
+						onClick={onValidate}
+						disabled={isValidating || !apiKey.trim()}
+					>
+						<PlugZap className="h-4 w-4" />
+						{isValidating ? 'Validating…' : 'Validate connection'}
+					</Button>
+					{savedApiKey ? (
+						<span className="text-sm text-primary">Key saved</span>
+					) : null}
 				</div>
-			</ScrollArea>
+
+				{validationMessage ? (
+					<p
+						className={
+							validationOk ? 'text-sm text-primary' : 'text-sm text-destructive'
+						}
+					>
+						{validationMessage}
+					</p>
+				) : null}
+			</section>
+
+			<section className="surface-panel space-y-3 rounded-xl p-5">
+				<h3 className="text-sm font-medium">Web search</h3>
+				<p className="text-sm text-muted-foreground">
+					Enable <span className="font-medium text-foreground">Web search</span>{' '}
+					from the + menu in chat. Gemini 3 includes about 5,000 search queries
+					per month free, then roughly $14 per 1,000 queries — billed per search
+					the model runs, not per chat message.
+				</p>
+			</section>
+
+			<section className="surface-panel space-y-4 rounded-xl p-5">
+				<h3 className="text-sm font-medium">Available models</h3>
+				<p className="text-sm text-muted-foreground">
+					Say &quot;generate an image of…&quot; or &quot;generate music&quot; and
+					the app uses your chosen model for that type.
+				</p>
+				<div className="space-y-4">
+					{(['chat', 'image', 'music'] as const).map((category) => (
+						<div key={category}>
+							<h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+								{MODEL_CATEGORY_LABELS[category]}
+							</h4>
+							<ul className="space-y-2">
+								{GEMINI_MODELS.filter((model) => model.category === category).map(
+									(model) => (
+										<li
+											key={model.id}
+											className="rounded-lg border border-border/60 bg-secondary/40 px-3 py-2 text-sm"
+										>
+											<p className="font-medium">{model.name}</p>
+											<p className="text-xs text-muted-foreground">
+												{model.id} — {model.description}
+											</p>
+										</li>
+									),
+								)}
+							</ul>
+						</div>
+					))}
+				</div>
+			</section>
+		</div>
+	)
+}
+
+function VoiceTab({
+	ttsReadAloudMode,
+	ttsVoiceName,
+	hasApiKey,
+	speechStatus,
+	onReadAloudModeChange,
+	onVoiceChange,
+	onPreview,
+}: {
+	ttsReadAloudMode: TtsReadAloudMode
+	ttsVoiceName: string
+	hasApiKey: boolean
+	speechStatus: string
+	onReadAloudModeChange: (value: TtsReadAloudMode) => void
+	onVoiceChange: (value: string) => void
+	onPreview: () => void
+}) {
+	return (
+		<div className="space-y-5">
+			<TabIntro
+				title="Voice"
+				description="Speech-to-text input and text-to-speech playback for assistant replies."
+			/>
+
+			<section className="surface-panel space-y-3 rounded-xl p-5">
+				<div className="flex items-center gap-2">
+					<Mic className="h-5 w-5 text-primary" />
+					<h3 className="text-sm font-medium">Voice input</h3>
+				</div>
+				<p className="text-sm text-muted-foreground">
+					On desktop, the mic uses your browser&apos;s speech recognition. On
+					Android and installed apps, it records a short clip and transcribes it
+					with your default chat model and Gemini API key.
+				</p>
+				<p className="text-sm text-muted-foreground">
+					Tap the mic, speak, then tap Continue. If voice input fails in an
+					installed app, try opening the site in Chrome instead of the home-screen
+					shortcut.
+				</p>
+			</section>
+
+			<section className="surface-panel space-y-4 rounded-xl p-5">
+				<div className="flex items-center gap-2">
+					<Volume2 className="h-5 w-5 text-primary" />
+					<h3 className="text-sm font-medium">Voice output</h3>
+				</div>
+				<p className="text-sm text-muted-foreground">
+					Gemini TTS reads replies aloud. Chat text is always shown — speech is
+					optional on top.
+				</p>
+
+				<div className="space-y-2">
+					<label htmlFor="tts-read-aloud-mode" className="text-sm font-medium">
+						Read responses aloud
+					</label>
+					<select
+						id="tts-read-aloud-mode"
+						value={ttsReadAloudMode}
+						onChange={(event) => {
+							onReadAloudModeChange(event.target.value as TtsReadAloudMode)
+						}}
+						className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+					>
+						<option value="never">Never</option>
+						<option value="after_speech">When I use the microphone</option>
+						<option value="always">Always</option>
+					</select>
+				</div>
+
+				<div className="space-y-2">
+					<label htmlFor="tts-voice-name" className="text-sm font-medium">
+						Speaking voice
+					</label>
+					<div className="flex flex-wrap items-center gap-3">
+						<select
+							id="tts-voice-name"
+							value={ttsVoiceName}
+							onChange={(event) => onVoiceChange(event.target.value)}
+							className="min-w-0 flex-1 rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+						>
+							{GEMINI_TTS_VOICES.map((voice) => (
+								<option key={voice.name} value={voice.name}>
+									{voice.name} — {voice.description}
+								</option>
+							))}
+						</select>
+						<Button
+							type="button"
+							variant="outline"
+							disabled={
+								!hasApiKey ||
+								speechStatus === 'loading' ||
+								speechStatus === 'playing'
+							}
+							onClick={onPreview}
+						>
+							<Volume2 className="h-4 w-4" />
+							{speechStatus === 'loading' ? 'Loading…' : 'Preview'}
+						</Button>
+					</div>
+					<p className="text-sm text-muted-foreground">
+						Uses{' '}
+						<span className="font-medium text-foreground">
+							gemini-3.1-flash-tts-preview
+						</span>{' '}
+						and your saved API key. Tap Listen on a reply for manual playback.
+					</p>
+				</div>
+			</section>
+		</div>
+	)
+}
+
+function AppTab({
+	notificationPermission,
+	notificationMessage,
+	onEnableNotifications,
+}: {
+	notificationPermission: NotificationPermission
+	notificationMessage: string | null
+	onEnableNotifications: () => void
+}) {
+	return (
+		<div className="space-y-5">
+			<TabIntro
+				title="App behaviour"
+				description="Notifications and how chat behaves when you leave the screen."
+			/>
+
+			<section className="surface-panel space-y-4 rounded-xl p-5">
+				<div className="flex items-center gap-2">
+					<Bell className="h-5 w-5 text-primary" />
+					<h3 className="text-sm font-medium">System notifications</h3>
+				</div>
+				<p className="text-sm text-muted-foreground">
+					Get a phone notification when a chat reply finishes while you are in
+					another app or browsing elsewhere in the PWA. Tap it to jump back to
+					chat.
+				</p>
+				<p className="text-sm text-muted-foreground">
+					Status:{' '}
+					<span className="font-medium text-foreground">
+						{notificationPermission === 'granted'
+							? 'Enabled'
+							: notificationPermission === 'denied'
+								? 'Blocked'
+								: 'Not enabled yet'}
+					</span>
+				</p>
+				{notificationPermission !== 'granted' ? (
+					<Button variant="outline" onClick={onEnableNotifications}>
+						<Bell className="h-4 w-4" />
+						Enable notifications
+					</Button>
+				) : null}
+				{notificationMessage ? (
+					<p className="text-sm text-muted-foreground">{notificationMessage}</p>
+				) : null}
+			</section>
+
+			<section className="surface-panel space-y-3 rounded-xl p-5">
+				<h3 className="text-sm font-medium">Background replies</h3>
+				<p className="text-sm text-muted-foreground">
+					Chat keeps generating if you switch tabs. You will see an in-app banner
+					while a reply is in progress. With notifications enabled, Android also
+					shows a system tray alert when the reply is ready.
+				</p>
+			</section>
+		</div>
+	)
+}
+
+function TabIntro({
+	title,
+	description,
+}: {
+	title: string
+	description: string
+}) {
+	return (
+		<div>
+			<h2 className="text-lg font-semibold">{title}</h2>
+			<p className="mt-1 text-sm text-muted-foreground">{description}</p>
+		</div>
+	)
+}
+
+function FieldGroup({
+	icon: Icon,
+	label,
+	hint,
+	children,
+}: {
+	icon?: typeof UserRound
+	label: string
+	hint?: React.ReactNode
+	children: React.ReactNode
+}) {
+	return (
+		<div className="space-y-2">
+			<div className="flex items-center gap-2">
+				{Icon ? <Icon className="h-4 w-4 text-primary" /> : null}
+				<label className="text-sm font-medium">{label}</label>
+			</div>
+			{hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
+			{children}
 		</div>
 	)
 }

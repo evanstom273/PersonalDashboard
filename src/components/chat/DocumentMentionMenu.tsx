@@ -20,7 +20,7 @@ export function DocumentMentionMenu({
 		return (
 			<div
 				className={cn(
-					'rounded-xl border border-border bg-popover p-3 text-sm text-muted-foreground shadow-lg',
+					'surface-popover rounded-xl p-3 text-sm text-muted-foreground shadow-lg',
 					className,
 				)}
 			>
@@ -32,7 +32,7 @@ export function DocumentMentionMenu({
 	return (
 		<div
 			className={cn(
-				'overflow-hidden rounded-xl border border-border bg-popover shadow-lg',
+				'surface-popover overflow-hidden rounded-xl shadow-lg',
 				className,
 			)}
 		>

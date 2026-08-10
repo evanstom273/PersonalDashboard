@@ -150,7 +150,7 @@ export function ChatPage() {
 
 	return (
 		<div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-			<header className="hidden shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 md:flex md:px-6">
+			<header className="hidden shrink-0 flex-wrap items-center justify-between gap-3 app-header-glass px-4 py-3 md:flex md:px-6">
 				<div>
 					<div className="flex items-center gap-2">
 						<h1 className="text-lg font-semibold">{aiName}</h1>

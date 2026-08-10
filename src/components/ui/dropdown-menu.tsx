@@ -20,7 +20,7 @@ export function DropdownMenuTrigger({
 	return (
 		<DropdownMenuPrimitive.Trigger
 			className={cn(
-				'inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-accent',
+				'inline-flex items-center gap-2 surface-panel rounded-md px-3 py-2 text-sm hover:bg-accent',
 				className,
 			)}
 			{...props}
@@ -40,7 +40,7 @@ export function DropdownMenuContent({
 		<DropdownMenuPrimitive.Portal>
 			<DropdownMenuPrimitive.Content
 				className={cn(
-					'z-50 min-w-[14rem] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg',
+					'surface-popover z-50 min-w-[14rem] overflow-hidden rounded-md p-1 text-popover-foreground shadow-lg',
 					className,
 				)}
 				sideOffset={6}
