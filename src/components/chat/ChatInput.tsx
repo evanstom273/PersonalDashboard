@@ -277,7 +277,7 @@ export function ChatInput({
 	}
 
 	function handleMicPress(): void {
-		if (disabled || isGenerating || isListening) {
+		if (disabled || isGenerating || isListening || isTranscribing) {
 			return
 		}
 
