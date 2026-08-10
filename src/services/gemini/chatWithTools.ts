@@ -1,6 +1,11 @@
 import { geminiFetch } from '@/services/gemini/client'
 import { executeDocumentToolCall, DOCUMENT_TOOL_DECLARATIONS } from '@/services/gemini/documentTools'
 import { buildSystemInstruction } from '@/services/gemini/systemInstruction'
+import {
+	extractGroundingMetadata,
+	formatGroundedResponseText,
+	type GroundingMetadata,
+} from '@/services/gemini/grounding'
 import type { ChatMessageInput } from '@/services/gemini/generate'
 import type { MessageMedia, PendingDeleteConfirmation, UserPreferences } from '@/storage/types'
 
@@ -29,6 +34,7 @@ interface GeminiContent {
 interface GenerateContentResponse {
 	candidates?: Array<{
 		content?: GeminiContent
+		groundingMetadata?: GroundingMetadata
 	}>
 }
 
@@ -45,6 +51,9 @@ export async function generateChatWithTools(
 	modelId: string,
 	messages: ChatMessageInput[],
 	preferences: UserPreferences,
+	options?: {
+		useWebSearch?: boolean
+	},
 ): Promise<ChatWithToolsResult> {
 	const contents: GeminiContent[] = messages.map((message) => ({
 		role: message.role === 'assistant' ? 'model' : 'user',
@@ -52,24 +61,34 @@ export async function generateChatWithTools(
 	}))
 
 	let pendingDeleteConfirmation: PendingDeleteConfirmation | undefined
+	const useWebSearch = options?.useWebSearch ?? false
 
 	for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
+		const requestBody: Record<string, unknown> = {
+			systemInstruction: {
+				parts: [{ text: buildSystemInstruction(preferences) }],
+			},
+			tools: buildChatTools(useWebSearch),
+			contents,
+		}
+
+		if (useWebSearch) {
+			requestBody.toolConfig = {
+				includeServerSideToolInvocations: true,
+			}
+		}
+
 		const response = await geminiFetch<GenerateContentResponse>(
 			apiKey,
 			`/models/${modelId}:generateContent`,
 			{
 				method: 'POST',
-				body: JSON.stringify({
-					systemInstruction: {
-						parts: [{ text: buildSystemInstruction(preferences) }],
-					},
-					tools: [{ functionDeclarations: DOCUMENT_TOOL_DECLARATIONS }],
-					contents,
-				}),
+				body: JSON.stringify(requestBody),
 			},
 		)
 
-		const modelContent = response.candidates?.[0]?.content
+		const candidate = response.candidates?.[0]
+		const modelContent = candidate?.content
 		const parts = modelContent?.parts ?? []
 
 		const functionCallParts = parts.filter(
@@ -118,8 +137,13 @@ export async function generateChatWithTools(
 			.join('\n')
 			.trim()
 
+		const groundedText = formatGroundedResponseText(
+			text || 'Done.',
+			extractGroundingMetadata(candidate ?? {}),
+		)
+
 		return {
-			text: text || 'Done.',
+			text: groundedText,
 			media: [],
 			pendingDeleteConfirmation,
 		}
@@ -162,4 +186,17 @@ function buildMessageParts(message: ChatMessageInput): GeminiPart[] {
 	}
 
 	return parts
+}
+
+function buildChatTools(useWebSearch: boolean): Array<Record<string, unknown>> {
+	if (useWebSearch) {
+		return [
+			{
+				googleSearch: {},
+				functionDeclarations: DOCUMENT_TOOL_DECLARATIONS,
+			},
+		]
+	}
+
+	return [{ functionDeclarations: DOCUMENT_TOOL_DECLARATIONS }]
 }

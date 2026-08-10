@@ -30,8 +30,10 @@ interface ChatInputProps {
 	disabled?: boolean
 	isGenerating?: boolean
 	generationMode: GenerationMode
+	webSearchEnabled: boolean
 	selectedChatModelId: string
 	onGenerationModeChange: (mode: GenerationMode) => void
+	onWebSearchChange: (enabled: boolean) => void
 	onChatModelChange: (modelId: string) => void
 	onSubmit: (payload: ChatSubmitPayload) => void
 	onStop?: () => void
@@ -41,8 +43,10 @@ export function ChatInput({
 	disabled,
 	isGenerating,
 	generationMode,
+	webSearchEnabled,
 	selectedChatModelId,
 	onGenerationModeChange,
+	onWebSearchChange,
 	onChatModelChange,
 	onSubmit,
 	onStop,
@@ -148,6 +152,7 @@ export function ChatInput({
 			text: messageText,
 			generationMode,
 			attachments,
+			webSearchEnabled,
 		})
 		setPrompt('')
 		setCursorPosition(0)
@@ -302,18 +307,36 @@ export function ChatInput({
 				</div>
 			) : null}
 
-			{generationMode !== 'auto' ? (
+			{generationMode !== 'auto' || webSearchEnabled ? (
 				<div className="mx-auto mb-2 flex max-w-3xl flex-wrap items-center gap-2">
-					<span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
-						{GENERATION_MODE_LABELS[generationMode]} mode
-					</span>
-					<button
-						type="button"
-						className="text-xs text-muted-foreground underline-offset-4 hover:underline"
-						onClick={() => onGenerationModeChange('auto')}
-					>
-						Reset to auto
-					</button>
+					{generationMode !== 'auto' ? (
+						<>
+							<span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
+								{GENERATION_MODE_LABELS[generationMode]} mode
+							</span>
+							<button
+								type="button"
+								className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+								onClick={() => onGenerationModeChange('auto')}
+							>
+								Reset to auto
+							</button>
+						</>
+					) : null}
+					{webSearchEnabled ? (
+						<>
+							<span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground ring-1 ring-border">
+								Web search on
+							</span>
+							<button
+								type="button"
+								className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+								onClick={() => onWebSearchChange(false)}
+							>
+								Turn off
+							</button>
+						</>
+					) : null}
 				</div>
 			) : null}
 
@@ -364,8 +387,10 @@ export function ChatInput({
 					<ChatAttachMenu
 						disabled={disabled || isGenerating || isListening}
 						generationMode={generationMode}
+						webSearchEnabled={webSearchEnabled}
 						selectedChatModelId={selectedChatModelId}
 						onGenerationModeChange={onGenerationModeChange}
+						onWebSearchChange={onWebSearchChange}
 						onChatModelChange={onChatModelChange}
 						onDocumentUpload={(file) => {
 							void handleDocumentUpload(file)
