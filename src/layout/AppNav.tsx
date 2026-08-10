@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Brain, LayoutGrid, Home, Settings, Sparkles } from 'lucide-react'
-import { usePreferencesContext } from '@/providers/ChatProvider'
+import { Brain, LayoutGrid, Home, Loader2, Settings, Sparkles } from 'lucide-react'
+import { useChatGenerationContext, usePreferencesContext } from '@/providers/ChatProvider'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import { cn } from '@/utils/cn'
 
@@ -18,6 +18,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function AppNav({ onNavigate }: AppNavProps) {
 	const { preferences } = usePreferencesContext()
+	const { isGenerating } = useChatGenerationContext()
 	const aiName = getConfiguredAiName(preferences)
 	const location = useLocation()
 
@@ -40,7 +41,10 @@ export function AppNav({ onNavigate }: AppNavProps) {
 					onClick={onNavigate}
 				>
 					<Home className="h-4 w-4" />
-					Home
+					<span className="flex-1">Home</span>
+					{isGenerating && location.pathname !== '/' ? (
+						<Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+					) : null}
 				</Link>
 				<Link
 					to="/library"

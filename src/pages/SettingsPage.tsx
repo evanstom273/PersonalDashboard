@@ -299,6 +299,16 @@ export function SettingsPage() {
 					</section>
 
 					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
+						<h2 className="text-lg font-medium">Background replies</h2>
+						<p className="text-sm text-muted-foreground">
+							Chat keeps generating if you switch to Library, Memory, or Settings.
+							A banner appears while a reply is in progress. When the app is in the
+							background, your browser may show a notification after the reply
+							finishes — allow notifications if prompted.
+						</p>
+					</section>
+
+					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
 						<h2 className="text-lg font-medium">Web search</h2>
 						<p className="text-sm text-muted-foreground">
 							Enable <span className="font-medium text-foreground">Web search</span>{' '}
