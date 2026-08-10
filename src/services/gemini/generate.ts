@@ -165,12 +165,27 @@ interface PredictLongRunningResponse {
 	name?: string
 }
 
+interface GeneratedVideoSample {
+	video?: {
+		uri?: string
+	}
+}
+
 interface VideoOperationResponse {
-	generatedVideos?: Array<{
-		video?: {
-			uri?: string
-		}
-	}>
+	generateVideoResponse?: {
+		generatedSamples?: GeneratedVideoSample[]
+	}
+	generatedVideos?: GeneratedVideoSample[]
+}
+
+function extractVideoUri(result: VideoOperationResponse): string | undefined {
+	const fromSamples =
+		result.generateVideoResponse?.generatedSamples?.[0]?.video?.uri
+	if (fromSamples) {
+		return fromSamples
+	}
+
+	return result.generatedVideos?.[0]?.video?.uri
 }
 
 export async function generateVideo(
@@ -178,13 +193,20 @@ export async function generateVideo(
 	modelId: string,
 	prompt: string,
 ): Promise<{ text: string; media: MessageMedia[] }> {
+	const trimmedPrompt = prompt.trim()
+	const videoPrompt = /\b(generate|create|make|animate|video|clip|animation)\b/i.test(
+		trimmedPrompt,
+	)
+		? trimmedPrompt
+		: `Generate a video: ${trimmedPrompt}`
+
 	const started = await geminiFetch<PredictLongRunningResponse>(
 		apiKey,
 		`/models/${modelId}:predictLongRunning`,
 		{
 			method: 'POST',
 			body: JSON.stringify({
-				instances: [{ prompt }],
+				instances: [{ prompt: videoPrompt }],
 			}),
 		},
 	)
@@ -198,17 +220,23 @@ export async function generateVideo(
 		started.name,
 	)
 
-	const videoUri = result.generatedVideos?.[0]?.video?.uri
+	const videoUri = extractVideoUri(result)
 	if (!videoUri) {
-		return {
-			text: 'Video generation completed but no video URI was returned.',
-			media: [],
-		}
+		throw new Error(
+			'Video generation completed but no video URI was returned. The model may have filtered the output — try a simpler prompt or check your API access for Veo.',
+		)
 	}
 
-	const videoResponse = await fetch(`${videoUri}&key=${encodeURIComponent(apiKey)}`)
+	const videoResponse = await fetch(videoUri, {
+		headers: {
+			'x-goog-api-key': apiKey,
+		},
+		redirect: 'follow',
+	})
 	if (!videoResponse.ok) {
-		throw new Error('Failed to download generated video')
+		throw new Error(
+			`Failed to download generated video (${videoResponse.status}).`,
+		)
 	}
 
 	const blob = await videoResponse.blob()
