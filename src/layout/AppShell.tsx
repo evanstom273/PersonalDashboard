@@ -92,13 +92,17 @@ export function AppShell() {
 			</aside>
 
 			<Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-				<SheetContent side="left" className="p-0">
-					<AppNav onNavigate={() => setDrawerOpen(false)} />
+				<SheetContent side="left" className="p-0" hideCloseButton>
+					<AppNav
+						showCloseButton
+						onClose={() => setDrawerOpen(false)}
+						onNavigate={() => setDrawerOpen(false)}
+					/>
 				</SheetContent>
 			</Sheet>
 
 			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
-				<header className="relative z-[60] flex shrink-0 items-center gap-2 border-b border-border bg-background px-3 py-2.5 md:hidden">
+				<header className="relative z-40 flex shrink-0 items-center gap-2 border-b border-border bg-background px-3 py-2.5 md:hidden">
 					<Button
 						variant="outline"
 						size="icon"
@@ -106,40 +110,51 @@ export function AppShell() {
 						aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
 						aria-expanded={drawerOpen}
 					>
-						<Menu className="h-4 w-4" />
+						{drawerOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
 					</Button>
 
 					<Button
 						type="button"
 						size="sm"
-						variant={isChatRoute ? 'secondary' : 'default'}
+						variant={isChatRoute ? 'secondary' : 'outline'}
 						onClick={goToChat}
 						className="shrink-0 gap-1.5"
 						aria-label="Go to chat"
+						aria-current={isChatRoute ? 'page' : undefined}
 					>
 						<MessageSquare className="h-4 w-4" />
 						Chat
 					</Button>
 
-					<div className="min-w-0 flex-1">
-						<div className="flex items-center gap-2">
-							<p className="truncate text-sm font-semibold">{mobileHeaderTitle}</p>
+					<div className="min-w-0 flex-1 overflow-hidden">
+						<div className="flex min-w-0 items-center gap-2 overflow-hidden">
+							<p className="min-w-0 flex-1 truncate text-sm font-semibold">
+								{mobileHeaderTitle}
+							</p>
 							{isChatRoute ? (
-								<ChatConversationActions
-									conversation={conversation}
-									isGenerating={isGenerating}
-									onClear={handleClearChat}
-									onImport={handleImportChat}
-								/>
+								<div className="shrink-0">
+									<ChatConversationActions
+										conversation={conversation}
+										isGenerating={isGenerating}
+										onClear={handleClearChat}
+										onImport={handleImportChat}
+									/>
+								</div>
 							) : null}
 						</div>
-						<p className="truncate text-xs text-muted-foreground">
-							{isGenerating && !isChatRoute
-								? `${aiName} is replying in the background…`
-								: isChatRoute
-									? (selectedModel?.name ?? 'Chat model')
-									: 'Swipe from the left edge for the menu'}
-						</p>
+						{isGenerating && !isChatRoute ? (
+							<p className="truncate text-xs text-muted-foreground">
+								{aiName} is replying in the background…
+							</p>
+						) : isChatRoute ? (
+							<p className="truncate text-xs text-muted-foreground">
+								{selectedModel?.name ?? 'Chat model'}
+							</p>
+						) : drawerOpen ? null : (
+							<p className="truncate text-xs text-muted-foreground">
+								Swipe from the left edge for the menu
+							</p>
+						)}
 					</div>
 				</header>
 
