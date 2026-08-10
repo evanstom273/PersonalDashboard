@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { MediaLightbox } from '@/components/media/MediaLightbox'
+import { ScheduleSection } from '@/components/schedule/ScheduleSection'
 import { useDocuments } from '@/hooks/useDocuments'
 import { useLibraryMedia } from '@/hooks/useLibraryMedia'
 import {
@@ -165,10 +166,7 @@ export function LibraryPage() {
 			<ScrollArea className="min-h-0 flex-1">
 				<div className="min-w-0 px-4 py-4 md:px-6">
 					{activeSection === 'schedule' ? (
-						<PlaceholderSection
-							title="Reminders & schedule"
-							description="Reminders, events, and your day at a glance will show up here."
-						/>
+						<ScheduleSection />
 					) : activeSection === 'projects' ? (
 						<PlaceholderSection
 							title="Projects"

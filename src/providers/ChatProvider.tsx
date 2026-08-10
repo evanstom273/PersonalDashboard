@@ -1,4 +1,5 @@
 import { useChatGeneration } from '@/hooks/useChatGeneration'
+import { useReminderScheduler } from '@/hooks/useReminderScheduler'
 import { useMainConversation, usePreferences } from '@/hooks/useChatStorage'
 import {
 	shouldAutoPlayAssistantSpeech,
@@ -68,6 +69,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		saveConversation: conversationState.saveConversation,
 		isChatRoute: location.pathname === '/chat',
 		onAssistantReply: handleAssistantReply,
+	})
+
+	useReminderScheduler({
+		preferences: preferencesState.preferences,
+		appendMessages: conversationState.appendMessages,
+		isChatRoute: location.pathname === '/chat',
 	})
 
 	return (

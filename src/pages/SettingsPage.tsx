@@ -10,7 +10,7 @@ import {
 	UserRound,
 	Volume2,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -796,8 +796,8 @@ function FieldGroup({
 }: {
 	icon?: typeof UserRound
 	label: string
-	hint?: React.ReactNode
-	children: React.ReactNode
+	hint?: ReactNode
+	children: ReactNode
 }) {
 	return (
 		<div className="space-y-2">

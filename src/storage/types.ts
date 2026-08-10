@@ -5,6 +5,33 @@ export type StoreName =
 	| 'documents'
 	| 'libraryMedia'
 	| 'memories'
+	| 'reminders'
+
+export const REMINDER_RECURRENCE_OPTIONS = [
+	'none',
+	'daily',
+	'weekly',
+	'monthly',
+	'yearly',
+] as const
+
+export type ReminderRecurrence = (typeof REMINDER_RECURRENCE_OPTIONS)[number]
+
+export type ReminderSource = 'user' | 'assistant'
+
+export interface ReminderRecord {
+	id: string
+	title: string
+	note?: string
+	deliveryMessage?: string
+	scheduledAt: number
+	recurrence: ReminderRecurrence
+	enabled: boolean
+	source: ReminderSource
+	createdAt: number
+	updatedAt: number
+	lastFiredAt?: number
+}
 
 export type MemoryCategory =
 	| 'preference'

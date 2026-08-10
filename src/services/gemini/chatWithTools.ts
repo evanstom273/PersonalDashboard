@@ -1,4 +1,9 @@
 import { executeDocumentToolCall, DOCUMENT_TOOL_DECLARATIONS } from '@/services/gemini/documentTools'
+import {
+	executeReminderToolCall,
+	isReminderToolName,
+	REMINDER_TOOL_DECLARATIONS,
+} from '@/services/reminders/reminderTools'
 import { buildFullSystemInstruction } from '@/services/gemini/documentContext'
 import {
 	extractGroundingMetadata,
@@ -115,6 +120,21 @@ export async function generateChatWithTools(
 
 			for (const part of functionCallParts) {
 				const functionCall = part.functionCall!
+
+				if (isReminderToolName(functionCall.name)) {
+					const toolResult = await executeReminderToolCall(
+						functionCall.name,
+						functionCall.args ?? {},
+					)
+					functionResponseParts.push({
+						functionResponse: {
+							name: toolResult.name,
+							response: toolResult.response,
+						},
+					})
+					continue
+				}
+
 				const toolResult = await executeDocumentToolCall(
 					functionCall.name,
 					functionCall.args ?? {},
@@ -213,14 +233,16 @@ function buildMessageParts(message: ChatMessageInput): GeminiPart[] {
 }
 
 function buildChatTools(useWebSearch: boolean): Array<Record<string, unknown>> {
+	const declarations = [...DOCUMENT_TOOL_DECLARATIONS, ...REMINDER_TOOL_DECLARATIONS]
+
 	if (useWebSearch) {
 		return [
 			{
 				googleSearch: {},
-				functionDeclarations: DOCUMENT_TOOL_DECLARATIONS,
+				functionDeclarations: declarations,
 			},
 		]
 	}
 
-	return [{ functionDeclarations: DOCUMENT_TOOL_DECLARATIONS }]
+	return [{ functionDeclarations: declarations }]
 }
