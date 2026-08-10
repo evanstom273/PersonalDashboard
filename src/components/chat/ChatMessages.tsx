@@ -7,6 +7,7 @@ import { MessageActions } from '@/components/chat/MessageActions'
 import { MediaLightbox } from '@/components/media/MediaLightbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { MessageDocumentLink, StoredMessage } from '@/storage/types'
+import type { TtsPlaybackStatus } from '@/hooks/useTextToSpeech'
 import { formatMessageTime } from '@/utils/dateTime'
 import { cn } from '@/utils/cn'
 
@@ -24,6 +25,11 @@ interface ChatMessagesProps {
 		documentTitle: string,
 	) => void
 	onCancelDelete: (messageId: string) => void
+	activeSpeechMessageId?: string | null
+	speechStatus?: TtsPlaybackStatus
+	onSpeakMessage?: (message: StoredMessage) => void
+	onStopSpeech?: () => void
+	speechDisabled?: boolean
 }
 
 export function ChatMessages({
@@ -33,6 +39,11 @@ export function ChatMessages({
 	aiName,
 	onConfirmDelete,
 	onCancelDelete,
+	activeSpeechMessageId = null,
+	speechStatus = 'idle',
+	onSpeakMessage,
+	onStopSpeech,
+	speechDisabled = false,
 }: ChatMessagesProps) {
 	const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -69,6 +80,11 @@ export function ChatMessages({
 							aiName={aiName}
 							onConfirmDelete={onConfirmDelete}
 							onCancelDelete={onCancelDelete}
+							activeSpeechMessageId={activeSpeechMessageId}
+							speechStatus={speechStatus}
+							onSpeakMessage={onSpeakMessage}
+							onStopSpeech={onStopSpeech}
+							speechDisabled={speechDisabled}
 						/>
 					))}
 					{streamingAssistant ? (
@@ -103,18 +119,30 @@ function MessageRow({
 	aiName,
 	onConfirmDelete,
 	onCancelDelete,
+	activeSpeechMessageId = null,
+	speechStatus = 'idle',
+	onSpeakMessage,
+	onStopSpeech,
+	speechDisabled = false,
 	isStreaming = false,
 }: {
 	message: StoredMessage
 	aiName: string
 	onConfirmDelete: ChatMessagesProps['onConfirmDelete']
 	onCancelDelete: ChatMessagesProps['onCancelDelete']
+	activeSpeechMessageId?: string | null
+	speechStatus?: TtsPlaybackStatus
+	onSpeakMessage?: (message: StoredMessage) => void
+	onStopSpeech?: () => void
+	speechDisabled?: boolean
 	isStreaming?: boolean
 }) {
 	const contentRef = useRef<HTMLDivElement>(null)
 	const isUser = message.role === 'user'
 	const hasMedia = (message.media?.length ?? 0) > 0
 	const showMediaFirst = !isUser && hasMedia
+	const messageSpeechStatus =
+		activeSpeechMessageId === message.id ? speechStatus : 'idle'
 
 	return (
 		<article
@@ -251,6 +279,14 @@ function MessageRow({
 							contentRef={contentRef}
 							text={message.content}
 							className={cn('mt-2', isUser && 'justify-end')}
+							onSpeak={
+								!isUser && onSpeakMessage && message.content.trim()
+									? () => onSpeakMessage(message)
+									: undefined
+							}
+							onStopSpeak={onStopSpeech}
+							speakStatus={messageSpeechStatus}
+							speakDisabled={speechDisabled}
 						/>
 					) : null}
 				</div>

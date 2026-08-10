@@ -3,10 +3,11 @@ import {
 	useChatGenerationContext,
 	useMainConversationContext,
 	usePreferencesContext,
+	useTextToSpeechContext,
 } from '@/providers/ChatProvider'
 import { confirmDocumentDeletion } from '@/services/gemini/documentTools'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
-import type { UserPreferences } from '@/storage/types'
+import type { StoredMessage, UserPreferences } from '@/storage/types'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
@@ -32,6 +33,14 @@ export function ChatPage() {
 		stopGeneration,
 		clearCompletionNotice,
 	} = useChatGenerationContext()
+	const {
+		activeMessageId: activeSpeechMessageId,
+		status: speechStatus,
+		error: speechError,
+		speakAssistantMessage,
+		stop: stopSpeech,
+		clearError: clearSpeechError,
+	} = useTextToSpeechContext()
 
 	const [webSearchEnabled, setWebSearchEnabled] = useState(false)
 	const [forcedNextIntent, setForcedNextIntent] =
@@ -70,6 +79,7 @@ export function ChatPage() {
 
 	const handleSubmit = useCallback(
 		async (payload: Parameters<typeof submitMessage>[0]) => {
+			stopSpeech()
 			const activeForcedIntent = forcedNextIntent
 			if (activeForcedIntent) {
 				setForcedNextIntent(null)
@@ -77,7 +87,7 @@ export function ChatPage() {
 
 			await submitMessage(payload, { forcedNextIntent: activeForcedIntent })
 		},
-		[forcedNextIntent, submitMessage],
+		[forcedNextIntent, stopSpeech, submitMessage],
 	)
 
 	const handleConfirmDelete = useCallback(
@@ -111,6 +121,17 @@ export function ChatPage() {
 			])
 		},
 		[appendMessages, updateMessage],
+	)
+
+	const handleSpeakMessage = useCallback(
+		(message: StoredMessage) => {
+			clearSpeechError()
+			void speakAssistantMessage({
+				messageId: message.id,
+				text: message.content,
+			})
+		},
+		[clearSpeechError, speakAssistantMessage],
 	)
 
 	return (
@@ -159,6 +180,21 @@ export function ChatPage() {
 				</div>
 			) : null}
 
+			{speechError ? (
+				<div className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-900 dark:text-amber-100 md:px-6">
+					<div className="flex items-start justify-between gap-3">
+						<p>{speechError}</p>
+						<button
+							type="button"
+							className="shrink-0 text-xs underline-offset-4 hover:underline"
+							onClick={clearSpeechError}
+						>
+							Dismiss
+						</button>
+					</div>
+				</div>
+			) : null}
+
 			<ChatMessages
 				messages={conversation?.messages ?? []}
 				streamingAssistant={streamingAssistant}
@@ -166,6 +202,11 @@ export function ChatPage() {
 				aiName={aiName}
 				onConfirmDelete={handleConfirmDelete}
 				onCancelDelete={handleCancelDelete}
+				activeSpeechMessageId={activeSpeechMessageId}
+				speechStatus={speechStatus}
+				onSpeakMessage={handleSpeakMessage}
+				onStopSpeech={stopSpeech}
+				speechDisabled={!hasApiKey || isGenerating}
 			/>
 
 			<ChatInput

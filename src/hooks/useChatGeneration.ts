@@ -12,7 +12,7 @@ import {
 } from '@/services/memory/memoryArchive'
 import { saveMessageMediaToLibrary } from '@/services/library/libraryMediaService'
 import type { ConversationRecord, StoredMessage, UserPreferences } from '@/storage/types'
-import type { ChatSubmitPayload } from '@/types/chat'
+import type { ChatInputMethod, ChatSubmitPayload } from '@/types/chat'
 import {
 	notifyGenerationComplete,
 	requestNotificationPermission,
@@ -28,6 +28,10 @@ interface UseChatGenerationOptions {
 	ensureConversation: () => Promise<ConversationRecord>
 	saveConversation: (next: ConversationRecord) => Promise<void>
 	isChatRoute: boolean
+	onAssistantReply?: (payload: {
+		message: StoredMessage
+		inputMethod: ChatInputMethod
+	}) => void
 }
 
 export function useChatGeneration({
@@ -37,6 +41,7 @@ export function useChatGeneration({
 	ensureConversation,
 	saveConversation,
 	isChatRoute,
+	onAssistantReply,
 }: UseChatGenerationOptions) {
 	const [isGenerating, setIsGenerating] = useState(false)
 	const [error, setError] = useState<string | null>(null)
@@ -74,7 +79,12 @@ export function useChatGeneration({
 
 	const submitMessage = useCallback(
 		async (
-			{ text, attachments, webSearchEnabled: useWebSearch }: ChatSubmitPayload,
+			{
+				text,
+				attachments,
+				webSearchEnabled: useWebSearch,
+				inputMethod,
+			}: ChatSubmitPayload,
 			options?: { forcedNextIntent?: GenerationIntent | null },
 		) => {
 			const hasApiKey = preferences.geminiApiKey.trim().length > 0
@@ -274,6 +284,17 @@ export function useChatGeneration({
 					})
 				}
 
+				if (
+					resolved.intent === 'chat' &&
+					assistantText.trim() &&
+					onAssistantReply
+				) {
+					onAssistantReply({
+						message: assistantMessage,
+						inputMethod,
+					})
+				}
+
 				const aiName = getConfiguredAiName(preferences)
 				if (!isChatRouteRef.current) {
 					setCompletionNotice(`${aiName} finished replying.`)
@@ -325,6 +346,7 @@ export function useChatGeneration({
 			appendMessages,
 			conversation,
 			ensureConversation,
+			onAssistantReply,
 			preferences,
 			saveConversation,
 		],

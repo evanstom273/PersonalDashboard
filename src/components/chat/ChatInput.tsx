@@ -17,7 +17,7 @@ import { createDocument } from '@/services/documents/documentService'
 import {
 	ingestUploadedDocumentContent,
 } from '@/utils/documentContent'
-import type { ChatAttachment, ChatSubmitPayload } from '@/types/chat'
+import type { ChatAttachment, ChatInputMethod, ChatSubmitPayload } from '@/types/chat'
 import type { GenerationIntent } from '@/services/gemini/constants'
 import { MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
 import {
@@ -70,7 +70,9 @@ export function ChatInput({
 	const [cursorPosition, setCursorPosition] = useState(0)
 	const [attachments, setAttachments] = useState<ChatAttachment[]>([])
 	const [attachError, setAttachError] = useState<string | null>(null)
+	const [inputMethod, setInputMethod] = useState<ChatInputMethod>('typed')
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
+	const promptBeforeSpeechRef = useRef('')
 
 	const {
 		isSupported,
@@ -172,11 +174,13 @@ export function ChatInput({
 			text: messageText,
 			attachments,
 			webSearchEnabled,
+			inputMethod,
 		})
 		setPrompt('')
 		setCursorPosition(0)
 		setAttachments([])
 		setAttachError(null)
+		setInputMethod('typed')
 		resetSpeechState()
 	}
 
@@ -331,21 +335,24 @@ export function ChatInput({
 			return
 		}
 
-		void startListening(isReviewing ? prompt : '')
+		promptBeforeSpeechRef.current = prompt
+		void startListening(prompt)
 	}
 
 	function handleContinue(): void {
 		void continueListening().then((nextTranscript) => {
-			setPrompt(nextTranscript.trim())
-			setCursorPosition(nextTranscript.trim().length)
+			const nextPrompt = nextTranscript.trim()
+			setPrompt(nextPrompt)
+			setCursorPosition(nextPrompt.length)
+			setInputMethod('speech')
 		})
 	}
 
 	function handleCancelSpeech(): void {
 		cancelListening()
-		if (isListening) {
-			setPrompt('')
-			setCursorPosition(0)
+		if (isListening || isTranscribing) {
+			setPrompt(promptBeforeSpeechRef.current)
+			setCursorPosition(promptBeforeSpeechRef.current.length)
 		}
 	}
 
@@ -511,6 +518,9 @@ export function ChatInput({
 						onChange={(event) => {
 							setPrompt(event.target.value)
 							setCursorPosition(event.target.selectionStart)
+							if (!isListening && !isTranscribing) {
+								setInputMethod('typed')
+							}
 						}}
 						onClick={syncCursor}
 						onKeyUp={syncCursor}
