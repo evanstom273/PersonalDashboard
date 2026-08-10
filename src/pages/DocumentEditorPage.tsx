@@ -1,15 +1,14 @@
-import { ArrowLeft, Lock, Save } from 'lucide-react'
+import { ArrowLeft, Lock } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DocumentEditor } from '@/components/documents/DocumentEditor'
 import { Button } from '@/components/ui/button'
 import { usePreferencesContext } from '@/providers/ChatProvider'
 import { getDocument, createDocument, updateDocument } from '@/services/documents/documentService'
-import type { DocumentRecord } from '@/storage/types'
+import type { DocumentContentFormat, DocumentRecord } from '@/storage/types'
 import {
 	documentContentToEditorHtml,
 	editorHtmlToDocumentContent,
-	formatTimestamp,
 	isDocumentReadOnly,
 } from '@/utils/documentContent'
 
@@ -23,37 +22,49 @@ export function DocumentEditorPage() {
 	const [title, setTitle] = useState('')
 	const [content, setContent] = useState('<p></p>')
 	const [isLoading, setIsLoading] = useState(true)
-	const [isSaving, setIsSaving] = useState(false)
-	const [lastSavedAt, setLastSavedAt] = useState<number | null>(null)
 	const saveTimerRef = useRef<number | null>(null)
 	const latestRef = useRef({ title, content })
+	const documentMetaRef = useRef<{
+		id: string
+		contentFormat: DocumentContentFormat
+	} | null>(null)
+	const lastPersistedRef = useRef({ title: '', content: '' })
+	const readOnlyRef = useRef(false)
 
 	useEffect(() => {
 		latestRef.current = { title, content }
 	}, [title, content])
 
 	const readOnly = document ? isDocumentReadOnly(document) : false
+	readOnlyRef.current = readOnly
 
 	const persistDocument = useCallback(async () => {
-		if (!document || readOnly) {
+		const meta = documentMetaRef.current
+		if (!meta || readOnlyRef.current) {
 			return
 		}
 
-		setIsSaving(true)
+		const snapshot = latestRef.current
+		if (
+			snapshot.title === lastPersistedRef.current.title &&
+			snapshot.content === lastPersistedRef.current.content
+		) {
+			return
+		}
+
 		try {
-			const updated = await updateDocument(document.id, {
-				title: latestRef.current.title,
+			await updateDocument(meta.id, {
+				title: snapshot.title,
 				content: editorHtmlToDocumentContent(
-					latestRef.current.content,
-					document.contentFormat,
+					snapshot.content,
+					meta.contentFormat,
 				),
 			})
-			setDocument(updated)
-			setLastSavedAt(updated.updatedAt)
-		} finally {
-			setIsSaving(false)
+			lastPersistedRef.current = { ...snapshot }
+		} catch {
+			// Save failures must not disrupt editing.
 		}
-	}, [document, readOnly])
+	}, [])
 
 	useEffect(() => {
 		let cancelled = false
@@ -81,10 +92,18 @@ export function DocumentEditorPage() {
 					navigate('/library', { replace: true })
 					return
 				}
+				const editorHtml = documentContentToEditorHtml(stored)
 				setDocument(stored)
 				setTitle(stored.title)
-				setContent(documentContentToEditorHtml(stored))
-				setLastSavedAt(stored.updatedAt)
+				setContent(editorHtml)
+				documentMetaRef.current = {
+					id: stored.id,
+					contentFormat: stored.contentFormat,
+				}
+				lastPersistedRef.current = {
+					title: stored.title,
+					content: editorHtml,
+				}
 				setIsLoading(false)
 			}
 		}
@@ -97,7 +116,7 @@ export function DocumentEditorPage() {
 	}, [documentId, navigate])
 
 	useEffect(() => {
-		if (!document || isLoading || readOnly) {
+		if (!documentMetaRef.current || isLoading || readOnly) {
 			return
 		}
 
@@ -114,7 +133,13 @@ export function DocumentEditorPage() {
 				window.clearTimeout(saveTimerRef.current)
 			}
 		}
-	}, [title, content, document, isLoading, readOnly, persistDocument])
+	}, [title, content, isLoading, readOnly, persistDocument])
+
+	useEffect(() => {
+		return () => {
+			void persistDocument()
+		}
+	}, [persistDocument])
 
 	if (isLoading || !document) {
 		return (
@@ -146,21 +171,11 @@ export function DocumentEditorPage() {
 							<Lock className="h-3.5 w-3.5" />
 							Read-only
 						</div>
-					) : (
-						<div className="flex items-center gap-2 text-xs text-muted-foreground">
-							{document.source === 'upload' ? (
-								<span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
-									Uploaded
-								</span>
-							) : null}
-							<Save className="h-3.5 w-3.5" />
-							{isSaving
-								? 'Saving…'
-								: lastSavedAt
-									? `Saved ${formatTimestamp(lastSavedAt)}`
-									: 'Not saved yet'}
-						</div>
-					)}
+					) : document.source === 'upload' ? (
+						<span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+							Uploaded
+						</span>
+					) : null}
 				</div>
 			</header>
 

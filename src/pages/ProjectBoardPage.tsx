@@ -65,6 +65,7 @@ export function ProjectBoardPage() {
 	const [project, setProject] = useState<ProjectRecord | null>(null)
 	const [isLoading, setIsLoading] = useState(true)
 	const [editingTask, setEditingTask] = useState<ProjectTaskRecord | null>(null)
+	const editingTaskRef = useRef<ProjectTaskRecord | null>(null)
 	const [collapsed, setCollapsed] =
 		useState<Record<ProjectTaskStatus, boolean>>(DEFAULT_COLLAPSED)
 	const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
@@ -95,7 +96,15 @@ export function ProjectBoardPage() {
 	}, [refreshProject])
 
 	useEffect(() => {
+		editingTaskRef.current = editingTask
+	}, [editingTask])
+
+	useEffect(() => {
 		return subscribeProjectsChanged(() => {
+			if (editingTaskRef.current) {
+				return
+			}
+
 			void refreshProject()
 		})
 	}, [refreshProject])
@@ -189,6 +198,17 @@ export function ProjectBoardPage() {
 			item.id === itemId ? { ...item, checked } : item,
 		)
 
+		setProject((current) =>
+			current
+				? {
+						...current,
+						tasks: current.tasks.map((entry) =>
+							entry.id === task.id ? { ...entry, checklist } : entry,
+						),
+					}
+				: current,
+		)
+
 		await saveTask(project.id, task.id, { checklist })
 	}
 
@@ -278,6 +298,7 @@ export function ProjectBoardPage() {
 				onOpenChange={(open) => {
 					if (!open) {
 						setEditingTask(null)
+						void refreshProject()
 					}
 				}}
 				onPersist={async (input) => {
@@ -285,7 +306,23 @@ export function ProjectBoardPage() {
 						return
 					}
 
-					await saveTask(project.id, editingTask.id, input)
+					const updated = await saveTask(project.id, editingTask.id, input)
+					if (!updated) {
+						return
+					}
+
+					setProject((current) =>
+						current
+							? {
+									...current,
+									tasks: current.tasks.map((entry) =>
+										entry.id === updated.id ? updated : entry,
+									),
+									updatedAt: Date.now(),
+								}
+							: current,
+					)
+					setEditingTask(updated)
 				}}
 			/>
 		</div>

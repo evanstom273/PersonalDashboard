@@ -349,15 +349,11 @@ export function DocumentEditor({
 							<DropdownMenu>
 								<DropdownMenuTrigger
 									hideChevron
-									className={cn(
-										'h-8 gap-1 px-2',
-										!ai.hasApiKey && 'opacity-50',
-									)}
+									className="h-8 gap-1 px-2"
 									aria-label="AI writing assistance"
-									disabled={!ai.hasApiKey}
 								>
 									<Sparkles className="h-4 w-4 text-primary" />
-									<span className="hidden text-xs font-medium sm:inline">AI</span>
+									<span className="text-xs font-medium">AI</span>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
 									<DropdownMenuLabel>AI writing</DropdownMenuLabel>
