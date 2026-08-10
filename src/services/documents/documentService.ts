@@ -5,6 +5,11 @@ import {
 	setValue,
 } from '@/storage/storageService'
 import type { DocumentRecord } from '@/storage/types'
+import {
+	normalizeDocumentRecord,
+	resolveCreateDocumentDefaults,
+	type CreateDocumentDefaults,
+} from '@/utils/documentContent'
 
 const listeners = new Set<() => void>()
 
@@ -25,7 +30,7 @@ function sortDocuments(documents: DocumentRecord[]): DocumentRecord[] {
 
 export async function listDocuments(query?: string): Promise<DocumentRecord[]> {
 	const documents = sortDocuments(
-		await getAllValues<DocumentRecord>('documents'),
+		(await getAllValues<DocumentRecord>('documents')).map(normalizeDocumentRecord),
 	)
 
 	if (!query?.trim()) {
@@ -41,7 +46,8 @@ export async function listDocuments(query?: string): Promise<DocumentRecord[]> {
 export async function getDocument(
 	id: string,
 ): Promise<DocumentRecord | undefined> {
-	return getValue<DocumentRecord>('documents', id)
+	const document = await getValue<DocumentRecord>('documents', id)
+	return document ? normalizeDocumentRecord(document) : undefined
 }
 
 export async function findDocumentByTitle(
@@ -49,9 +55,9 @@ export async function findDocumentByTitle(
 ): Promise<DocumentRecord | undefined> {
 	const normalized = title.trim().toLowerCase()
 	const documents = await getAllValues<DocumentRecord>('documents')
-	return documents.find(
-		(document) => document.title.trim().toLowerCase() === normalized,
-	)
+	return documents
+		.map(normalizeDocumentRecord)
+		.find((document) => document.title.trim().toLowerCase() === normalized)
 }
 
 export async function resolveDocumentRef(
@@ -74,12 +80,17 @@ export async function resolveDocumentRef(
 export async function createDocument(
 	title: string,
 	content = '',
+	options: CreateDocumentDefaults = {},
 ): Promise<DocumentRecord> {
 	const now = Date.now()
+	const defaults = resolveCreateDocumentDefaults(options)
 	const document: DocumentRecord = {
 		id: crypto.randomUUID(),
 		title: title.trim() || 'Untitled document',
 		content,
+		source: defaults.source,
+		contentFormat: defaults.contentFormat,
+		readOnly: defaults.readOnly,
 		createdAt: now,
 		updatedAt: now,
 	}
@@ -96,6 +107,10 @@ export async function updateDocument(
 	const existing = await getDocument(id)
 	if (!existing) {
 		throw new Error(`Document not found: ${id}`)
+	}
+
+	if (existing.readOnly && updates.content !== undefined) {
+		throw new Error('This document is read-only.')
 	}
 
 	const updated: DocumentRecord = {
@@ -128,5 +143,9 @@ export async function duplicateDocument(id: string): Promise<DocumentRecord> {
 		throw new Error(`Document not found: ${id}`)
 	}
 
-	return createDocument(`${existing.title} (copy)`, existing.content)
+	return createDocument(`${existing.title} (copy)`, existing.content, {
+		source: 'user',
+		contentFormat: existing.contentFormat,
+		readOnly: false,
+	})
 }

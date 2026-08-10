@@ -1,6 +1,6 @@
 import type { DocumentRecord } from '@/storage/types'
 import {
-	htmlToMarkdown,
+	documentContentForExport,
 	htmlToPlainTextMultiline,
 } from '@/utils/documentContent'
 
@@ -56,8 +56,8 @@ export function downloadDocument(
 
 	const content =
 		format === 'md'
-			? htmlToMarkdown(document.content)
-			: htmlToPlainTextMultiline(document.content)
+			? documentContentForExport(document, 'md')
+			: documentContentForExport(document, 'txt')
 	const mimeType =
 		format === 'md'
 			? 'text/markdown;charset=utf-8'
@@ -71,7 +71,10 @@ async function downloadDocumentPdf(
 ): Promise<void> {
 	const { jsPDF } = await import('jspdf')
 	const pdf = new jsPDF()
-	const text = htmlToPlainTextMultiline(document.content)
+	const text =
+		document.contentFormat === 'markdown'
+			? document.content
+			: htmlToPlainTextMultiline(document.content)
 	const lines = pdf.splitTextToSize(text || document.title, 180)
 	pdf.text(lines, 14, 20)
 	pdf.save(filename)

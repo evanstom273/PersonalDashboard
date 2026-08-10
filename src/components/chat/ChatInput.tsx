@@ -14,7 +14,9 @@ import { useDocumentMentionPicker } from '@/hooks/useDocumentMentionPicker'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { insertDocumentMention, buildDocumentMention } from '@/utils/documentMentions'
 import { createDocument } from '@/services/documents/documentService'
-import { normalizeDocumentContent } from '@/utils/documentContent'
+import {
+	ingestUploadedDocumentContent,
+} from '@/utils/documentContent'
 import type { ChatAttachment, ChatSubmitPayload } from '@/types/chat'
 import type { GenerationIntent } from '@/services/gemini/constants'
 import { MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
@@ -182,9 +184,14 @@ export function ChatInput({
 		}
 
 		try {
-			const content = normalizeDocumentContent(await readTextFile(file))
+			const raw = await readTextFile(file)
+			const { content, contentFormat } = ingestUploadedDocumentContent(file, raw)
 			const title = getFileBaseName(file.name) || 'Uploaded document'
-			const document = await createDocument(title, content)
+			const document = await createDocument(title, content, {
+				source: 'upload',
+				contentFormat,
+				readOnly: true,
+			})
 
 			setAttachments((current) => [
 				...current,

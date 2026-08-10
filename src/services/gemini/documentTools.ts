@@ -8,7 +8,11 @@ import {
 	resolveDocumentRef,
 	updateDocument,
 } from '@/services/documents/documentService'
-import { htmlToPlainText, normalizeDocumentContent } from '@/utils/documentContent'
+import {
+	htmlToMarkdown,
+	htmlToPlainText,
+	normalizeMarkdownContent,
+} from '@/utils/documentContent'
 
 export interface DocumentToolResult {
 	name: string
@@ -62,7 +66,7 @@ export const DOCUMENT_TOOL_DECLARATIONS = [
 				content: {
 					type: 'STRING',
 					description:
-						'Document body as plain text or simple HTML paragraphs.',
+						'Document body in Markdown (headings, lists, bold, links, code blocks).',
 				},
 			},
 			required: ['title', 'content'],
@@ -79,7 +83,7 @@ export const DOCUMENT_TOOL_DECLARATIONS = [
 				title: { type: 'STRING', description: 'Exact title if ID is unknown.' },
 				content: {
 					type: 'STRING',
-					description: 'Replacement document body.',
+					description: 'Replacement document body in Markdown.',
 				},
 				new_title: {
 					type: 'STRING',
@@ -151,10 +155,17 @@ export async function executeDocumentToolCall(
 				response: {
 					id: document.id,
 					title: document.title,
-					content: htmlToPlainText(document.content),
-					html: document.content,
+					content:
+						document.contentFormat === 'markdown'
+							? document.content
+							: htmlToPlainText(document.content),
+					markdown:
+						document.contentFormat === 'markdown'
+							? document.content
+							: htmlToMarkdown(document.content),
 					createdAt: document.createdAt,
 					updatedAt: document.updatedAt,
+					readOnly: document.readOnly,
 				},
 			}
 		}
@@ -162,9 +173,13 @@ export async function executeDocumentToolCall(
 			const title = typeof args.title === 'string' ? args.title : 'Untitled document'
 			const content =
 				typeof args.content === 'string'
-					? normalizeDocumentContent(args.content)
-					: '<p></p>'
-			const document = await createDocument(title, content)
+					? normalizeMarkdownContent(args.content)
+					: ''
+			const document = await createDocument(title, content, {
+				source: 'assistant',
+				contentFormat: 'markdown',
+				readOnly: false,
+			})
 			return {
 				name,
 				response: {
@@ -186,12 +201,19 @@ export async function executeDocumentToolCall(
 				return { name, response: { error: 'Document not found.' } }
 			}
 
+			if (document.readOnly) {
+				return {
+					name,
+					response: { error: 'This uploaded document is read-only.' },
+				}
+			}
+
 			const updated = await updateDocument(document.id, {
 				title:
 					typeof args.new_title === 'string' ? args.new_title : undefined,
 				content:
 					typeof args.content === 'string'
-						? normalizeDocumentContent(args.content)
+						? normalizeMarkdownContent(args.content)
 						: undefined,
 			})
 

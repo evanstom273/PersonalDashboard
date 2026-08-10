@@ -10,6 +10,7 @@ import { getIntentLabel, resolvePromptIntent } from '@/services/gemini/intent'
 import { getGenerationModelPreferences } from '@/services/gemini/modelPreferences'
 import { getModelById } from '@/services/gemini/models'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
+import { queueMemoryArchive, getUnarchivedMessages } from '@/services/memory/memoryArchive'
 import { runModelGeneration } from '@/services/gemini'
 import { saveMessageMediaToLibrary } from '@/services/library/libraryMediaService'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
@@ -30,6 +31,7 @@ export function ChatPage() {
 		ensureConversation,
 		clearConversation,
 		replaceConversation,
+		saveConversation,
 	} = useMainConversationContext()
 	const { setIsChatGenerating } = useChatUiContext()
 
@@ -49,11 +51,11 @@ export function ChatPage() {
 
 	const chatHistory = useMemo(
 		() =>
-			(conversation?.messages ?? []).map((message) => ({
+			(conversation ? getUnarchivedMessages(conversation) : []).map((message) => ({
 				role: message.role,
 				content: message.content,
 			})),
-		[conversation?.messages],
+		[conversation],
 	)
 
 	const saveModelPreference = useCallback(
@@ -189,7 +191,20 @@ export function ChatPage() {
 					createdAt: Date.now(),
 				}
 
-				await appendMessages([assistantMessage], preferences.defaultModelId)
+				const updatedConversation = await appendMessages(
+					[assistantMessage],
+					preferences.defaultModelId,
+				)
+
+				if (resolved.intent === 'chat') {
+					queueMemoryArchive(
+						preferences.geminiApiKey,
+						resolved.modelId,
+						updatedConversation,
+						preferences,
+						saveConversation,
+					)
+				}
 
 				if (assistantMedia && assistantMedia.length > 0) {
 					await saveMessageMediaToLibrary(assistantMedia, {
@@ -214,6 +229,7 @@ export function ChatPage() {
 			forcedNextIntent,
 			hasApiKey,
 			preferences,
+			saveConversation,
 		],
 	)
 

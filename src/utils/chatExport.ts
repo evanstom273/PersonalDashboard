@@ -74,6 +74,11 @@ function normalizeImportedConversation(
 	return {
 		...conversation,
 		id: MAIN_CONVERSATION_ID,
+		memoryArchiveCursor:
+			typeof conversation.memoryArchiveCursor === 'number' &&
+			conversation.memoryArchiveCursor >= 0
+				? conversation.memoryArchiveCursor
+				: 0,
 		updatedAt: Date.now(),
 	}
 }
