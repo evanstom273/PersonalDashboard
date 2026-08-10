@@ -1,11 +1,16 @@
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Lock, Save } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DocumentEditor } from '@/components/documents/DocumentEditor'
 import { Button } from '@/components/ui/button'
 import { getDocument, createDocument, updateDocument } from '@/services/documents/documentService'
 import type { DocumentRecord } from '@/storage/types'
-import { formatTimestamp } from '@/utils/documentContent'
+import {
+	documentContentToEditorHtml,
+	editorHtmlToDocumentContent,
+	formatTimestamp,
+	isDocumentReadOnly,
+} from '@/utils/documentContent'
 
 const AUTOSAVE_MS = 800
 
@@ -25,8 +30,10 @@ export function DocumentEditorPage() {
 		latestRef.current = { title, content }
 	}, [title, content])
 
+	const readOnly = document ? isDocumentReadOnly(document) : false
+
 	const persistDocument = useCallback(async () => {
-		if (!document) {
+		if (!document || readOnly) {
 			return
 		}
 
@@ -34,14 +41,17 @@ export function DocumentEditorPage() {
 		try {
 			const updated = await updateDocument(document.id, {
 				title: latestRef.current.title,
-				content: latestRef.current.content,
+				content: editorHtmlToDocumentContent(
+					latestRef.current.content,
+					document.contentFormat,
+				),
 			})
 			setDocument(updated)
 			setLastSavedAt(updated.updatedAt)
 		} finally {
 			setIsSaving(false)
 		}
-	}, [document])
+	}, [document, readOnly])
 
 	useEffect(() => {
 		let cancelled = false
@@ -52,7 +62,11 @@ export function DocumentEditorPage() {
 			}
 
 			if (documentId === 'new') {
-				const created = await createDocument('Untitled document')
+				const created = await createDocument('Untitled document', '', {
+					source: 'user',
+					contentFormat: 'markdown',
+					readOnly: false,
+				})
 				if (!cancelled) {
 					navigate(`/library/documents/${created.id}`, { replace: true })
 				}
@@ -67,7 +81,7 @@ export function DocumentEditorPage() {
 				}
 				setDocument(stored)
 				setTitle(stored.title)
-				setContent(stored.content || '<p></p>')
+				setContent(documentContentToEditorHtml(stored))
 				setLastSavedAt(stored.updatedAt)
 				setIsLoading(false)
 			}
@@ -81,7 +95,7 @@ export function DocumentEditorPage() {
 	}, [documentId, navigate])
 
 	useEffect(() => {
-		if (!document || isLoading) {
+		if (!document || isLoading || readOnly) {
 			return
 		}
 
@@ -98,7 +112,7 @@ export function DocumentEditorPage() {
 				window.clearTimeout(saveTimerRef.current)
 			}
 		}
-	}, [title, content, document, isLoading, persistDocument])
+	}, [title, content, document, isLoading, readOnly, persistDocument])
 
 	if (isLoading || !document) {
 		return (
@@ -121,21 +135,33 @@ export function DocumentEditorPage() {
 					<input
 						value={title}
 						onChange={(event) => setTitle(event.target.value)}
-						className="min-w-[12rem] flex-1 bg-transparent text-lg font-semibold outline-none"
+						readOnly={readOnly}
+						className="min-w-[12rem] flex-1 bg-transparent text-lg font-semibold outline-none read-only:cursor-default read-only:opacity-80"
 						placeholder="Document title"
 					/>
-					<div className="flex items-center gap-2 text-xs text-muted-foreground">
-						<Save className="h-3.5 w-3.5" />
-						{isSaving
-							? 'Saving…'
-							: lastSavedAt
-								? `Saved ${formatTimestamp(lastSavedAt)}`
-								: 'Not saved yet'}
-					</div>
+					{readOnly ? (
+						<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+							<Lock className="h-3.5 w-3.5" />
+							Read-only upload
+						</div>
+					) : (
+						<div className="flex items-center gap-2 text-xs text-muted-foreground">
+							<Save className="h-3.5 w-3.5" />
+							{isSaving
+								? 'Saving…'
+								: lastSavedAt
+									? `Saved ${formatTimestamp(lastSavedAt)}`
+									: 'Not saved yet'}
+						</div>
+					)}
 				</div>
 			</header>
 
-			<DocumentEditor content={content} onChange={setContent} />
+			<DocumentEditor
+				content={content}
+				onChange={setContent}
+				editable={!readOnly}
+			/>
 		</div>
 	)
 }

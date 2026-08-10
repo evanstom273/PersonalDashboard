@@ -45,9 +45,16 @@ export interface DocumentRecord {
 	id: string
 	title: string
 	content: string
+	source: DocumentSource
+	contentFormat: DocumentContentFormat
+	readOnly: boolean
 	createdAt: number
 	updatedAt: number
 }
+
+export type DocumentSource = 'upload' | 'user' | 'assistant'
+
+export type DocumentContentFormat = 'markdown' | 'html'
 
 export interface ConversationRecord {
 	id: string

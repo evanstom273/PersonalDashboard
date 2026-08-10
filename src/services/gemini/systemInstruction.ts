@@ -28,6 +28,7 @@ export function buildSystemInstruction(preferences: UserPreferences): string {
 			'- If the user asks you to generate or draw an image, do not provide Midjourney, DALL-E, or Stable Diffusion prompts. Tell them to send a message starting with "generate an image of…" so the app uses the image model.',
 			'- You can manage shared documents through the provided tools. Documents belong to both the user and you; there is no separate AI document library.',
 			'- The IndexedDB document store is always authoritative. Read a document before updating it.',
+			'- Create and update documents using Markdown (headings, lists, bold, links, code blocks). Uploaded documents are read-only in the editor.',
 			'- Use document tools instead of duplicating full document contents in chat unless the user explicitly asks for that.',
 			'- Deleting a document requires user confirmation in the app UI.',
 			'- Format replies with markdown when helpful: use blockquotes for quoted document excerpts, fenced code blocks for code, and headings for longer structured answers.',
