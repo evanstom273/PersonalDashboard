@@ -1,7 +1,10 @@
 import { usePreferencesContext, useMainConversationContext } from '@/providers/ChatProvider'
+import { generateChatWithTools } from '@/services/gemini/chatWithTools'
 import { CHAT_MODEL_IDS, type ChatModelId } from '@/services/gemini/constants'
+import { confirmDocumentDeletion } from '@/services/gemini/documentTools'
 import { getIntentLabel, resolvePromptIntent } from '@/services/gemini/intent'
 import { getModelById } from '@/services/gemini/models'
+import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import { runModelGeneration } from '@/services/gemini'
 import type { StoredMessage } from '@/storage/types'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -12,7 +15,7 @@ import { ChatModelSelector } from '@/components/chat/ChatModelSelector'
 
 export function ChatPage() {
 	const { preferences, savePreferences, isLoading } = usePreferencesContext()
-	const { conversation, appendMessages, ensureConversation } =
+	const { conversation, appendMessages, updateMessage, ensureConversation } =
 		useMainConversationContext()
 
 	const [selectedChatModelId, setSelectedChatModelId] = useState(
@@ -22,6 +25,7 @@ export function ChatPage() {
 	const [error, setError] = useState<string | null>(null)
 	const [lastIntent, setLastIntent] = useState<string | null>(null)
 
+	const aiName = getConfiguredAiName(preferences)
 	const selectedModel = getModelById(selectedChatModelId)
 	const hasApiKey = preferences.geminiApiKey.trim().length > 0
 
@@ -80,27 +84,42 @@ export function ChatPage() {
 
 				const history =
 					resolved.intent === 'chat'
-						? chatHistory
+						? [...chatHistory, { role: 'user' as const, content: text }]
 						: []
 
-				const result = await runModelGeneration(
-					preferences.geminiApiKey,
-					resolved.modelId,
-					resolved.prompt,
-					history,
-				)
+				let assistantText = ''
+				let assistantMedia: StoredMessage['media']
+				let pendingDeleteConfirmation: StoredMessage['pendingDeleteConfirmation']
 
-				const modelUsed = getModelById(resolved.modelId)
-				const prefix =
-					resolved.intent === 'chat'
-						? ''
-						: `[${getIntentLabel(resolved.intent)} · ${modelUsed?.name ?? resolved.modelId}]\n`
+				if (resolved.intent === 'chat') {
+					const chatResult = await generateChatWithTools(
+						preferences.geminiApiKey,
+						resolved.modelId,
+						history,
+						preferences,
+					)
+					assistantText = chatResult.text
+					assistantMedia =
+						chatResult.media.length > 0 ? chatResult.media : undefined
+					pendingDeleteConfirmation = chatResult.pendingDeleteConfirmation
+				} else {
+					const result = await runModelGeneration(
+						preferences.geminiApiKey,
+						resolved.modelId,
+						resolved.prompt,
+						history,
+					)
+					const modelUsed = getModelById(resolved.modelId)
+					assistantText = `[${getIntentLabel(resolved.intent)} · ${modelUsed?.name ?? resolved.modelId}]\n${result.text}`
+					assistantMedia = result.media.length > 0 ? result.media : undefined
+				}
 
 				const assistantMessage: StoredMessage = {
 					id: crypto.randomUUID(),
 					role: 'assistant',
-					content: `${prefix}${result.text}`,
-					media: result.media.length > 0 ? result.media : undefined,
+					content: assistantText,
+					media: assistantMedia,
+					pendingDeleteConfirmation,
 					createdAt: Date.now(),
 				}
 
@@ -120,9 +139,42 @@ export function ChatPage() {
 			chatHistory,
 			ensureConversation,
 			hasApiKey,
-			preferences.geminiApiKey,
+			preferences,
 			selectedChatModelId,
 		],
+	)
+
+	const handleConfirmDelete = useCallback(
+		async (messageId: string, documentId: string, documentTitle: string) => {
+			const deleted = await confirmDocumentDeletion(documentId)
+			await updateMessage(messageId, { pendingDeleteConfirmation: undefined })
+			if (deleted) {
+				await appendMessages([
+					{
+						id: crypto.randomUUID(),
+						role: 'assistant',
+						content: `Deleted the document "${documentTitle}".`,
+						createdAt: Date.now(),
+					},
+				])
+			}
+		},
+		[appendMessages, updateMessage],
+	)
+
+	const handleCancelDelete = useCallback(
+		async (messageId: string) => {
+			await updateMessage(messageId, { pendingDeleteConfirmation: undefined })
+			await appendMessages([
+				{
+					id: crypto.randomUUID(),
+					role: 'assistant',
+					content: 'Document deletion was cancelled.',
+					createdAt: Date.now(),
+				},
+			])
+		},
+		[appendMessages, updateMessage],
 	)
 
 	return (
@@ -131,8 +183,9 @@ export function ChatPage() {
 				<div>
 					<h1 className="text-lg font-semibold">Home</h1>
 					<p className="text-xs text-muted-foreground">
-						One continuous conversation · try &quot;generate an image of…&quot;,
-						&quot;generate music&quot;, or &quot;create a video&quot;
+						One continuous conversation with {aiName} · try &quot;generate an
+						image of…&quot;, &quot;generate music&quot;, or &quot;create a
+						video&quot;
 						{lastIntent ? ` · last: ${lastIntent}` : ''}
 					</p>
 				</div>
@@ -175,6 +228,9 @@ export function ChatPage() {
 			<ChatMessages
 				messages={conversation?.messages ?? []}
 				isGenerating={isGenerating}
+				aiName={aiName}
+				onConfirmDelete={handleConfirmDelete}
+				onCancelDelete={handleCancelDelete}
 			/>
 
 			<ChatInput

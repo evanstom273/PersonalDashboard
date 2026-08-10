@@ -1,7 +1,5 @@
-import {
-	GENERATION_MODEL_IDS,
-	type GenerationIntent,
-} from '@/services/gemini/constants'
+import type { GenerationIntent } from '@/services/gemini/constants'
+import { selectGenerationModel } from '@/services/gemini/generationModelSelection'
 
 export interface ResolvedPrompt {
 	modelId: string
@@ -93,10 +91,11 @@ export function resolvePromptIntent(
 	for (const { intent, regex } of INTENT_PATTERNS) {
 		const match = trimmed.match(regex)
 		if (match) {
+			const prompt = resolveGenerationPrompt(trimmed, match[1])
 			return {
 				intent,
-				modelId: GENERATION_MODEL_IDS[intent],
-				prompt: resolveGenerationPrompt(trimmed, match[1]),
+				modelId: selectGenerationModel(intent, prompt),
+				prompt,
 			}
 		}
 	}

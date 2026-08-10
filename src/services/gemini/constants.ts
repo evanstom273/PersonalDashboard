@@ -7,10 +7,4 @@ export const CHAT_MODEL_IDS = [
 
 export type ChatModelId = (typeof CHAT_MODEL_IDS)[number]
 
-export const GENERATION_MODEL_IDS = {
-	image: 'gemini-3.1-flash-image',
-	music: 'lyria-3-pro-preview',
-	video: 'veo-3.1-generate-preview',
-} as const
-
-export type GenerationIntent = keyof typeof GENERATION_MODEL_IDS
+export type GenerationIntent = 'image' | 'music' | 'video'
