@@ -22,9 +22,9 @@ export function HomePage() {
 						{getTimeGreeting()}, {displayName}.
 					</h1>
 
-					<section className="home-placeholder-card mt-8 rounded-[1.35rem] border border-border/70 p-5">
+					<section className="surface-panel home-placeholder-card mt-8 rounded-[1.35rem] p-5">
 						<div className="flex items-start gap-3">
-							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+							<div className="home-hero-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-primary">
 								<CalendarClock className="h-5 w-5" />
 							</div>
 							<div className="min-w-0">

@@ -171,7 +171,7 @@ export function SettingsPage() {
 
 			<ScrollArea className="h-full min-h-0 flex-1">
 				<div className="mx-auto w-full max-w-2xl space-y-6 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:space-y-8 md:px-6 md:py-8">
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+					<section className="surface-panel space-y-4 rounded-xl p-5">
 						<div className="flex items-center gap-2">
 							<UserRound className="h-5 w-5 text-primary" />
 							<h2 className="text-lg font-medium">Your name</h2>
@@ -186,11 +186,11 @@ export function SettingsPage() {
 								setSavedIdentity(false)
 							}}
 							placeholder="Your name"
-							className="w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+							className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						/>
 					</section>
 
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+					<section className="surface-panel space-y-4 rounded-xl p-5">
 						<div className="flex items-center gap-2">
 							<Sparkles className="h-5 w-5 text-primary" />
 							<h2 className="text-lg font-medium">AI name</h2>
@@ -206,11 +206,11 @@ export function SettingsPage() {
 								setSavedIdentity(false)
 							}}
 							placeholder="Assistant"
-							className="w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+							className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						/>
 					</section>
 
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+					<section className="surface-panel space-y-4 rounded-xl p-5">
 						<h2 className="text-lg font-medium">How should your AI respond?</h2>
 						<p className="text-sm text-muted-foreground">
 							Free-form behavioural instructions. Keep it short with traits like
@@ -225,7 +225,7 @@ export function SettingsPage() {
 							}}
 							rows={8}
 							placeholder="Warm, conversational, witty, direct, British English"
-							className="w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+							className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						/>
 						<label className="flex items-start gap-3 rounded-lg border border-border/60 px-3 py-3 text-sm">
 							<input
@@ -262,7 +262,7 @@ export function SettingsPage() {
 						</div>
 					</section>
 
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+					<section className="surface-panel space-y-4 rounded-xl p-5">
 						<div className="flex items-center gap-2">
 							<Brain className="h-5 w-5 text-primary" />
 							<h2 className="text-lg font-medium">Memory archival</h2>
@@ -314,7 +314,7 @@ export function SettingsPage() {
 						</p>
 					</section>
 
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+					<section className="surface-panel space-y-4 rounded-xl p-5">
 						<div className="flex items-center gap-2">
 							<KeyRound className="h-5 w-5 text-primary" />
 							<h2 className="text-lg font-medium">Gemini API key</h2>
@@ -343,7 +343,7 @@ export function SettingsPage() {
 							}}
 							placeholder="AIza..."
 							autoComplete="off"
-							className="w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+							className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						/>
 						<div className="flex flex-wrap items-center gap-3">
 							<Button
@@ -378,7 +378,7 @@ export function SettingsPage() {
 						) : null}
 					</section>
 
-					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
+					<section className="surface-panel space-y-3 rounded-xl p-5">
 						<h2 className="text-lg font-medium">Voice input</h2>
 						<p className="text-sm text-muted-foreground">
 							On desktop, the mic uses your browser&apos;s speech recognition.
@@ -393,7 +393,7 @@ export function SettingsPage() {
 						</p>
 					</section>
 
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+					<section className="surface-panel space-y-4 rounded-xl p-5">
 						<div className="flex items-center gap-2">
 							<Volume2 className="h-5 w-5 text-primary" />
 							<h2 className="text-lg font-medium">Voice output</h2>
@@ -419,7 +419,7 @@ export function SettingsPage() {
 										event.target.value as TtsReadAloudMode,
 									)
 								}}
-								className="w-full rounded-lg border border-input bg-secondary px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+								className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 							>
 								<option value="never">Never</option>
 								<option value="after_speech">When I use the microphone</option>
@@ -438,7 +438,7 @@ export function SettingsPage() {
 									onChange={(event) => {
 										void handleTtsVoiceChange(event.target.value)
 									}}
-									className="min-w-0 flex-1 rounded-lg border border-input bg-secondary px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+									className="min-w-0 flex-1 rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 								>
 									{GEMINI_TTS_VOICES.map((voice) => (
 										<option key={voice.name} value={voice.name}>
@@ -472,7 +472,7 @@ export function SettingsPage() {
 						</div>
 					</section>
 
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+					<section className="surface-panel space-y-4 rounded-xl p-5">
 						<div className="flex items-center gap-2">
 							<Bell className="h-5 w-5 text-primary" />
 							<h2 className="text-lg font-medium">Android &amp; system notifications</h2>
@@ -506,7 +506,7 @@ export function SettingsPage() {
 						) : null}
 					</section>
 
-					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
+					<section className="surface-panel space-y-3 rounded-xl p-5">
 						<h2 className="text-lg font-medium">Background replies</h2>
 						<p className="text-sm text-muted-foreground">
 							Chat keeps generating if you switch to Library, Memory, or Settings.
@@ -516,7 +516,7 @@ export function SettingsPage() {
 						</p>
 					</section>
 
-					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
+					<section className="surface-panel space-y-3 rounded-xl p-5">
 						<h2 className="text-lg font-medium">Web search</h2>
 						<p className="text-sm text-muted-foreground">
 							Enable <span className="font-medium text-foreground">Web search</span>{' '}
@@ -527,7 +527,7 @@ export function SettingsPage() {
 						</p>
 					</section>
 
-					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+					<section className="surface-panel space-y-4 rounded-xl p-5">
 						<h2 className="text-lg font-medium">Available models</h2>
 						<p className="text-sm text-muted-foreground">
 							Use the + menu in chat to pick your default chat, image, and music

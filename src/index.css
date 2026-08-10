@@ -58,6 +58,11 @@
 	--sidebar-foreground: #f2f5fb;
 	--sidebar-border: #2a3040;
 	--sidebar-accent: #202430;
+	--glass-blur: 18px;
+	--glass-saturate: 140%;
+	--surface-highlight: rgb(255 255 255 / 6%);
+	--surface-shine: rgb(255 255 255 / 4%);
+	--accent-glow: rgb(54 152 255 / 10%);
 }
 
 * {
@@ -80,9 +85,12 @@ body {
 	height: 100svh;
 	max-height: 100svh;
 	overflow: hidden;
-	background:
-		radial-gradient(120% 80% at 50% -10%, rgb(54 152 255 / 10%), transparent 55%),
-		var(--background);
+	background-color: var(--background);
+	background-image:
+		radial-gradient(ellipse 90% 60% at 50% -18%, rgb(54 152 255 / 16%), transparent 52%),
+		radial-gradient(ellipse 55% 45% at 100% 0%, rgb(96 132 255 / 10%), transparent 48%),
+		radial-gradient(ellipse 50% 40% at 0% 100%, rgb(54 152 255 / 8%), transparent 46%),
+		linear-gradient(180deg, #141824 0%, var(--background) 42%, #0e1016 100%);
 	color: var(--foreground);
 	font-family:
 		'Outfit',
@@ -105,13 +113,90 @@ body {
 }
 
 .app-shell {
+	position: relative;
 	height: 100svh;
 	max-height: 100svh;
+	background: transparent;
+}
+
+.app-shell::before {
+	content: '';
+	pointer-events: none;
+	position: fixed;
+	inset: 0;
+	z-index: 0;
+	opacity: 0.045;
+	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.app-shell > * {
+	position: relative;
+	z-index: 1;
+}
+
+.surface-panel {
+	border: 1px solid rgb(255 255 255 / 6%);
+	background:
+		linear-gradient(180deg, var(--surface-highlight) 0%, transparent 40%),
+		linear-gradient(135deg, var(--accent-glow) 0%, transparent 52%),
+		var(--card);
+	box-shadow:
+		0 10px 28px rgb(0 0 0 / 22%),
+		inset 0 1px 0 var(--surface-shine);
+}
+
+.surface-glass {
+	border: 1px solid rgb(255 255 255 / 8%);
+	background:
+		linear-gradient(180deg, rgb(255 255 255 / 8%) 0%, transparent 45%),
+		linear-gradient(145deg, rgb(54 152 255 / 10%) 0%, transparent 58%),
+		rgb(24 27 36 / 76%);
+	backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+	-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+	box-shadow:
+		0 12px 36px rgb(0 0 0 / 30%),
+		inset 0 1px 0 rgb(255 255 255 / 7%);
+}
+
+.surface-popover {
+	border: 1px solid rgb(255 255 255 / 9%);
+	background:
+		linear-gradient(180deg, rgb(255 255 255 / 7%) 0%, transparent 42%),
+		linear-gradient(160deg, rgb(54 152 255 / 8%) 0%, transparent 55%),
+		rgb(28 32 41 / 88%);
+	backdrop-filter: blur(20px) saturate(var(--glass-saturate));
+	-webkit-backdrop-filter: blur(20px) saturate(var(--glass-saturate));
+	box-shadow:
+		0 16px 40px rgb(0 0 0 / 36%),
+		inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.surface-input {
+	border: 1px solid var(--input);
+	background:
+		linear-gradient(180deg, rgb(255 255 255 / 5%) 0%, transparent 100%),
+		linear-gradient(180deg, rgb(0 0 0 / 8%) 0%, transparent 100%),
+		var(--secondary);
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 5%),
+		inset 0 -1px 0 rgb(0 0 0 / 12%);
+}
+
+.app-header-glass {
+	border-bottom: 1px solid rgb(255 255 255 / 6%);
+	background:
+		linear-gradient(180deg, rgb(255 255 255 / 6%) 0%, transparent 100%),
+		rgb(17 19 26 / 72%);
+	backdrop-filter: blur(16px) saturate(var(--glass-saturate));
+	-webkit-backdrop-filter: blur(16px) saturate(var(--glass-saturate));
 }
 
 .chat-input-bar {
 	padding-bottom: 0.5rem;
-	background-color: var(--background);
+	background:
+		linear-gradient(180deg, transparent 0%, rgb(17 19 26 / 78%) 28%, rgb(17 19 26 / 94%) 100%);
+	backdrop-filter: blur(14px) saturate(var(--glass-saturate));
+	-webkit-backdrop-filter: blur(14px) saturate(var(--glass-saturate));
 }
 
 .bottom-nav-dock {
@@ -127,14 +212,18 @@ body {
 	width: min(100%, 24rem);
 	margin-inline: auto;
 	padding: 0.375rem 0.5rem;
-	border: 1px solid var(--nav-island-border);
+	border: 1px solid rgb(255 255 255 / 9%);
 	border-radius: 1.75rem;
-	background: var(--nav-island);
+	background:
+		linear-gradient(180deg, rgb(255 255 255 / 10%) 0%, transparent 48%),
+		linear-gradient(145deg, rgb(54 152 255 / 12%) 0%, transparent 60%),
+		rgb(24 27 36 / 82%);
 	box-shadow:
-		0 12px 40px rgb(8 10 16 / 55%),
-		0 0 0 1px rgb(255 255 255 / 4%) inset;
-	backdrop-filter: blur(18px);
-	-webkit-backdrop-filter: blur(18px);
+		0 16px 44px rgb(0 0 0 / 38%),
+		0 0 0 1px rgb(255 255 255 / 5%) inset,
+		inset 0 1px 0 rgb(255 255 255 / 8%);
+	backdrop-filter: blur(20px) saturate(var(--glass-saturate));
+	-webkit-backdrop-filter: blur(20px) saturate(var(--glass-saturate));
 }
 
 .bottom-nav-item {
@@ -176,10 +265,14 @@ body {
 }
 
 .bottom-nav-icon-shell-active {
-	background: var(--nav-active-icon);
+	background:
+		linear-gradient(180deg, rgb(54 152 255 / 22%) 0%, transparent 100%),
+		linear-gradient(145deg, rgb(54 152 255 / 18%) 0%, transparent 55%),
+		var(--nav-active-icon);
 	box-shadow:
-		0 0 0 1px rgb(54 152 255 / 22%) inset,
-		0 8px 18px rgb(54 152 255 / 12%);
+		0 0 0 1px rgb(54 152 255 / 28%) inset,
+		0 8px 20px rgb(54 152 255 / 16%),
+		inset 0 1px 0 rgb(255 255 255 / 8%);
 }
 
 .bottom-nav-label {
@@ -189,15 +282,45 @@ body {
 	letter-spacing: 0.01em;
 }
 
+.library-section-tabs {
+	background:
+		linear-gradient(180deg, rgb(255 255 255 / 4%) 0%, transparent 100%),
+		rgb(32 36 48 / 55%);
+	box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
+}
+
+.library-section-tabs .surface-tab-active {
+	background:
+		linear-gradient(180deg, rgb(255 255 255 / 7%) 0%, transparent 100%),
+		linear-gradient(135deg, rgb(54 152 255 / 8%) 0%, transparent 55%),
+		var(--card);
+	box-shadow:
+		0 6px 16px rgb(0 0 0 / 18%),
+		inset 0 1px 0 rgb(255 255 255 / 6%);
+}
+
+.home-hero-icon {
+	background:
+		linear-gradient(135deg, rgb(54 152 255 / 24%) 0%, rgb(54 152 255 / 8%) 100%);
+	box-shadow:
+		0 0 32px rgb(54 152 255 / 18%),
+		inset 0 1px 0 rgb(255 255 255 / 12%);
+}
+
 .home-hero-glow {
 	box-shadow: 0 0 40px rgb(54 152 255 / 16%);
 }
 
 .home-placeholder-card,
 .library-placeholder {
+	border: 1px solid rgb(255 255 255 / 7%);
 	background:
-		linear-gradient(135deg, rgb(54 152 255 / 7%), transparent 55%),
+		linear-gradient(180deg, rgb(255 255 255 / 6%) 0%, transparent 42%),
+		linear-gradient(135deg, rgb(54 152 255 / 10%) 0%, transparent 55%),
 		var(--card);
+	box-shadow:
+		0 12px 32px rgb(0 0 0 / 20%),
+		inset 0 1px 0 rgb(255 255 255 / 6%);
 }
 
 .document-editor-content {
@@ -360,9 +483,12 @@ body {
 .chat-code-block {
 	margin: 1rem 0;
 	overflow: hidden;
-	border: 1px solid var(--border);
+	border: 1px solid rgb(255 255 255 / 6%);
 	border-radius: 0.75rem;
-	background: var(--card);
+	background:
+		linear-gradient(180deg, rgb(255 255 255 / 4%) 0%, transparent 100%),
+		var(--card);
+	box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
 }
 
 .chat-code-block-header {

@@ -91,7 +91,7 @@ export function MemoryPage() {
 						value={query}
 						onChange={(event) => setQuery(event.target.value)}
 						placeholder="Search memory…"
-						className="w-full rounded-lg border border-input bg-secondary py-2 pr-3 pl-9 text-sm outline-none ring-ring focus:ring-2"
+						className="w-full rounded-lg surface-input py-2 pr-3 pl-9 text-sm outline-none ring-ring focus:ring-2"
 					/>
 				</div>
 			</header>
@@ -101,7 +101,7 @@ export function MemoryPage() {
 					{isLoading ? (
 						<p className="text-sm text-muted-foreground">Loading memory…</p>
 					) : filteredEntries.length === 0 ? (
-						<div className="rounded-xl border border-dashed border-border bg-card/40 px-5 py-10 text-center">
+						<div className="surface-panel rounded-xl border border-dashed border-border/80 px-5 py-10 text-center">
 							<p className="text-sm font-medium">No memory yet</p>
 							<p className="mt-2 text-sm text-muted-foreground">
 								After enough chat messages, the assistant archives durable facts
@@ -119,7 +119,7 @@ export function MemoryPage() {
 										{group.entries.map((entry) => (
 											<li
 												key={entry.id}
-												className="rounded-xl border border-border bg-card p-4"
+												className="surface-panel rounded-xl p-4"
 											>
 												<div className="flex flex-wrap items-center gap-2">
 													<span

@@ -109,7 +109,7 @@ export function LibraryPage() {
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-hidden">
 			<header className="shrink-0 border-b border-border/80 px-4 py-3 md:px-6">
-				<div className="library-section-tabs flex gap-1 rounded-xl bg-muted/50 p-1">
+				<div className="library-section-tabs flex gap-1 rounded-xl p-1">
 					{LIBRARY_SECTIONS.map(({ id, label, icon: Icon }) => (
 						<button
 							key={id}
@@ -118,7 +118,7 @@ export function LibraryPage() {
 							className={cn(
 								'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium transition-colors sm:text-sm',
 								activeSection === id
-									? 'bg-card text-foreground shadow-sm ring-1 ring-border/60'
+									? 'surface-tab-active text-foreground'
 									: 'text-muted-foreground hover:text-foreground',
 							)}
 						>
@@ -156,7 +156,7 @@ export function LibraryPage() {
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
 							placeholder={searchPlaceholder}
-							className="w-full rounded-lg border border-input bg-secondary py-2 pr-3 pl-9 text-sm outline-none ring-ring focus:ring-2"
+							className="w-full rounded-lg surface-input py-2 pr-3 pl-9 text-sm outline-none ring-ring focus:ring-2"
 						/>
 					</div>
 				) : null}
@@ -272,7 +272,7 @@ function DocumentsSection({ query }: { query: string }) {
 					{filteredDocuments.map((document) => (
 						<div
 							key={document.id}
-							className="flex items-center gap-3 rounded-xl border border-border/80 bg-card px-4 py-3"
+							className="flex items-center gap-3 surface-panel rounded-xl px-4 py-3"
 						>
 							<div className="min-w-0 flex-1">
 								{renamingId === document.id ? (
@@ -288,7 +288,7 @@ function DocumentsSection({ query }: { query: string }) {
 												setRenamingId(null)
 											}
 										}}
-										className="w-full rounded-md border border-input bg-secondary px-2 py-1 text-sm outline-none"
+										className="w-full rounded-md surface-input px-2 py-1 text-sm outline-none"
 									/>
 								) : (
 									<Link
@@ -466,7 +466,7 @@ function MediaCard({
 	onDelete: () => void
 }) {
 	return (
-		<div className="min-w-0 rounded-xl border border-border/80 bg-card p-4">
+		<div className="min-w-0 surface-panel rounded-xl p-4">
 			<div className="flex flex-wrap items-start justify-between gap-3">
 				<div className="min-w-0 flex-1">
 					{isRenaming ? (
@@ -482,7 +482,7 @@ function MediaCard({
 									onCancelRename()
 								}
 							}}
-							className="w-full rounded-md border border-input bg-secondary px-2 py-1 text-sm outline-none"
+							className="w-full rounded-md surface-input px-2 py-1 text-sm outline-none"
 						/>
 					) : (
 						<h3 className="truncate font-medium">{item.title}</h3>

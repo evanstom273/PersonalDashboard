@@ -15,8 +15,8 @@ export default defineConfig({
 				name: 'Gemini Chat',
 				short_name: 'Gemini Chat',
 				description: 'Bring-your-own-key Gemini chat dashboard',
-				theme_color: '#0a0a0a',
-				background_color: '#0a0a0a',
+				theme_color: '#11131a',
+				background_color: '#11131a',
 				display: 'standalone',
 				display_override: ['standalone', 'minimal-ui'],
 				icons: [

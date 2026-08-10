@@ -80,9 +80,9 @@ export function AppShell() {
 	}, [clearCompletionNotice, isChatRoute, navigate])
 
 	return (
-		<div className="app-shell flex flex-col overflow-hidden bg-background">
+		<div className="app-shell flex flex-col overflow-hidden">
 			{showAppHeader ? (
-				<header className="relative z-40 shrink-0 border-b border-border/80 bg-background/90 px-4 py-3 backdrop-blur-md md:px-6">
+				<header className="app-header-glass relative z-40 shrink-0 px-4 py-3 md:px-6">
 					<div className="flex min-w-0 items-center gap-3">
 						<div className="min-w-0 flex-1">
 							<h1 className="truncate text-base font-semibold md:text-lg">
@@ -113,7 +113,7 @@ export function AppShell() {
 			) : null}
 
 			{isGenerating && !isChatRoute ? (
-				<div className="flex shrink-0 items-center justify-between gap-3 border-b border-primary/20 bg-primary/10 px-4 py-2 text-sm md:px-6">
+				<div className="flex shrink-0 items-center justify-between gap-3 border-b border-primary/20 bg-primary/10 px-4 py-2 text-sm backdrop-blur-sm md:px-6">
 					<span className="inline-flex items-center gap-2 text-primary">
 						<Loader2 className="h-4 w-4 animate-spin" />
 						{aiName} is replying…
