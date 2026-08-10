@@ -27,6 +27,7 @@ export function ChatPage() {
 	const [error, setError] = useState<string | null>(null)
 	const [lastIntent, setLastIntent] = useState<string | null>(null)
 	const [generationMode, setGenerationMode] = useState<GenerationMode>('auto')
+	const [webSearchEnabled, setWebSearchEnabled] = useState(false)
 
 	const aiName = getConfiguredAiName(preferences)
 	const selectedModel = getModelById(selectedChatModelId)
@@ -62,7 +63,7 @@ export function ChatPage() {
 	)
 
 	const handleSubmit = useCallback(
-		async ({ text, generationMode: submitMode, attachments }: ChatSubmitPayload) => {
+		async ({ text, generationMode: submitMode, attachments, webSearchEnabled: useWebSearch }: ChatSubmitPayload) => {
 			if (!hasApiKey) {
 				setError('Add your Gemini API key in Settings before generating.')
 				return
@@ -134,6 +135,7 @@ export function ChatPage() {
 						resolved.modelId,
 						history,
 						preferences,
+						{ useWebSearch: useWebSearch },
 					)
 					assistantText = chatResult.text
 					assistantMedia =
@@ -277,8 +279,10 @@ export function ChatPage() {
 				disabled={!hasApiKey}
 				isGenerating={isGenerating}
 				generationMode={generationMode}
+				webSearchEnabled={webSearchEnabled}
 				selectedChatModelId={selectedChatModelId}
 				onGenerationModeChange={setGenerationMode}
+				onWebSearchChange={setWebSearchEnabled}
 				onChatModelChange={(modelId) => {
 					void handleModelChange(modelId)
 				}}

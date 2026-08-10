@@ -15,6 +15,7 @@ export interface ChatSubmitPayload {
 	text: string
 	generationMode: GenerationMode
 	attachments: ChatAttachment[]
+	webSearchEnabled: boolean
 }
 
 export const GENERATION_MODE_LABELS: Record<GenerationMode, string> = {

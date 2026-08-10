@@ -1,5 +1,6 @@
 import {
 	FileText,
+	Globe,
 	ImagePlus,
 	MessageSquare,
 	Music,
@@ -25,8 +26,10 @@ import { cn } from '@/utils/cn'
 interface ChatAttachMenuProps {
 	disabled?: boolean
 	generationMode: GenerationMode
+	webSearchEnabled: boolean
 	selectedChatModelId: string
 	onGenerationModeChange: (mode: GenerationMode) => void
+	onWebSearchChange: (enabled: boolean) => void
 	onChatModelChange: (modelId: string) => void
 	onDocumentUpload: (file: File) => void
 	onImageUpload: (file: File) => void
@@ -35,8 +38,10 @@ interface ChatAttachMenuProps {
 export function ChatAttachMenu({
 	disabled,
 	generationMode,
+	webSearchEnabled,
 	selectedChatModelId,
 	onGenerationModeChange,
+	onWebSearchChange,
 	onChatModelChange,
 	onDocumentUpload,
 	onImageUpload,
@@ -144,6 +149,15 @@ export function ChatAttachMenu({
 
 					{generationMode === 'chat' || generationMode === 'auto' ? (
 						<>
+							<DropdownMenuSeparator />
+							<DropdownMenuLabel>Chat options</DropdownMenuLabel>
+							<ModeMenuItem
+								icon={Globe}
+								label="Web search"
+								description="Look up wikis and current info via Google"
+								selected={webSearchEnabled}
+								onSelect={() => onWebSearchChange(!webSearchEnabled)}
+							/>
 							<DropdownMenuSeparator />
 							<DropdownMenuLabel>Chat model</DropdownMenuLabel>
 							{chatModels.map((model) => (
