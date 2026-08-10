@@ -1,11 +1,14 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Brain, LayoutGrid, Loader2, MessageSquare, Settings, Sparkles } from 'lucide-react'
+import { Brain, LayoutGrid, Loader2, MessageSquare, Settings, Sparkles, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { useChatGenerationContext, usePreferencesContext } from '@/providers/ChatProvider'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import { cn } from '@/utils/cn'
 
 interface AppNavProps {
 	onNavigate?: () => void
+	showCloseButton?: boolean
+	onClose?: () => void
 }
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -16,7 +19,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 			: 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground',
 	)
 
-export function AppNav({ onNavigate }: AppNavProps) {
+export function AppNav({ onNavigate, showCloseButton, onClose }: AppNavProps) {
 	const { preferences } = usePreferencesContext()
 	const { isGenerating } = useChatGenerationContext()
 	const aiName = getConfiguredAiName(preferences)
@@ -25,13 +28,25 @@ export function AppNav({ onNavigate }: AppNavProps) {
 	return (
 		<div className="flex h-full flex-col">
 			<div className="flex items-center gap-3 px-4 py-5">
-				<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+				<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
 					<Sparkles className="h-5 w-5" />
 				</div>
-				<div>
+				<div className="min-w-0 flex-1">
 					<p className="font-semibold">{aiName}</p>
 					<p className="text-xs text-muted-foreground">Bring your own key</p>
 				</div>
+				{showCloseButton ? (
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						onClick={onClose}
+						aria-label="Close menu"
+						className="shrink-0"
+					>
+						<X className="h-4 w-4" />
+					</Button>
+				) : null}
 			</div>
 
 			<nav className="flex flex-col gap-1 px-3 py-2">
