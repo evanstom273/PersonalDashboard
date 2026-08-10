@@ -104,7 +104,7 @@ export function ChatAttachMenu({
 				ref={documentInputRef}
 				type="file"
 				multiple
-				accept=".txt,.md,.markdown,.html,.htm,.json,.csv,.xml,.yml,.yaml,text/*"
+				accept=".txt,.md,.markdown,.html,.htm,.json,.csv,.xml,.yml,.yaml,.pdf,text/*,application/pdf"
 				className="hidden"
 				onChange={(event) => {
 					const files = Array.from(event.target.files ?? [])

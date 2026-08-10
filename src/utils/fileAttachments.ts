@@ -33,12 +33,29 @@ export function getFileBaseName(filename: string): string {
 	return trimmed.slice(0, index)
 }
 
+export function isPdfFile(file: File): boolean {
+	return file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+}
+
 export function isTextDocumentFile(file: File): boolean {
 	if (file.type.startsWith('text/')) {
 		return true
 	}
 
 	return /\.(txt|md|markdown|html|htm|json|csv|xml|yml|yaml)$/i.test(file.name)
+}
+
+export function isUploadableDocumentFile(file: File): boolean {
+	return isTextDocumentFile(file) || isPdfFile(file)
+}
+
+export async function readUploadableDocumentContent(file: File): Promise<string> {
+	if (isPdfFile(file)) {
+		const { extractPdfText } = await import('@/utils/pdfText')
+		return extractPdfText(file)
+	}
+
+	return readTextFile(file)
 }
 
 export function isImageFile(file: File): boolean {

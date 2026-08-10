@@ -23,9 +23,9 @@ import { MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
 import {
 	getFileBaseName,
 	isImageFile,
-	isTextDocumentFile,
+	isUploadableDocumentFile,
 	readFileAsDataUrl,
-	readTextFile,
+	readUploadableDocumentContent,
 } from '@/utils/fileAttachments'
 import { cn } from '@/utils/cn'
 
@@ -189,13 +189,13 @@ export function ChatInput({
 
 		const results = await Promise.allSettled(
 			files.map(async (file) => {
-				if (!isTextDocumentFile(file)) {
+				if (!isUploadableDocumentFile(file)) {
 					throw new Error(
-						`${file.name} is not a supported text document (.txt, .md, .html, etc.).`,
+						`${file.name} is not a supported document (.txt, .md, .html, .pdf, etc.).`,
 					)
 				}
 
-				const raw = await readTextFile(file)
+				const raw = await readUploadableDocumentContent(file)
 				const { content, contentFormat } = ingestUploadedDocumentContent(file, raw)
 				const title = getFileBaseName(file.name) || 'Uploaded document'
 				const document = await createDocument(title, content, {
