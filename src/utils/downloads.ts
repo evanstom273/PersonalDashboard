@@ -1,5 +1,8 @@
 import type { DocumentRecord } from '@/storage/types'
-import { htmlToPlainText } from '@/utils/documentContent'
+import {
+	htmlToMarkdown,
+	htmlToPlainTextMultiline,
+} from '@/utils/documentContent'
 
 export function downloadBlob(blob: Blob, filename: string): void {
 	const url = URL.createObjectURL(blob)
@@ -42,13 +45,36 @@ export function extensionForMimeType(mimeType: string): string {
 
 export function downloadDocument(
 	document: DocumentRecord,
-	format: 'html' | 'txt' = 'html',
+	format: 'txt' | 'md' | 'pdf',
 ): void {
 	const filename = `${sanitizeFilename(document.title)}.${format}`
+
+	if (format === 'pdf') {
+		void downloadDocumentPdf(document, filename)
+		return
+	}
+
 	const content =
-		format === 'txt' ? htmlToPlainText(document.content) : document.content
-	const mimeType = format === 'txt' ? 'text/plain;charset=utf-8' : 'text/html;charset=utf-8'
+		format === 'md'
+			? htmlToMarkdown(document.content)
+			: htmlToPlainTextMultiline(document.content)
+	const mimeType =
+		format === 'md'
+			? 'text/markdown;charset=utf-8'
+			: 'text/plain;charset=utf-8'
 	downloadBlob(new Blob([content], { type: mimeType }), filename)
+}
+
+async function downloadDocumentPdf(
+	document: DocumentRecord,
+	filename: string,
+): Promise<void> {
+	const { jsPDF } = await import('jspdf')
+	const pdf = new jsPDF()
+	const text = htmlToPlainTextMultiline(document.content)
+	const lines = pdf.splitTextToSize(text || document.title, 180)
+	pdf.text(lines, 14, 20)
+	pdf.save(filename)
 }
 
 export function downloadLibraryMediaItem(
