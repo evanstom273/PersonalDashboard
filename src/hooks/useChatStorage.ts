@@ -119,7 +119,12 @@ export function useMainConversation(defaultModelId: string) {
 			newMessages: StoredMessage[],
 			modelId?: string,
 		): Promise<ConversationRecord> => {
-			const existing = conversation ?? (await ensureConversation())
+			const existing =
+				(await getValue<ConversationRecord>(
+					'conversations',
+					MAIN_CONVERSATION_ID,
+				)) ?? (await ensureConversation())
+
 			const updated: ConversationRecord = {
 				...existing,
 				modelId: modelId ?? existing.modelId,
@@ -129,7 +134,7 @@ export function useMainConversation(defaultModelId: string) {
 			await persistConversation(updated)
 			return updated
 		},
-		[conversation, ensureConversation, persistConversation],
+		[ensureConversation, persistConversation],
 	)
 
 	return {
