@@ -56,6 +56,7 @@ export function AppShell() {
 	const pageTitle = getPageTitle(location.pathname, aiName)
 	const showAppHeader =
 		!location.pathname.startsWith('/library/documents/') &&
+		location.pathname !== '/home' &&
 		!(isChatRoute && !isMobileNav)
 
 	const handleClearChat = useCallback(async () => {
