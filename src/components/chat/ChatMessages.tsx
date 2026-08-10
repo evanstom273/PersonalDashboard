@@ -1,6 +1,8 @@
-import { Bot, Check, Copy, Loader2, User } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Bot, Loader2, User } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
+import { ChatMarkdown } from '@/components/chat/ChatMarkdown'
+import { MessageActions } from '@/components/chat/MessageActions'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { StoredMessage } from '@/storage/types'
 import { cn } from '@/utils/cn'
@@ -25,25 +27,10 @@ export function ChatMessages({
 	onCancelDelete,
 }: ChatMessagesProps) {
 	const bottomRef = useRef<HTMLDivElement>(null)
-	const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
 
 	useEffect(() => {
 		bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
 	}, [messages, isGenerating])
-
-	const handleCopy = useCallback(async (message: StoredMessage) => {
-		try {
-			await navigator.clipboard.writeText(message.content)
-			setCopiedMessageId(message.id)
-			window.setTimeout(() => {
-				setCopiedMessageId((current) =>
-					current === message.id ? null : current,
-				)
-			}, 2000)
-		} catch {
-			// Clipboard access can fail in insecure contexts.
-		}
-	}, [])
 
 	if (messages.length === 0 && !isGenerating) {
 		return (
@@ -66,23 +53,19 @@ export function ChatMessages({
 
 	return (
 		<div className="min-h-0 flex-1 overflow-hidden">
-			<ScrollArea className="h-full px-4 md:px-8">
-				<div className="mx-auto flex max-w-3xl select-none flex-col gap-6 py-4">
+			<ScrollArea className="h-full">
+				<div className="mx-auto w-full max-w-3xl px-4 py-2 md:px-6">
 					{messages.map((message) => (
-						<MessageBubble
+						<MessageRow
 							key={message.id}
 							message={message}
 							aiName={aiName}
-							isCopied={copiedMessageId === message.id}
-							onCopy={() => {
-								void handleCopy(message)
-							}}
 							onConfirmDelete={onConfirmDelete}
 							onCancelDelete={onCancelDelete}
 						/>
 					))}
 					{isGenerating ? (
-						<div className="flex items-center gap-3 text-sm text-muted-foreground">
+						<div className="flex items-center gap-3 border-t border-border/40 py-6 text-sm text-muted-foreground">
 							<Loader2 className="h-4 w-4 animate-spin" />
 							{aiName} is thinking…
 						</div>
@@ -94,132 +77,170 @@ export function ChatMessages({
 	)
 }
 
-function MessageBubble({
+function MessageRow({
 	message,
 	aiName,
-	isCopied,
-	onCopy,
 	onConfirmDelete,
 	onCancelDelete,
 }: {
 	message: StoredMessage
 	aiName: string
-	isCopied: boolean
-	onCopy: () => void
 	onConfirmDelete: ChatMessagesProps['onConfirmDelete']
 	onCancelDelete: ChatMessagesProps['onCancelDelete']
 }) {
+	const contentRef = useRef<HTMLDivElement>(null)
 	const isUser = message.role === 'user'
 
 	return (
-		<div
-			className={cn('flex gap-3 select-none', isUser ? 'justify-end' : 'justify-start')}
+		<article
+			className={cn(
+				'border-b border-border/40 py-5 last:border-b-0',
+				isUser ? 'flex justify-end' : 'flex justify-start',
+			)}
 		>
-			{!isUser ? (
-				<div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-					<Bot className="h-4 w-4" />
-				</div>
-			) : null}
 			<div
 				className={cn(
-					'group relative max-w-[85%] select-text space-y-3 rounded-2xl px-4 py-3 text-sm leading-relaxed',
-					isUser
-						? 'bg-secondary text-secondary-foreground ring-1 ring-border'
-						: 'bg-card text-card-foreground',
+					'flex w-full gap-3 md:gap-4',
+					isUser ? 'max-w-[88%] flex-row-reverse' : 'max-w-full',
 				)}
 			>
-				<div className="flex items-start justify-between gap-2">
-					{!isUser ? (
-						<p className="text-xs font-medium text-muted-foreground">{aiName}</p>
-					) : (
-						<span className="text-xs font-medium text-muted-foreground">You</span>
-					)}
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon"
+				<MessageAvatar isUser={isUser} aiName={aiName} />
+
+				<div className={cn('min-w-0 flex-1', isUser && 'flex flex-col items-end')}>
+					<p className="mb-1.5 text-xs font-medium text-muted-foreground">
+						{isUser ? 'You' : aiName}
+					</p>
+
+					<div
 						className={cn(
-							'-mr-1 -mt-1 h-7 w-7 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
-							isCopied && 'opacity-100',
+							'w-full',
+							isUser &&
+								'max-w-full rounded-[1.25rem] bg-secondary px-4 py-3 ring-1 ring-border/60',
 						)}
-						onClick={onCopy}
-						aria-label={isCopied ? 'Copied message' : 'Copy message'}
 					>
-						{isCopied ? (
-							<Check className="h-3.5 w-3.5" />
-						) : (
-							<Copy className="h-3.5 w-3.5" />
-						)}
-					</Button>
-				</div>
-				<p className="whitespace-pre-wrap">{message.content}</p>
-				{message.media?.map((media, index) => (
-					<MediaPreview key={`${message.id}-media-${index}`} media={media} />
-				))}
-				{message.pendingDeleteConfirmation ? (
-					<div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
-						<p className="text-sm">
-							Confirm deletion of &quot;
-							{message.pendingDeleteConfirmation.documentTitle}&quot;?
-						</p>
-						<div className="mt-3 flex flex-wrap gap-2">
-							<Button
-								size="sm"
-								variant="destructive"
-								onClick={() =>
-									onConfirmDelete(
-										message.id,
-										message.pendingDeleteConfirmation!.documentId,
-										message.pendingDeleteConfirmation!.documentTitle,
-									)
-								}
-							>
-								Delete document
-							</Button>
-							<Button
-								size="sm"
-								variant="outline"
-								onClick={() => onCancelDelete(message.id)}
-							>
-								Cancel
-							</Button>
+						<div
+							ref={contentRef}
+							tabIndex={-1}
+							className={cn(
+								'chat-message-content outline-none',
+								isUser
+									? 'text-sm leading-relaxed whitespace-pre-wrap'
+									: 'text-[0.9375rem] leading-7',
+							)}
+						>
+							{isUser ? (
+								message.content
+							) : (
+								<ChatMarkdown content={message.content} />
+							)}
 						</div>
+
+						{message.media?.map((media, index) => (
+							<MediaPreview
+								key={`${message.id}-media-${index}`}
+								media={media}
+								className={index === 0 ? 'mt-4' : 'mt-3'}
+							/>
+						))}
+
+						{message.pendingDeleteConfirmation ? (
+							<div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+								<p className="text-sm">
+									Confirm deletion of &quot;
+									{message.pendingDeleteConfirmation.documentTitle}&quot;?
+								</p>
+								<div className="mt-3 flex flex-wrap gap-2">
+									<Button
+										size="sm"
+										variant="destructive"
+										onClick={() =>
+											onConfirmDelete(
+												message.id,
+												message.pendingDeleteConfirmation!.documentId,
+												message.pendingDeleteConfirmation!.documentTitle,
+											)
+										}
+									>
+										Delete document
+									</Button>
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={() => onCancelDelete(message.id)}
+									>
+										Cancel
+									</Button>
+								</div>
+							</div>
+						) : null}
 					</div>
-				) : null}
-			</div>
-			{isUser ? (
-				<div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-					<User className="h-4 w-4" />
+
+					<MessageActions
+						contentRef={contentRef}
+						text={message.content}
+						className={cn('mt-2', isUser && 'justify-end')}
+					/>
 				</div>
-			) : null}
+			</div>
+		</article>
+	)
+}
+
+function MessageAvatar({
+	isUser,
+	aiName,
+}: {
+	isUser: boolean
+	aiName: string
+}) {
+	return (
+		<div
+			className={cn(
+				'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+				isUser
+					? 'bg-secondary text-secondary-foreground ring-1 ring-border'
+					: 'bg-primary/15 text-primary',
+			)}
+			aria-hidden
+			title={isUser ? 'You' : aiName}
+		>
+			{isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
 		</div>
 	)
 }
 
 function MediaPreview({
 	media,
+	className,
 }: {
 	media: NonNullable<StoredMessage['media']>[number]
+	className?: string
 }) {
 	if (media.type === 'image') {
 		return (
 			<img
 				src={media.dataUrl}
 				alt="Generated"
-				className="max-h-64 w-full rounded-lg object-contain md:max-h-96"
+				className={cn(
+					'max-h-64 w-full rounded-xl object-contain ring-1 ring-border md:max-h-96',
+					className,
+				)}
 			/>
 		)
 	}
 
 	if (media.type === 'audio') {
-		return <audio controls src={media.dataUrl} className="w-full" />
+		return <audio controls src={media.dataUrl} className={cn('w-full', className)} />
 	}
 
 	return (
 		<video
 			controls
 			src={media.dataUrl}
-			className="max-h-64 w-full rounded-lg md:max-h-96"
+			className={cn(
+				'max-h-64 w-full rounded-xl ring-1 ring-border md:max-h-96',
+				className,
+			)}
 		/>
 	)
 }
