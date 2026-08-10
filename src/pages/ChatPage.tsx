@@ -7,6 +7,7 @@ import { getModelById } from '@/services/gemini/models'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import { runModelGeneration } from '@/services/gemini'
 import type { StoredMessage } from '@/storage/types'
+import type { ChatSubmitPayload, GenerationMode } from '@/types/chat'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChatInput } from '@/components/chat/ChatInput'
@@ -24,6 +25,7 @@ export function ChatPage() {
 	const [isGenerating, setIsGenerating] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [lastIntent, setLastIntent] = useState<string | null>(null)
+	const [generationMode, setGenerationMode] = useState<GenerationMode>('auto')
 
 	const aiName = getConfiguredAiName(preferences)
 	const selectedModel = getModelById(selectedChatModelId)
@@ -59,7 +61,7 @@ export function ChatPage() {
 	)
 
 	const handleSubmit = useCallback(
-		async (text: string) => {
+		async ({ text, generationMode: submitMode, attachments }: ChatSubmitPayload) => {
 			if (!hasApiKey) {
 				setError('Add your Gemini API key in Settings before generating.')
 				return
@@ -68,8 +70,27 @@ export function ChatPage() {
 			setError(null)
 			setIsGenerating(true)
 
-			const resolved = resolvePromptIntent(text, selectedChatModelId)
+			const resolved = resolvePromptIntent(
+				text,
+				selectedChatModelId,
+				submitMode,
+			)
+
+			if (resolved.intent !== 'chat' && !text.trim()) {
+				setError('Add a prompt when using image, music, or video mode.')
+				setIsGenerating(false)
+				return
+			}
+
 			setLastIntent(getIntentLabel(resolved.intent))
+
+			const imageAttachments = attachments
+				.filter((attachment) => attachment.type === 'image' && attachment.dataUrl)
+				.map((attachment) => ({
+					type: 'image' as const,
+					mimeType: attachment.mimeType ?? 'image/png',
+					dataUrl: attachment.dataUrl!,
+				}))
 
 			try {
 				await ensureConversation()
@@ -78,13 +99,21 @@ export function ChatPage() {
 					id: crypto.randomUUID(),
 					role: 'user',
 					content: text,
+					media: imageAttachments.length > 0 ? imageAttachments : undefined,
 					createdAt: Date.now(),
 				}
 				await appendMessages([userMessage], selectedChatModelId)
 
 				const history =
 					resolved.intent === 'chat'
-						? [...chatHistory, { role: 'user' as const, content: text }]
+						? [
+								...chatHistory,
+								{
+									role: 'user' as const,
+									content: text,
+									media: userMessage.media,
+								},
+							]
 						: []
 
 				let assistantText = ''
@@ -195,14 +224,10 @@ export function ChatPage() {
 				/>
 			</header>
 
-			<div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2 md:hidden">
+			<div className="hidden shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2 md:hidden">
 				<p className="text-xs text-muted-foreground">
-					{selectedModel?.name ?? 'Chat model'}
+					{selectedModel?.name ?? 'Chat model'} · tap + to attach or change mode
 				</p>
-				<ChatModelSelector
-					value={selectedChatModelId}
-					onChange={handleModelChange}
-				/>
 			</div>
 
 			{!hasApiKey ? (
@@ -236,8 +261,14 @@ export function ChatPage() {
 			<ChatInput
 				disabled={!hasApiKey}
 				isGenerating={isGenerating}
-				onSubmit={(prompt) => {
-					void handleSubmit(prompt)
+				generationMode={generationMode}
+				selectedChatModelId={selectedChatModelId}
+				onGenerationModeChange={setGenerationMode}
+				onChatModelChange={(modelId) => {
+					void handleModelChange(modelId)
+				}}
+				onSubmit={(payload) => {
+					void handleSubmit(payload)
 				}}
 				onStop={() => setIsGenerating(false)}
 			/>

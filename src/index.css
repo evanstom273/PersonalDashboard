@@ -89,6 +89,16 @@ body {
 	overflow: hidden;
 }
 
+.chat-input-bar {
+	padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+}
+
+@supports (padding: max(0px)) {
+	.chat-input-bar {
+		padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
+	}
+}
+
 .document-editor-content {
 	line-height: 1.7;
 }

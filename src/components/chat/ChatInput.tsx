@@ -7,28 +7,50 @@ import {
 	type FormEvent,
 	type KeyboardEvent,
 } from 'react'
+import { ChatAttachMenu } from '@/components/chat/ChatAttachMenu'
 import { DocumentMentionMenu } from '@/components/chat/DocumentMentionMenu'
 import { Button } from '@/components/ui/button'
 import { useDocumentMentionPicker } from '@/hooks/useDocumentMentionPicker'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
-import { insertDocumentMention } from '@/utils/documentMentions'
+import { insertDocumentMention, buildDocumentMention } from '@/utils/documentMentions'
+import { createDocument } from '@/services/documents/documentService'
+import { normalizeDocumentContent } from '@/utils/documentContent'
+import type { ChatAttachment, ChatSubmitPayload, GenerationMode } from '@/types/chat'
+import { GENERATION_MODE_LABELS } from '@/types/chat'
+import {
+	getFileBaseName,
+	isImageFile,
+	isTextDocumentFile,
+	readFileAsDataUrl,
+	readTextFile,
+} from '@/utils/fileAttachments'
 import { cn } from '@/utils/cn'
 
 interface ChatInputProps {
 	disabled?: boolean
 	isGenerating?: boolean
-	onSubmit: (prompt: string) => void
+	generationMode: GenerationMode
+	selectedChatModelId: string
+	onGenerationModeChange: (mode: GenerationMode) => void
+	onChatModelChange: (modelId: string) => void
+	onSubmit: (payload: ChatSubmitPayload) => void
 	onStop?: () => void
 }
 
 export function ChatInput({
 	disabled,
 	isGenerating,
+	generationMode,
+	selectedChatModelId,
+	onGenerationModeChange,
+	onChatModelChange,
 	onSubmit,
 	onStop,
 }: ChatInputProps) {
 	const [prompt, setPrompt] = useState('')
 	const [cursorPosition, setCursorPosition] = useState(0)
+	const [attachments, setAttachments] = useState<ChatAttachment[]>([])
+	const [attachError, setAttachError] = useState<string | null>(null)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 
 	const {
@@ -105,14 +127,89 @@ export function ChatInput({
 	function handleSubmit(event?: FormEvent): void {
 		event?.preventDefault()
 		const trimmed = prompt.trim()
-		if (!trimmed || disabled || isGenerating || isListening) {
+		if ((!trimmed && attachments.length === 0) || disabled || isGenerating || isListening) {
 			return
 		}
 
-		onSubmit(trimmed)
+		let messageText = trimmed
+		const documentMentions = attachments
+			.filter((attachment) => attachment.type === 'document')
+			.map((attachment) => buildDocumentMention(attachment.name))
+
+		for (const mention of documentMentions) {
+			if (!messageText.includes(mention)) {
+				messageText = messageText
+					? `${messageText} ${mention}`
+					: `Please review ${mention}`
+			}
+		}
+
+		onSubmit({
+			text: messageText,
+			generationMode,
+			attachments,
+		})
 		setPrompt('')
 		setCursorPosition(0)
+		setAttachments([])
+		setAttachError(null)
 		resetSpeechState()
+	}
+
+	async function handleDocumentUpload(file: File): Promise<void> {
+		setAttachError(null)
+
+		if (!isTextDocumentFile(file)) {
+			setAttachError('Upload a text document (.txt, .md, .html, etc.).')
+			return
+		}
+
+		try {
+			const content = normalizeDocumentContent(await readTextFile(file))
+			const title = getFileBaseName(file.name) || 'Uploaded document'
+			const document = await createDocument(title, content)
+
+			setAttachments((current) => [
+				...current,
+				{
+					id: crypto.randomUUID(),
+					type: 'document',
+					name: document.title,
+					documentId: document.id,
+				},
+			])
+		} catch {
+			setAttachError('Could not upload that document.')
+		}
+	}
+
+	async function handleImageUpload(file: File): Promise<void> {
+		setAttachError(null)
+
+		if (!isImageFile(file)) {
+			setAttachError('Upload an image file.')
+			return
+		}
+
+		try {
+			const { dataUrl, mimeType } = await readFileAsDataUrl(file)
+			setAttachments((current) => [
+				...current,
+				{
+					id: crypto.randomUUID(),
+					type: 'image',
+					name: file.name,
+					dataUrl,
+					mimeType,
+				},
+			])
+		} catch {
+			setAttachError('Could not upload that image.')
+		}
+	}
+
+	function removeAttachment(id: string): void {
+		setAttachments((current) => current.filter((attachment) => attachment.id !== id))
 	}
 
 	function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
@@ -175,7 +272,7 @@ export function ChatInput({
 	return (
 		<form
 			onSubmit={handleSubmit}
-			className="shrink-0 border-t border-border bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-8 md:py-4"
+			className="chat-input-bar sticky bottom-0 z-30 shrink-0 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-8 md:py-4"
 		>
 			{isListening ? (
 				<div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 text-xs text-primary">
@@ -199,6 +296,55 @@ export function ChatInput({
 				</div>
 			) : null}
 
+			{attachError ? (
+				<div className="mx-auto mb-2 max-w-3xl text-xs text-destructive">
+					{attachError}
+				</div>
+			) : null}
+
+			{generationMode !== 'auto' ? (
+				<div className="mx-auto mb-2 flex max-w-3xl flex-wrap items-center gap-2">
+					<span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
+						{GENERATION_MODE_LABELS[generationMode]} mode
+					</span>
+					<button
+						type="button"
+						className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+						onClick={() => onGenerationModeChange('auto')}
+					>
+						Reset to auto
+					</button>
+				</div>
+			) : null}
+
+			{attachments.length > 0 ? (
+				<div className="mx-auto mb-2 flex max-w-3xl flex-wrap gap-2">
+					{attachments.map((attachment) => (
+						<div
+							key={attachment.id}
+							className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs"
+						>
+							{attachment.type === 'image' && attachment.dataUrl ? (
+								<img
+									src={attachment.dataUrl}
+									alt=""
+									className="h-5 w-5 rounded object-cover"
+								/>
+							) : null}
+							<span className="max-w-[10rem] truncate">{attachment.name}</span>
+							<button
+								type="button"
+								className="text-muted-foreground hover:text-foreground"
+								onClick={() => removeAttachment(attachment.id)}
+								aria-label={`Remove ${attachment.name}`}
+							>
+								<X className="h-3.5 w-3.5" />
+							</button>
+						</div>
+					))}
+				</div>
+			) : null}
+
 			<div className="relative mx-auto max-w-3xl">
 				{isMentionMenuOpen ? (
 					<DocumentMentionMenu
@@ -215,6 +361,20 @@ export function ChatInput({
 						isListening ? 'border-primary/50 ring-1 ring-primary/30' : 'border-border',
 					)}
 				>
+					<ChatAttachMenu
+						disabled={disabled || isGenerating || isListening}
+						generationMode={generationMode}
+						selectedChatModelId={selectedChatModelId}
+						onGenerationModeChange={onGenerationModeChange}
+						onChatModelChange={onChatModelChange}
+						onDocumentUpload={(file) => {
+							void handleDocumentUpload(file)
+						}}
+						onImageUpload={(file) => {
+							void handleImageUpload(file)
+						}}
+					/>
+
 					{isSupported ? (
 						<Button
 							type="button"
@@ -284,7 +444,7 @@ export function ChatInput({
 						<Button
 							type="submit"
 							size="icon"
-							disabled={disabled || !prompt.trim()}
+							disabled={disabled || (!prompt.trim() && attachments.length === 0)}
 							aria-label="Send message"
 						>
 							<ArrowUp className="h-4 w-4" />
@@ -294,9 +454,9 @@ export function ChatInput({
 			</div>
 
 			<p className="mx-auto mt-2 hidden max-w-3xl text-center text-xs text-muted-foreground md:block">
-				Type <span className="font-medium text-foreground">@</span> to search and
-				reference documents. Use the mic to dictate, review with Continue, then
-				send.
+				Use <span className="font-medium text-foreground">+</span> to attach files or
+				pick image/music/video mode. Type{' '}
+				<span className="font-medium text-foreground">@</span> to reference documents.
 			</p>
 		</form>
 	)
