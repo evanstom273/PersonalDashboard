@@ -1,4 +1,6 @@
 import { useChatGeneration } from '@/hooks/useChatGeneration'
+import { useReminderFireHandler } from '@/hooks/useReminderFireHandler'
+import { useReminderOsSync } from '@/hooks/useReminderOsSync'
 import { useReminderScheduler } from '@/hooks/useReminderScheduler'
 import { useMainConversation, usePreferences } from '@/hooks/useChatStorage'
 import {
@@ -60,6 +62,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		],
 	)
 
+	const isChatRoute = location.pathname === '/chat'
+
 	const generationState = useChatGeneration({
 		preferences: preferencesState.preferences,
 		conversation: conversationState.conversation,
@@ -67,14 +71,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		truncateMessagesFrom: conversationState.truncateMessagesFrom,
 		ensureConversation: conversationState.ensureConversation,
 		saveConversation: conversationState.saveConversation,
-		isChatRoute: location.pathname === '/chat',
+		isChatRoute,
 		onAssistantReply: handleAssistantReply,
 	})
 
 	useReminderScheduler({
 		preferences: preferencesState.preferences,
 		appendMessages: conversationState.appendMessages,
-		isChatRoute: location.pathname === '/chat',
+		isChatRoute,
+	})
+
+	useReminderOsSync({
+		preferences: preferencesState.preferences,
+	})
+
+	useReminderFireHandler({
+		preferences: preferencesState.preferences,
+		appendMessages: conversationState.appendMessages,
+		isChatRoute,
 	})
 
 	return (

@@ -16,6 +16,10 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { usePreferencesContext, useTextToSpeechContext } from '@/providers/ChatProvider'
 import { validateApiKey } from '@/services/gemini/validate'
+import {
+	canUseNotificationTriggers,
+	syncReminderNotificationTriggers,
+} from '@/services/reminders/reminderNotificationTriggers'
 import { GEMINI_TTS_VOICES } from '@/services/gemini/ttsVoices'
 import { GEMINI_MODELS, MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
 import {
@@ -26,6 +30,7 @@ import {
 import {
 	canUseNotifications,
 	getNotificationPermission,
+	isStandaloneDisplayMode,
 	requestNotificationPermission,
 } from '@/utils/notifications'
 import { cn } from '@/utils/cn'
@@ -163,8 +168,11 @@ export function SettingsPage() {
 		setNotificationPermission(permission)
 
 		if (permission === 'granted') {
+			await syncReminderNotificationTriggers(preferences)
 			setNotificationMessage(
-				'Notifications enabled. You will get Android system alerts when a reply finishes in the background.',
+				canUseNotificationTriggers() && isStandaloneDisplayMode()
+					? 'Notifications enabled. Chat replies and scheduled reminders can alert you while the app is closed on this Android install.'
+					: 'Notifications enabled. You will get system alerts when a reply finishes in the background.',
 			)
 			return
 		}
@@ -759,6 +767,21 @@ function AppTab({
 				{notificationMessage ? (
 					<p className="text-sm text-muted-foreground">{notificationMessage}</p>
 				) : null}
+			</section>
+
+			<section className="surface-panel space-y-3 rounded-xl p-5">
+				<h3 className="text-sm font-medium">Scheduled reminders</h3>
+				<p className="text-sm text-muted-foreground">
+					Library → Schedule stores reminders on this device. When one is due,
+					the assistant posts a chat message and can show a system notification.
+				</p>
+				<p className="text-sm text-muted-foreground">
+					{canUseNotificationTriggers() && isStandaloneDisplayMode()
+						? notificationPermission === 'granted'
+							? 'This Android install can fire reminder alerts while the PWA is closed. Tap the notification or reopen the app to deliver the chat message.'
+							: 'Enable notifications above to schedule background reminder alerts on Android.'
+						: 'Background reminder alerts need the installed Android PWA in Chrome. Otherwise, keep the app open for on-time delivery.'}
+				</p>
 			</section>
 
 			<section className="surface-panel space-y-3 rounded-xl p-5">
