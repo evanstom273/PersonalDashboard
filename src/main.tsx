@@ -11,6 +11,21 @@ createRoot(document.getElementById('root')!).render(
 
 if ('serviceWorker' in navigator) {
 	void import('virtual:pwa-register').then(({ registerSW }) => {
-		registerSW({ immediate: true })
+		registerSW({
+			immediate: true,
+			onRegistered(registration) {
+				registration?.update()
+			},
+		})
+	})
+
+	let isReloadingForUpdate = false
+	navigator.serviceWorker.addEventListener('controllerchange', () => {
+		if (isReloadingForUpdate) {
+			return
+		}
+
+		isReloadingForUpdate = true
+		window.location.reload()
 	})
 }
