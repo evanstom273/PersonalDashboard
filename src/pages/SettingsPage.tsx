@@ -325,14 +325,15 @@ export function SettingsPage() {
 					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
 						<h2 className="text-lg font-medium">Voice input</h2>
 						<p className="text-sm text-muted-foreground">
-							The mic on the home page uses your browser&apos;s built-in speech
-							recognition. It does not call the Gemini API or use your API key.
-							Allow microphone access when prompted.
+							On desktop, the mic uses your browser&apos;s speech recognition.
+							On Android and installed apps, it records a short clip and sends
+							it to your default chat model for transcription using your Gemini
+							API key. Allow microphone access when prompted.
 						</p>
 						<p className="text-sm text-muted-foreground">
-							On Android, voice input works best in the Chrome browser tab.
-							Installed PWAs can fail silently — if the mic listens but nothing
-							appears, open the site in Chrome instead of the home-screen app.
+							Tap the mic, speak, then tap Continue to transcribe. If voice
+							input still fails in an installed app, open the site in Chrome
+							instead of the home-screen shortcut.
 						</p>
 					</section>
 

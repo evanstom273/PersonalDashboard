@@ -33,6 +33,8 @@ interface ChatInputProps {
 	disabled?: boolean
 	isGenerating?: boolean
 	webSearchEnabled: boolean
+	geminiApiKey: string
+	transcriptionModelId: string
 	selectedChatModelId: string
 	selectedImageModelId: string
 	selectedMusicModelId: string
@@ -50,6 +52,8 @@ export function ChatInput({
 	disabled,
 	isGenerating,
 	webSearchEnabled,
+	geminiApiKey,
+	transcriptionModelId,
 	selectedChatModelId,
 	selectedImageModelId,
 	selectedMusicModelId,
@@ -77,11 +81,15 @@ export function ChatInput({
 		startListening,
 		continueListening,
 		cancelListening,
-	} = useSpeechRecognition()
+	} = useSpeechRecognition({
+		geminiApiKey,
+		transcriptionModelId,
+	})
 
 	const isListening = status === 'listening'
+	const isTranscribing = status === 'transcribing'
 	const isReviewing = status === 'review'
-	const inputDisabled = disabled || isGenerating || isListening
+	const inputDisabled = disabled || isGenerating || isListening || isTranscribing
 
 	const {
 		isOpen: isMentionMenuOpen,
@@ -277,9 +285,10 @@ export function ChatInput({
 	}
 
 	function handleContinue(): void {
-		continueListening()
-		setPrompt(transcript.trim())
-		setCursorPosition(transcript.trim().length)
+		void continueListening().then((nextTranscript) => {
+			setPrompt(nextTranscript.trim())
+			setCursorPosition(nextTranscript.trim().length)
+		})
 	}
 
 	function handleCancelSpeech(): void {
@@ -301,7 +310,13 @@ export function ChatInput({
 						<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
 						<span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
 					</span>
-					Listening… speak now. Press Continue to review before sending.
+					Listening… speak now. Press Continue when done.
+				</div>
+			) : null}
+
+			{isTranscribing ? (
+				<div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 text-xs text-primary">
+					Transcribing your recording…
 				</div>
 			) : null}
 
@@ -407,7 +422,7 @@ export function ChatInput({
 					)}
 				>
 					<ChatAttachMenu
-						disabled={disabled || isGenerating || isListening}
+						disabled={disabled || isGenerating || isListening || isTranscribing}
 						webSearchEnabled={webSearchEnabled}
 						selectedChatModelId={selectedChatModelId}
 						selectedImageModelId={selectedImageModelId}
@@ -431,7 +446,7 @@ export function ChatInput({
 							type="button"
 							size="icon"
 							variant={isListening ? 'default' : 'outline'}
-							disabled={disabled || isGenerating}
+							disabled={disabled || isGenerating || isTranscribing}
 							onClick={handleMicPress}
 							aria-label="Start voice input"
 							className={cn(isListening && 'animate-pulse')}
@@ -451,9 +466,11 @@ export function ChatInput({
 						onKeyUp={syncCursor}
 						onKeyDown={handleKeyDown}
 						placeholder={
-							isListening
-								? 'Listening…'
-								: 'Message… type @ to reference a document'
+							isTranscribing
+								? 'Transcribing…'
+								: isListening
+									? 'Recording…'
+									: 'Message… type @ to reference a document'
 						}
 						disabled={inputDisabled}
 						readOnly={isListening}
