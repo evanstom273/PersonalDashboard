@@ -1,0 +1,210 @@
+import { geminiFetch, pollOperation, toDataUrl } from '@/services/gemini/client'
+import type { MessageMedia } from '@/storage/types'
+
+export interface ChatMessageInput {
+	role: 'user' | 'assistant'
+	content: string
+}
+
+interface GenerateContentResponse {
+	candidates?: Array<{
+		content?: {
+			parts?: Array<{
+				text?: string
+				inlineData?: {
+					mimeType: string
+					data: string
+				}
+			}>
+		}
+	}>
+}
+
+export async function generateChatResponse(
+	apiKey: string,
+	modelId: string,
+	messages: ChatMessageInput[],
+): Promise<{ text: string; media: MessageMedia[] }> {
+	const response = await geminiFetch<GenerateContentResponse>(
+		apiKey,
+		`/models/${modelId}:generateContent`,
+		{
+			method: 'POST',
+			body: JSON.stringify({
+				contents: messages.map((message) => ({
+					role: message.role === 'assistant' ? 'model' : 'user',
+					parts: [{ text: message.content }],
+				})),
+			}),
+		},
+	)
+
+	return parseContentResponse(response)
+}
+
+export async function generateImage(
+	apiKey: string,
+	modelId: string,
+	prompt: string,
+): Promise<{ text: string; media: MessageMedia[] }> {
+	const response = await geminiFetch<GenerateContentResponse>(
+		apiKey,
+		`/models/${modelId}:generateContent`,
+		{
+			method: 'POST',
+			body: JSON.stringify({
+				contents: [
+					{
+						role: 'user',
+						parts: [{ text: prompt }],
+					},
+				],
+				generationConfig: {
+					responseModalities: ['TEXT', 'IMAGE'],
+				},
+			}),
+		},
+	)
+
+	return parseContentResponse(response)
+}
+
+export async function generateMusic(
+	apiKey: string,
+	modelId: string,
+	prompt: string,
+): Promise<{ text: string; media: MessageMedia[] }> {
+	const response = await geminiFetch<GenerateContentResponse>(
+		apiKey,
+		`/models/${modelId}:generateContent`,
+		{
+			method: 'POST',
+			body: JSON.stringify({
+				contents: [
+					{
+						role: 'user',
+						parts: [{ text: prompt }],
+					},
+				],
+				generationConfig: {
+					responseModalities: ['TEXT', 'AUDIO'],
+				},
+			}),
+		},
+	)
+
+	return parseContentResponse(response)
+}
+
+interface PredictLongRunningResponse {
+	name?: string
+}
+
+interface VideoOperationResponse {
+	generatedVideos?: Array<{
+		video?: {
+			uri?: string
+		}
+	}>
+}
+
+export async function generateVideo(
+	apiKey: string,
+	modelId: string,
+	prompt: string,
+): Promise<{ text: string; media: MessageMedia[] }> {
+	const started = await geminiFetch<PredictLongRunningResponse>(
+		apiKey,
+		`/models/${modelId}:predictLongRunning`,
+		{
+			method: 'POST',
+			body: JSON.stringify({
+				instances: [{ prompt }],
+			}),
+		},
+	)
+
+	if (!started.name) {
+		throw new Error('Video generation did not return an operation name')
+	}
+
+	const result = await pollOperation<VideoOperationResponse>(
+		apiKey,
+		started.name,
+	)
+
+	const videoUri = result.generatedVideos?.[0]?.video?.uri
+	if (!videoUri) {
+		return {
+			text: 'Video generation completed but no video URI was returned.',
+			media: [],
+		}
+	}
+
+	const videoResponse = await fetch(`${videoUri}&key=${encodeURIComponent(apiKey)}`)
+	if (!videoResponse.ok) {
+		throw new Error('Failed to download generated video')
+	}
+
+	const blob = await videoResponse.blob()
+	const dataUrl = await blobToDataUrl(blob)
+
+	return {
+		text: 'Generated video:',
+		media: [
+			{
+				type: 'video',
+				mimeType: blob.type || 'video/mp4',
+				dataUrl,
+			},
+		],
+	}
+}
+
+function parseContentResponse(response: GenerateContentResponse): {
+	text: string
+	media: MessageMedia[]
+} {
+	const parts = response.candidates?.[0]?.content?.parts ?? []
+	const textParts: string[] = []
+	const media: MessageMedia[] = []
+
+	for (const part of parts) {
+		if (part.text) {
+			textParts.push(part.text)
+		}
+
+		if (part.inlineData) {
+			const mimeType = part.inlineData.mimeType
+			const dataUrl = toDataUrl(mimeType, part.inlineData.data)
+
+			if (mimeType.startsWith('image/')) {
+				media.push({ type: 'image', mimeType, dataUrl })
+			} else if (mimeType.startsWith('audio/')) {
+				media.push({ type: 'audio', mimeType, dataUrl })
+			} else if (mimeType.startsWith('video/')) {
+				media.push({ type: 'video', mimeType, dataUrl })
+			}
+		}
+	}
+
+	return {
+		text: textParts.join('\n').trim() || 'Generation completed.',
+		media,
+	}
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader()
+		reader.onload = () => {
+			if (typeof reader.result === 'string') {
+				resolve(reader.result)
+			} else {
+				reject(new Error('Failed to read blob'))
+			}
+		}
+		reader.onerror = () => reject(new Error('Failed to read blob'))
+		reader.readAsDataURL(blob)
+	})
+}
