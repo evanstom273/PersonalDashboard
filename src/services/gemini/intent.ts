@@ -13,6 +13,7 @@ export interface ResolvedPrompt {
 export interface IntentMessageContext {
 	role: 'user' | 'assistant'
 	content: string
+	mediaTypes?: Array<'image' | 'audio' | 'video'>
 }
 
 interface IntentPattern {
@@ -116,20 +117,70 @@ const CONVERSATIONAL_INTENT_PATTERNS: IntentPattern[] = [
 	{
 		intent: 'image',
 		regex:
-			/\bwhat about (?:an?\s+)?(?:image|picture|photo|illustration|artwork|poster)\b/i,
+			/\bwhat about (?:an?\s+)?(?:image|picture|photo|illustration|artwork|poster|scene|cityscape|portrait|visual|drawing)\b/i,
 	},
 	{
 		intent: 'image',
 		regex:
-			/\bhow about (?:an?\s+)?(?:image|picture|photo|illustration|artwork|poster)\b/i,
+			/\bhow about (?:an?\s+)?(?:image|picture|photo|illustration|artwork|poster|scene|cityscape|portrait|visual|drawing)\b/i,
+	},
+	{
+		intent: 'image',
+		regex:
+			/\b(?:matching|similar|complementing|corresponding)\s+(?:an?\s+)?(?:image|picture|photo|illustration|artwork|poster|scene|cityscape|portrait|visual|drawing)\b/i,
+	},
+	{
+		intent: 'image',
+		regex:
+			/\b(?:also|now)\s+(?:an?\s+)?(?:image|picture|photo|illustration|artwork|poster|scene|cityscape|portrait)\b/i,
+	},
+	{
+		intent: 'image',
+		regex:
+			/\b(?:an?\s+)?(?:image|picture|photo|illustration|artwork|poster)\s+of\s+(?:it|that|this|them)\b/i,
+	},
+	{
+		intent: 'image',
+		regex:
+			/\b(?:can you|could you)\s+(?:also\s+)?(?:generate|create|make|draw|render|design)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|photo|illustration|artwork)\b/i,
 	},
 	{
 		intent: 'video',
-		regex: /\bwhat about (?:an?\s+)?video\b/i,
+		regex:
+			/\bwhat about (?:an?\s+)?(?:video|clip|animation|footage|montage|sequence)\b/i,
 	},
 	{
 		intent: 'video',
-		regex: /\bhow about (?:an?\s+)?video\b/i,
+		regex:
+			/\bhow about (?:an?\s+)?(?:video|clip|animation|footage|montage|sequence)\b/i,
+	},
+	{
+		intent: 'video',
+		regex:
+			/\b(?:matching|similar|complementing|corresponding)\s+(?:\d+\s*(?:second|sec|minute|min)[-\s]*)?(?:video|clip|animation|footage|montage|sequence)\b/i,
+	},
+	{
+		intent: 'video',
+		regex:
+			/\b(?:a\s+)?\d+\s*(?:second|sec|minute|min)[-\s]*(?:video|clip|animation|footage|montage)\b/i,
+	},
+	{
+		intent: 'video',
+		regex:
+			/\b(?:also|now)\s+(?:an?\s+)?(?:video|clip|animation|footage|montage)\b/i,
+	},
+	{
+		intent: 'video',
+		regex:
+			/\b(?:an?\s+)?(?:video|clip|animation|footage|montage)\s+of\s+(?:it|that|this|them)\b/i,
+	},
+	{
+		intent: 'video',
+		regex: /\b(?:can you|could you)\s+animate\b/i,
+	},
+	{
+		intent: 'video',
+		regex: /\b(?:animate|animation of)\s+(?:it|that|this|them)\b/i,
 	},
 ]
 
@@ -153,6 +204,11 @@ const LOOSE_INTENT_PATTERNS: IntentPattern[] = [
 		intent: 'video',
 		regex: /\b(?:generate|create|make)\s+(?:me\s+)?(?:an?\s+)?video\b/i,
 	},
+	{
+		intent: 'video',
+		regex:
+			/\b(?:video|clip|animation|footage|montage)\s+(?:of|for|showing|about|depicting)\s+/i,
+	},
 ]
 
 const CONTEXTUAL_FOLLOW_UP_PATTERNS: RegExp[] = [
@@ -165,7 +221,11 @@ const CONTEXTUAL_FOLLOW_UP_PATTERNS: RegExp[] = [
 	/\bto go with\b/i,
 	/\bfor that\b/i,
 	/\bfor it\b/i,
-	/\b(?:also|now)\s+(?:some\s+)?(?:music|an?\s+(?:image|picture|video|track|song|instrumental))\b/i,
+	/\b(?:also|now)\s+(?:some\s+)?(?:music|an?\s+(?:image|picture|photo|video|clip|track|song|instrumental|animation|footage))\b/i,
+	/\b(?:image|picture|photo|illustration|video|clip|animation|footage)\s+of\s+(?:it|that|this|them)\b/i,
+	/\b(?:can you|could you)\s+animate\b/i,
+	/\b(?:animate|animation of)\s+(?:it|that|this|them)\b/i,
+	/\b(?:same|that)\s+(?:style|vibe|look|aesthetic)\b/i,
 ]
 
 function resolveGenerationPrompt(
@@ -180,6 +240,33 @@ function needsConversationContext(trimmed: string): boolean {
 	return CONTEXTUAL_FOLLOW_UP_PATTERNS.some((pattern) => pattern.test(trimmed))
 }
 
+function formatMediaSummary(
+	mediaTypes: IntentMessageContext['mediaTypes'],
+): string {
+	if (!mediaTypes || mediaTypes.length === 0) {
+		return ''
+	}
+
+	const labels = mediaTypes.map((type) => {
+		switch (type) {
+			case 'image':
+				return 'generated image'
+			case 'audio':
+				return 'generated music'
+			case 'video':
+				return 'generated video'
+		}
+	})
+
+	return ` [${labels.join(', ')}]`
+}
+
+function formatMessageForContext(message: IntentMessageContext): string {
+	const roleLabel = message.role === 'user' ? 'User' : 'Assistant'
+	const mediaSummary = formatMediaSummary(message.mediaTypes)
+	return `${roleLabel}: ${message.content}${mediaSummary}`
+}
+
 export function enrichPromptWithConversationContext(
 	prompt: string,
 	recentMessages: IntentMessageContext[],
@@ -188,12 +275,7 @@ export function enrichPromptWithConversationContext(
 		return prompt
 	}
 
-	const contextLines = recentMessages
-		.map(
-			(message) =>
-				`${message.role === 'user' ? 'User' : 'Assistant'}: ${message.content}`,
-		)
-		.join('\n')
+	const contextLines = recentMessages.map(formatMessageForContext).join('\n')
 
 	return `Conversation context:\n${contextLines}\n\nCurrent request: ${prompt}`
 }

@@ -99,6 +99,7 @@ export function useChatGeneration({
 				.map((message) => ({
 					role: message.role,
 					content: message.content,
+					mediaTypes: message.media?.map((item) => item.type),
 				}))
 
 			const resolved = resolvePromptIntent(
