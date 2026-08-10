@@ -59,9 +59,15 @@
 	border-color: var(--border);
 }
 
+html {
+	height: 100%;
+}
+
 body {
 	margin: 0;
-	min-height: 100vh;
+	height: 100dvh;
+	max-height: 100dvh;
+	overflow: hidden;
 	background: var(--background);
 	color: var(--foreground);
 	font-family:
@@ -78,5 +84,7 @@ body {
 }
 
 #root {
-	min-height: 100vh;
+	height: 100dvh;
+	max-height: 100dvh;
+	overflow: hidden;
 }

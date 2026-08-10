@@ -60,7 +60,7 @@ function MessageBubble({ message }: { message: StoredMessage }) {
 				className={cn(
 					'max-w-[85%] space-y-3 rounded-2xl px-4 py-3 text-sm leading-relaxed',
 					isUser
-						? 'bg-primary text-primary-foreground'
+						? 'bg-secondary text-secondary-foreground ring-1 ring-border'
 						: 'bg-card text-card-foreground',
 				)}
 			>
