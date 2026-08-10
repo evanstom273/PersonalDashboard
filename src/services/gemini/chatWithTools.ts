@@ -1,6 +1,6 @@
 import { geminiFetch } from '@/services/gemini/client'
 import { executeDocumentToolCall, DOCUMENT_TOOL_DECLARATIONS } from '@/services/gemini/documentTools'
-import { buildSystemInstruction } from '@/services/gemini/systemInstruction'
+import { buildFullSystemInstruction } from '@/services/gemini/documentContext'
 import {
 	extractGroundingMetadata,
 	formatGroundedResponseText,
@@ -66,7 +66,7 @@ export async function generateChatWithTools(
 	for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
 		const requestBody: Record<string, unknown> = {
 			systemInstruction: {
-				parts: [{ text: buildSystemInstruction(preferences) }],
+				parts: [{ text: await buildFullSystemInstruction(preferences) }],
 			},
 			tools: buildChatTools(useWebSearch),
 			contents,
