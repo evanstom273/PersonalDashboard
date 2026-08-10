@@ -410,7 +410,12 @@ function MediaCard({
 						size="sm"
 						variant="outline"
 						onClick={() =>
-							downloadLibraryMediaItem(item.title, item.mimeType, item.dataUrl)
+							downloadLibraryMediaItem(
+								item.title,
+								item.mimeType,
+								item.dataUrl,
+								item.createdAt,
+							)
 						}
 					>
 						<Download className="h-4 w-4" />
