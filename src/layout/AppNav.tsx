@@ -1,5 +1,7 @@
-import { Home, Settings, Sparkles } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { FileText, Home, Settings, Sparkles } from 'lucide-react'
+import { usePreferencesContext } from '@/providers/ChatProvider'
+import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import { cn } from '@/utils/cn'
 
 interface AppNavProps {
@@ -15,6 +17,10 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 	)
 
 export function AppNav({ onNavigate }: AppNavProps) {
+	const { preferences } = usePreferencesContext()
+	const aiName = getConfiguredAiName(preferences)
+	const location = useLocation()
+
 	return (
 		<div className="flex h-full flex-col">
 			<div className="flex items-center gap-3 px-4 py-5">
@@ -22,20 +28,38 @@ export function AppNav({ onNavigate }: AppNavProps) {
 					<Sparkles className="h-5 w-5" />
 				</div>
 				<div>
-					<p className="font-semibold">Gemini Chat</p>
+					<p className="font-semibold">{aiName}</p>
 					<p className="text-xs text-muted-foreground">Bring your own key</p>
 				</div>
 			</div>
 
 			<nav className="flex flex-col gap-1 px-3 py-2">
-				<NavLink to="/" end className={navLinkClass} onClick={onNavigate}>
+				<Link
+					to="/"
+					className={navLinkClass({ isActive: location.pathname === '/' })}
+					onClick={onNavigate}
+				>
 					<Home className="h-4 w-4" />
 					Home
-				</NavLink>
-				<NavLink to="/settings" className={navLinkClass} onClick={onNavigate}>
+				</Link>
+				<Link
+					to="/documents"
+					className={navLinkClass({
+						isActive: location.pathname.startsWith('/documents'),
+					})}
+					onClick={onNavigate}
+				>
+					<FileText className="h-4 w-4" />
+					Documents
+				</Link>
+				<Link
+					to="/settings"
+					className={navLinkClass({ isActive: location.pathname === '/settings' })}
+					onClick={onNavigate}
+				>
 					<Settings className="h-4 w-4" />
 					Settings
-				</NavLink>
+				</Link>
 			</nav>
 		</div>
 	)

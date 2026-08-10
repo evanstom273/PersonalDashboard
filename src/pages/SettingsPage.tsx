@@ -1,4 +1,4 @@
-import { ExternalLink, KeyRound, PlugZap, Save } from 'lucide-react'
+import { ExternalLink, KeyRound, PlugZap, Save, Sparkles, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -10,8 +10,13 @@ import { GEMINI_MODELS, MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
 export function SettingsPage() {
 	const { preferences, savePreferences, isLoading } = usePreferencesContext()
 	const [apiKey, setApiKey] = useState('')
-	const [saved, setSaved] = useState(false)
-	const [isSaving, setIsSaving] = useState(false)
+	const [userName, setUserName] = useState('')
+	const [aiName, setAiName] = useState('')
+	const [aiBehaviorInstructions, setAiBehaviorInstructions] = useState('')
+	const [savedApiKey, setSavedApiKey] = useState(false)
+	const [savedIdentity, setSavedIdentity] = useState(false)
+	const [isSavingApiKey, setIsSavingApiKey] = useState(false)
+	const [isSavingIdentity, setIsSavingIdentity] = useState(false)
 	const [isValidating, setIsValidating] = useState(false)
 	const [validationMessage, setValidationMessage] = useState<string | null>(null)
 	const [validationOk, setValidationOk] = useState<boolean | null>(null)
@@ -19,20 +24,39 @@ export function SettingsPage() {
 	useEffect(() => {
 		if (!isLoading) {
 			setApiKey(preferences.geminiApiKey)
+			setUserName(preferences.userName)
+			setAiName(preferences.aiName)
+			setAiBehaviorInstructions(preferences.aiBehaviorInstructions)
 		}
-	}, [isLoading, preferences.geminiApiKey])
+	}, [isLoading, preferences])
 
-	async function handleSave(): Promise<void> {
-		setIsSaving(true)
-		setSaved(false)
+	async function handleSaveApiKey(): Promise<void> {
+		setIsSavingApiKey(true)
+		setSavedApiKey(false)
 		try {
 			await savePreferences({
 				...preferences,
 				geminiApiKey: apiKey.trim(),
 			})
-			setSaved(true)
+			setSavedApiKey(true)
 		} finally {
-			setIsSaving(false)
+			setIsSavingApiKey(false)
+		}
+	}
+
+	async function handleSaveIdentity(): Promise<void> {
+		setIsSavingIdentity(true)
+		setSavedIdentity(false)
+		try {
+			await savePreferences({
+				...preferences,
+				userName: userName.trim(),
+				aiName: aiName.trim(),
+				aiBehaviorInstructions: aiBehaviorInstructions.trim(),
+			})
+			setSavedIdentity(true)
+		} finally {
+			setIsSavingIdentity(false)
 		}
 	}
 
@@ -54,13 +78,82 @@ export function SettingsPage() {
 			<header className="shrink-0 border-b border-border px-4 py-4 md:px-6">
 				<h1 className="text-xl font-semibold md:text-2xl">Settings</h1>
 				<p className="mt-1 text-sm text-muted-foreground">
-					Connect your own Gemini API key. Keys are stored locally in IndexedDB
-					and sent directly to Google&apos;s API from your browser.
+					Configure identity, behaviour, and your bring-your-own Gemini API key.
 				</p>
 			</header>
 
 			<ScrollArea className="h-full min-h-0 flex-1">
 				<div className="mx-auto w-full max-w-2xl space-y-6 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:space-y-8 md:px-6 md:py-8">
+					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+						<div className="flex items-center gap-2">
+							<UserRound className="h-5 w-5 text-primary" />
+							<h2 className="text-lg font-medium">Your name</h2>
+						</div>
+						<p className="text-sm text-muted-foreground">
+							This tells the assistant what to call you in future responses.
+						</p>
+						<input
+							value={userName}
+							onChange={(event) => {
+								setUserName(event.target.value)
+								setSavedIdentity(false)
+							}}
+							placeholder="Your name"
+							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+						/>
+					</section>
+
+					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+						<div className="flex items-center gap-2">
+							<Sparkles className="h-5 w-5 text-primary" />
+							<h2 className="text-lg font-medium">AI name</h2>
+						</div>
+						<p className="text-sm text-muted-foreground">
+							Choose any name for your assistant. This name is used across the
+							app interface and in system instructions.
+						</p>
+						<input
+							value={aiName}
+							onChange={(event) => {
+								setAiName(event.target.value)
+								setSavedIdentity(false)
+							}}
+							placeholder="Assistant"
+							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+						/>
+					</section>
+
+					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+						<h2 className="text-lg font-medium">How should your AI respond?</h2>
+						<p className="text-sm text-muted-foreground">
+							Free-form behavioural instructions. Keep it short with traits like
+							&quot;Warm, conversational, witty, direct, British English&quot; or
+							write a longer custom prompt.
+						</p>
+						<textarea
+							value={aiBehaviorInstructions}
+							onChange={(event) => {
+								setAiBehaviorInstructions(event.target.value)
+								setSavedIdentity(false)
+							}}
+							rows={8}
+							placeholder="Warm, conversational, witty, direct, British English"
+							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+						/>
+						<div className="flex flex-wrap items-center gap-3">
+							<Button
+								onClick={() => void handleSaveIdentity()}
+								disabled={isSavingIdentity}
+							>
+								<Save className="h-4 w-4" />
+								{isSavingIdentity ? 'Saving…' : 'Save identity'}
+							</Button>
+							{savedIdentity ? (
+								<span className="text-sm text-primary">Identity saved</span>
+							) : null}
+						</div>
+					</section>
+
 					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
 						<div className="flex items-center gap-2">
 							<KeyRound className="h-5 w-5 text-primary" />
@@ -84,7 +177,7 @@ export function SettingsPage() {
 							value={apiKey}
 							onChange={(event) => {
 								setApiKey(event.target.value)
-								setSaved(false)
+								setSavedApiKey(false)
 								setValidationMessage(null)
 								setValidationOk(null)
 							}}
@@ -93,9 +186,12 @@ export function SettingsPage() {
 							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						/>
 						<div className="flex flex-wrap items-center gap-3">
-							<Button onClick={() => void handleSave()} disabled={isSaving}>
+							<Button
+								onClick={() => void handleSaveApiKey()}
+								disabled={isSavingApiKey}
+							>
 								<Save className="h-4 w-4" />
-								{isSaving ? 'Saving…' : 'Save key'}
+								{isSavingApiKey ? 'Saving…' : 'Save key'}
 							</Button>
 							<Button
 								variant="outline"
@@ -105,7 +201,7 @@ export function SettingsPage() {
 								<PlugZap className="h-4 w-4" />
 								{isValidating ? 'Validating…' : 'Validate connection'}
 							</Button>
-							{saved ? (
+							{savedApiKey ? (
 								<span className="text-sm text-primary">Key saved</span>
 							) : null}
 						</div>
@@ -120,6 +216,14 @@ export function SettingsPage() {
 								{validationMessage}
 							</p>
 						) : null}
+					</section>
+
+					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
+						<h2 className="text-lg font-medium">Voice input</h2>
+						<p className="text-sm text-muted-foreground">
+							The mic on the home page uses your browser&apos;s built-in speech
+							recognition. It does not call the Gemini API or use your API key.
+						</p>
 					</section>
 
 					<section className="space-y-4 rounded-xl border border-border bg-card p-5">

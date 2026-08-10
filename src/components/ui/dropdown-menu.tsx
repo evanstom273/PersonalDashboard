@@ -12,8 +12,11 @@ export function DropdownMenu(
 export function DropdownMenuTrigger({
 	className,
 	children,
+	hideChevron = false,
 	...props
-}: ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
+}: ComponentProps<typeof DropdownMenuPrimitive.Trigger> & {
+	hideChevron?: boolean
+}) {
 	return (
 		<DropdownMenuPrimitive.Trigger
 			className={cn(
@@ -23,7 +26,7 @@ export function DropdownMenuTrigger({
 			{...props}
 		>
 			{children}
-			<ChevronDown className="h-4 w-4 opacity-60" />
+			{hideChevron ? null : <ChevronDown className="h-4 w-4 opacity-60" />}
 		</DropdownMenuPrimitive.Trigger>
 	)
 }

@@ -1,7 +1,17 @@
 import { ArrowUp, Mic, Square, X } from 'lucide-react'
-import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent } from 'react'
+import {
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	type FormEvent,
+	type KeyboardEvent,
+} from 'react'
+import { DocumentMentionMenu } from '@/components/chat/DocumentMentionMenu'
 import { Button } from '@/components/ui/button'
+import { useDocumentMentionPicker } from '@/hooks/useDocumentMentionPicker'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
+import { insertDocumentMention } from '@/utils/documentMentions'
 import { cn } from '@/utils/cn'
 
 interface ChatInputProps {
@@ -18,6 +28,8 @@ export function ChatInput({
 	onStop,
 }: ChatInputProps) {
 	const [prompt, setPrompt] = useState('')
+	const [cursorPosition, setCursorPosition] = useState(0)
+	const textareaRef = useRef<HTMLTextAreaElement>(null)
 
 	const {
 		isSupported,
@@ -33,9 +45,18 @@ export function ChatInput({
 	const isReviewing = status === 'review'
 	const inputDisabled = disabled || isGenerating || isListening
 
+	const {
+		isOpen: isMentionMenuOpen,
+		activeMention,
+		filteredDocuments,
+		selectedIndex,
+		moveSelection,
+	} = useDocumentMentionPicker(prompt, cursorPosition, !inputDisabled)
+
 	useEffect(() => {
 		if (isListening) {
 			setPrompt(transcript)
+			setCursorPosition(transcript.length)
 		}
 	}, [isListening, transcript])
 
@@ -50,6 +71,37 @@ export function ChatInput({
 		}
 	}, [cancelListening, isListening, isReviewing])
 
+	const syncCursor = useCallback(() => {
+		const nextPosition = textareaRef.current?.selectionStart ?? prompt.length
+		setCursorPosition(nextPosition)
+	}, [prompt.length])
+
+	const insertMention = useCallback(
+		(title: string) => {
+			if (!activeMention) {
+				return
+			}
+
+			const { nextText, nextCursor } = insertDocumentMention(
+				prompt,
+				activeMention,
+				title,
+			)
+			setPrompt(nextText)
+			setCursorPosition(nextCursor)
+
+			requestAnimationFrame(() => {
+				const textarea = textareaRef.current
+				if (!textarea) {
+					return
+				}
+				textarea.focus()
+				textarea.setSelectionRange(nextCursor, nextCursor)
+			})
+		},
+		[activeMention, prompt],
+	)
+
 	function handleSubmit(event?: FormEvent): void {
 		event?.preventDefault()
 		const trimmed = prompt.trim()
@@ -59,10 +111,39 @@ export function ChatInput({
 
 		onSubmit(trimmed)
 		setPrompt('')
+		setCursorPosition(0)
 		resetSpeechState()
 	}
 
 	function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
+		if (isMentionMenuOpen) {
+			if (event.key === 'ArrowDown') {
+				event.preventDefault()
+				moveSelection(1)
+				return
+			}
+
+			if (event.key === 'ArrowUp') {
+				event.preventDefault()
+				moveSelection(-1)
+				return
+			}
+
+			if (event.key === 'Enter' && !event.shiftKey) {
+				event.preventDefault()
+				const selected = filteredDocuments[selectedIndex]
+				if (selected) {
+					insertMention(selected.title)
+				}
+				return
+			}
+
+			if (event.key === 'Escape') {
+				event.preventDefault()
+				return
+			}
+		}
+
 		if (event.key === 'Enter' && !event.shiftKey) {
 			event.preventDefault()
 			handleSubmit()
@@ -80,12 +161,14 @@ export function ChatInput({
 	function handleContinue(): void {
 		continueListening()
 		setPrompt(transcript.trim())
+		setCursorPosition(transcript.trim().length)
 	}
 
 	function handleCancelSpeech(): void {
 		cancelListening()
 		if (isListening) {
 			setPrompt('')
+			setCursorPosition(0)
 		}
 	}
 
@@ -116,87 +199,104 @@ export function ChatInput({
 				</div>
 			) : null}
 
-			<div
-				className={cn(
-					'mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm',
-					isListening ? 'border-primary/50 ring-1 ring-primary/30' : 'border-border',
-				)}
-			>
-				{isSupported ? (
-					<Button
-						type="button"
-						size="icon"
-						variant={isListening ? 'default' : 'outline'}
-						disabled={disabled || isGenerating}
-						onClick={handleMicPress}
-						aria-label="Start voice input"
-						className={cn(isListening && 'animate-pulse')}
-					>
-						<Mic className="h-4 w-4" />
-					</Button>
+			<div className="relative mx-auto max-w-3xl">
+				{isMentionMenuOpen ? (
+					<DocumentMentionMenu
+						documents={filteredDocuments}
+						selectedIndex={selectedIndex}
+						onSelect={(document) => insertMention(document.title)}
+						className="absolute right-0 bottom-full left-0 mb-2"
+					/>
 				) : null}
 
-				<textarea
-					value={prompt}
-					onChange={(event) => setPrompt(event.target.value)}
-					onKeyDown={handleKeyDown}
-					placeholder={
-						isListening
-							? 'Listening…'
-							: 'Message Gemini… or "generate image …"'
-					}
-					disabled={inputDisabled}
-					readOnly={isListening}
-					rows={1}
-					className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
-				/>
-
-				{isListening ? (
-					<>
+				<div
+					className={cn(
+						'flex items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm',
+						isListening ? 'border-primary/50 ring-1 ring-primary/30' : 'border-border',
+					)}
+				>
+					{isSupported ? (
 						<Button
 							type="button"
 							size="icon"
-							variant="ghost"
-							onClick={handleCancelSpeech}
-							aria-label="Cancel voice input"
+							variant={isListening ? 'default' : 'outline'}
+							disabled={disabled || isGenerating}
+							onClick={handleMicPress}
+							aria-label="Start voice input"
+							className={cn(isListening && 'animate-pulse')}
 						>
-							<X className="h-4 w-4" />
+							<Mic className="h-4 w-4" />
 						</Button>
+					) : null}
+
+					<textarea
+						ref={textareaRef}
+						value={prompt}
+						onChange={(event) => {
+							setPrompt(event.target.value)
+							setCursorPosition(event.target.selectionStart)
+						}}
+						onClick={syncCursor}
+						onKeyUp={syncCursor}
+						onKeyDown={handleKeyDown}
+						placeholder={
+							isListening
+								? 'Listening…'
+								: 'Message… type @ to reference a document'
+						}
+						disabled={inputDisabled}
+						readOnly={isListening}
+						rows={1}
+						className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
+					/>
+
+					{isListening ? (
+						<>
+							<Button
+								type="button"
+								size="icon"
+								variant="ghost"
+								onClick={handleCancelSpeech}
+								aria-label="Cancel voice input"
+							>
+								<X className="h-4 w-4" />
+							</Button>
+							<Button
+								type="button"
+								variant="secondary"
+								onClick={handleContinue}
+								className="shrink-0"
+							>
+								Continue
+							</Button>
+						</>
+					) : isGenerating ? (
 						<Button
 							type="button"
+							size="icon"
 							variant="secondary"
-							onClick={handleContinue}
-							className="shrink-0"
+							onClick={onStop}
+							aria-label="Stop generating"
 						>
-							Continue
+							<Square className="h-4 w-4" />
 						</Button>
-					</>
-				) : isGenerating ? (
-					<Button
-						type="button"
-						size="icon"
-						variant="secondary"
-						onClick={onStop}
-						aria-label="Stop generating"
-					>
-						<Square className="h-4 w-4" />
-					</Button>
-				) : (
-					<Button
-						type="submit"
-						size="icon"
-						disabled={disabled || !prompt.trim()}
-						aria-label="Send message"
-					>
-						<ArrowUp className="h-4 w-4" />
-					</Button>
-				)}
+					) : (
+						<Button
+							type="submit"
+							size="icon"
+							disabled={disabled || !prompt.trim()}
+							aria-label="Send message"
+						>
+							<ArrowUp className="h-4 w-4" />
+						</Button>
+					)}
+				</div>
 			</div>
 
 			<p className="mx-auto mt-2 hidden max-w-3xl text-center text-xs text-muted-foreground md:block">
-				Use the mic to dictate, review with Continue, then send. Chat uses Gemini
-				3.6 Flash or 3.1 Pro; say generate image, music, or video to switch
-				modes.
+				Type <span className="font-medium text-foreground">@</span> to search and
+				reference documents. Use the mic to dictate, review with Continue, then
+				send.
 			</p>
 		</form>
 	)
