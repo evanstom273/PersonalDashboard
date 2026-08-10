@@ -1,7 +1,21 @@
 import {
+	DndContext,
+	DragOverlay,
+	PointerSensor,
+	TouchSensor,
+	useDraggable,
+	useDroppable,
+	useSensor,
+	useSensors,
+	type DragEndEvent,
+	type DragStartEvent,
+} from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
+import {
 	ArrowLeft,
-	CheckSquare,
+	ChevronDown,
 	FileText,
+	GripVertical,
 	MoreHorizontal,
 	Plus,
 	Trash2,
@@ -38,6 +52,12 @@ const COLUMNS: Array<{ id: ProjectTaskStatus; label: string }> = [
 	{ id: 'done', label: 'Done' },
 ]
 
+const DEFAULT_COLLAPSED: Record<ProjectTaskStatus, boolean> = {
+	todo: false,
+	doing: false,
+	done: false,
+}
+
 export function ProjectBoardPage() {
 	const { projectId = '' } = useParams()
 	const navigate = useNavigate()
@@ -47,6 +67,18 @@ export function ProjectBoardPage() {
 	const [editingTask, setEditingTask] = useState<ProjectTaskRecord | null>(null)
 	const [creatingStatus, setCreatingStatus] = useState<ProjectTaskStatus | null>(
 		null,
+	)
+	const [collapsed, setCollapsed] =
+		useState<Record<ProjectTaskStatus, boolean>>(DEFAULT_COLLAPSED)
+	const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+
+	const sensors = useSensors(
+		useSensor(PointerSensor, {
+			activationConstraint: { distance: 8 },
+		}),
+		useSensor(TouchSensor, {
+			activationConstraint: { delay: 180, tolerance: 6 },
+		}),
 	)
 
 	const refreshProject = useCallback(async (): Promise<void> => {
@@ -87,6 +119,67 @@ export function ProjectBoardPage() {
 		}
 	}, [project])
 
+	const activeTask = useMemo(() => {
+		if (!project || !activeTaskId) {
+			return null
+		}
+
+		return project.tasks.find((task) => task.id === activeTaskId) ?? null
+	}, [activeTaskId, project])
+
+	function handleDragStart(event: DragStartEvent): void {
+		setActiveTaskId(String(event.active.id))
+	}
+
+	function handleDragEnd(event: DragEndEvent): void {
+		setActiveTaskId(null)
+
+		if (!project) {
+			return
+		}
+
+		const taskId = String(event.active.id)
+		const overId = event.over?.id
+		if (!overId) {
+			return
+		}
+
+		const nextStatus = String(overId) as ProjectTaskStatus
+		if (!COLUMNS.some((column) => column.id === nextStatus)) {
+			return
+		}
+
+		const task = project.tasks.find((item) => item.id === taskId)
+		if (!task || task.status === nextStatus) {
+			return
+		}
+
+		void changeTaskStatus(project.id, taskId, nextStatus)
+	}
+
+	function toggleColumn(status: ProjectTaskStatus): void {
+		setCollapsed((current) => ({
+			...current,
+			[status]: !current[status],
+		}))
+	}
+
+	async function handleToggleChecklistItem(
+		task: ProjectTaskRecord,
+		itemId: string,
+		checked: boolean,
+	): Promise<void> {
+		if (!project) {
+			return
+		}
+
+		const checklist = task.checklist.map((item) =>
+			item.id === itemId ? { ...item, checked } : item,
+		)
+
+		await saveTask(project.id, task.id, { checklist })
+	}
+
 	if (isLoading) {
 		return <p className="px-4 py-6 text-sm text-muted-foreground">Loading board…</p>
 	}
@@ -126,50 +219,44 @@ export function ProjectBoardPage() {
 				</div>
 			</div>
 
-			<div
-				className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 py-4 md:px-6"
-				data-horizontal-scroll
+			<DndContext
+				sensors={sensors}
+				onDragStart={handleDragStart}
+				onDragEnd={handleDragEnd}
 			>
-				<div className="flex h-full min-w-max gap-4">
-					{COLUMNS.map((column) => (
-						<section
-							key={column.id}
-							className="flex w-[min(85vw,20rem)] shrink-0 flex-col rounded-xl border border-border/70 bg-card/40"
-						>
-							<div className="flex items-center justify-between border-b border-border/70 px-3 py-2">
-								<h3 className="text-sm font-medium">{column.label}</h3>
-								<Button
-									type="button"
-									size="sm"
-									variant="ghost"
-									className="h-8 w-8 px-0"
-									onClick={() => setCreatingStatus(column.id)}
-									aria-label={`Add task to ${column.label}`}
-								>
-									<Plus className="h-4 w-4" />
-								</Button>
-							</div>
-							<div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-								{columns[column.id].map((task) => (
-									<TaskCard
-										key={task.id}
-										task={task}
-										onOpen={() => setEditingTask(task)}
-										onMove={(status) => {
-											void changeTaskStatus(project.id, task.id, status)
-										}}
-										onDelete={() => {
-											if (window.confirm(`Delete "${task.title}"?`)) {
-												void removeTask(project.id, task.id)
-											}
-										}}
-									/>
-								))}
-							</div>
-						</section>
-					))}
+				<div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-6">
+					<div className="space-y-4">
+						{COLUMNS.map((column) => (
+							<BoardColumn
+								key={column.id}
+								column={column}
+								tasks={columns[column.id]}
+								isCollapsed={collapsed[column.id]}
+								onToggle={() => toggleColumn(column.id)}
+								onAddTask={() => setCreatingStatus(column.id)}
+								onEditTask={setEditingTask}
+								onMoveTask={(task, status) => {
+									void changeTaskStatus(project.id, task.id, status)
+								}}
+								onDeleteTask={(task) => {
+									if (window.confirm(`Delete "${task.title}"?`)) {
+										void removeTask(project.id, task.id)
+									}
+								}}
+								onToggleChecklistItem={(task, itemId, checked) => {
+									void handleToggleChecklistItem(task, itemId, checked)
+								}}
+							/>
+						))}
+					</div>
 				</div>
-			</div>
+
+				<DragOverlay dropAnimation={null}>
+					{activeTask ? (
+						<TaskCardPreview task={activeTask} isDragging />
+					) : null}
+				</DragOverlay>
+			</DndContext>
 
 			<TaskEditorDialog
 				open={creatingStatus !== null}
@@ -207,70 +294,250 @@ export function ProjectBoardPage() {
 	)
 }
 
-function TaskCard({
-	task,
-	onOpen,
-	onMove,
-	onDelete,
+function BoardColumn({
+	column,
+	tasks,
+	isCollapsed,
+	onToggle,
+	onAddTask,
+	onEditTask,
+	onMoveTask,
+	onDeleteTask,
+	onToggleChecklistItem,
 }: {
-	task: ProjectTaskRecord
-	onOpen: () => void
-	onMove: (status: ProjectTaskStatus) => void
-	onDelete: () => void
+	column: (typeof COLUMNS)[number]
+	tasks: ProjectTaskRecord[]
+	isCollapsed: boolean
+	onToggle: () => void
+	onAddTask: () => void
+	onEditTask: (task: ProjectTaskRecord) => void
+	onMoveTask: (task: ProjectTaskRecord, status: ProjectTaskStatus) => void
+	onDeleteTask: (task: ProjectTaskRecord) => void
+	onToggleChecklistItem: (
+		task: ProjectTaskRecord,
+		itemId: string,
+		checked: boolean,
+	) => void
 }) {
-	const checkedCount = task.checklist.filter((item) => item.checked).length
+	const { setNodeRef, isOver } = useDroppable({
+		id: column.id,
+	})
 
 	return (
-		<div className="surface-panel rounded-lg p-3">
+		<section
+			ref={setNodeRef}
+			className={cn(
+				'rounded-xl border border-border/70 bg-card/40 transition-colors',
+				isOver && 'border-primary/40 bg-primary/5',
+			)}
+		>
+			<div className="flex items-center gap-2 border-b border-border/70 px-3 py-2">
+				<button
+					type="button"
+					onClick={onToggle}
+					className="inline-flex min-w-0 flex-1 items-center gap-2 text-left"
+					aria-expanded={!isCollapsed}
+				>
+					<ChevronDown
+						className={cn(
+							'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+							isCollapsed && '-rotate-90',
+						)}
+					/>
+					<h3 className="truncate text-sm font-medium">{column.label}</h3>
+					<span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+						{tasks.length}
+					</span>
+				</button>
+				<Button
+					type="button"
+					size="sm"
+					variant="ghost"
+					className="h-8 w-8 shrink-0 px-0"
+					onClick={onAddTask}
+					aria-label={`Add task to ${column.label}`}
+				>
+					<Plus className="h-4 w-4" />
+				</Button>
+			</div>
+
+			{!isCollapsed ? (
+				<div className="space-y-2 p-3">
+					{tasks.length === 0 ? (
+						<p className="px-1 py-2 text-xs text-muted-foreground">
+							No cards yet. Add one or drag a card here.
+						</p>
+					) : (
+						tasks.map((task) => (
+							<DraggableTaskCard
+								key={task.id}
+								task={task}
+								onEdit={() => onEditTask(task)}
+								onMove={(status) => onMoveTask(task, status)}
+								onDelete={() => onDeleteTask(task)}
+								onToggleChecklistItem={(itemId, checked) => {
+									onToggleChecklistItem(task, itemId, checked)
+								}}
+							/>
+						))
+					)}
+				</div>
+			) : null}
+		</section>
+	)
+}
+
+function DraggableTaskCard({
+	task,
+	onEdit,
+	onMove,
+	onDelete,
+	onToggleChecklistItem,
+}: {
+	task: ProjectTaskRecord
+	onEdit: () => void
+	onMove: (status: ProjectTaskStatus) => void
+	onDelete: () => void
+	onToggleChecklistItem: (itemId: string, checked: boolean) => void
+}) {
+	const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+		id: task.id,
+	})
+
+	const style = {
+		transform: CSS.Translate.toString(transform),
+	}
+
+	return (
+		<div
+			ref={setNodeRef}
+			style={style}
+			className={cn(isDragging && 'opacity-40')}
+		>
+			<TaskCardPreview
+				task={task}
+				dragHandleProps={{ attributes, listeners }}
+				onEdit={onEdit}
+				onMove={onMove}
+				onDelete={onDelete}
+				onToggleChecklistItem={onToggleChecklistItem}
+			/>
+		</div>
+	)
+}
+
+function TaskCardPreview({
+	task,
+	isDragging,
+	dragHandleProps,
+	onEdit,
+	onMove,
+	onDelete,
+	onToggleChecklistItem,
+}: {
+	task: ProjectTaskRecord
+	isDragging?: boolean
+	dragHandleProps?: Pick<ReturnType<typeof useDraggable>, 'attributes' | 'listeners'>
+	onEdit?: () => void
+	onMove?: (status: ProjectTaskStatus) => void
+	onDelete?: () => void
+	onToggleChecklistItem?: (itemId: string, checked: boolean) => void
+}) {
+	return (
+		<div
+			className={cn(
+				'surface-panel rounded-lg p-3',
+				isDragging && 'shadow-lg ring-1 ring-primary/30',
+			)}
+		>
 			<div className="flex items-start gap-2">
 				<button
 					type="button"
-					onClick={onOpen}
-					className="min-w-0 flex-1 text-left"
+					className="mt-0.5 shrink-0 touch-none text-muted-foreground hover:text-foreground"
+					aria-label="Drag task"
+					{...dragHandleProps?.attributes}
+					{...dragHandleProps?.listeners}
 				>
-					<p className="font-medium">{task.title}</p>
-					{task.note ? (
-						<p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-							{task.note}
-						</p>
-					) : null}
+					<GripVertical className="h-4 w-4" />
+				</button>
+
+				<div className="min-w-0 flex-1">
+					<button
+						type="button"
+						onClick={onEdit}
+						className="w-full text-left"
+					>
+						<p className="font-medium">{task.title}</p>
+						{task.note ? (
+							<p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+								{task.note}
+							</p>
+						) : null}
+					</button>
+
 					{task.checklist.length > 0 ? (
-						<p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
-							<CheckSquare className="h-3.5 w-3.5" />
-							{checkedCount}/{task.checklist.length}
-						</p>
+						<ul className="mt-3 space-y-1.5">
+							{task.checklist.map((item) => (
+								<li key={item.id}>
+									<label className="flex items-start gap-2 text-xs">
+										<input
+											type="checkbox"
+											className="mt-0.5"
+											checked={item.checked}
+											onChange={(event) => {
+												event.stopPropagation()
+												onToggleChecklistItem?.(item.id, event.target.checked)
+											}}
+											onClick={(event) => event.stopPropagation()}
+										/>
+										<span
+											className={cn(
+												'min-w-0 flex-1',
+												item.checked && 'line-through opacity-70',
+											)}
+										>
+											{item.label}
+										</span>
+									</label>
+								</li>
+							))}
+						</ul>
 					) : null}
+
 					{task.documentIds.length > 0 ? (
-						<p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+						<p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
 							<FileText className="h-3.5 w-3.5" />
 							{task.documentIds.length} linked
 						</p>
 					) : null}
-				</button>
-				<DropdownMenu>
-					<DropdownMenuTrigger
-						hideChevron
-						className="h-8 w-8 shrink-0 justify-center px-0"
-						aria-label="Task actions"
-					>
-						<MoreHorizontal className="h-4 w-4" />
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuItem onSelect={onOpen}>Edit</DropdownMenuItem>
-						{COLUMNS.filter((column) => column.id !== task.status).map((column) => (
-							<DropdownMenuItem
-								key={column.id}
-								onSelect={() => onMove(column.id)}
-							>
-								Move to {column.label}
+				</div>
+
+				{onEdit && onMove && onDelete ? (
+					<DropdownMenu>
+						<DropdownMenuTrigger
+							hideChevron
+							className="h-8 w-8 shrink-0 justify-center px-0"
+							aria-label="Task actions"
+						>
+							<MoreHorizontal className="h-4 w-4" />
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
+							{COLUMNS.filter((column) => column.id !== task.status).map((column) => (
+								<DropdownMenuItem
+									key={column.id}
+									onSelect={() => onMove(column.id)}
+								>
+									Move to {column.label}
+								</DropdownMenuItem>
+							))}
+							<DropdownMenuItem className="text-destructive" onSelect={onDelete}>
+								<Trash2 className="h-4 w-4" />
+								Delete
 							</DropdownMenuItem>
-						))}
-						<DropdownMenuItem className="text-destructive" onSelect={onDelete}>
-							<Trash2 className="h-4 w-4" />
-							Delete
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				) : null}
 			</div>
 		</div>
 	)
