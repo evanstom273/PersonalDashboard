@@ -48,6 +48,7 @@ export interface UserPreferences {
 	userName: string
 	aiName: string
 	aiBehaviorInstructions: string
+	allowMatureContent: boolean
 	memoryArchiveInterval: MemoryArchiveInterval
 }
 
@@ -59,6 +60,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	userName: '',
 	aiName: '',
 	aiBehaviorInstructions: '',
+	allowMatureContent: true,
 	memoryArchiveInterval: 20,
 }
 

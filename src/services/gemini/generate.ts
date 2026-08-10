@@ -1,4 +1,8 @@
 import { geminiFetch, toDataUrl } from '@/services/gemini/client'
+import {
+	applyImageGenerationRequestBody,
+	applySafetySettingsToRequestBody,
+} from '@/services/gemini/safetySettings'
 import type { MessageMedia } from '@/storage/types'
 
 export interface ChatMessageInput {
@@ -68,18 +72,24 @@ export async function generateChatResponse(
 	apiKey: string,
 	modelId: string,
 	messages: ChatMessageInput[],
+	allowMatureContent = true,
 ): Promise<{ text: string; media: MessageMedia[] }> {
 	const response = await geminiFetch<GenerateContentResponse>(
 		apiKey,
 		`/models/${modelId}:generateContent`,
 		{
 			method: 'POST',
-			body: JSON.stringify({
-				contents: messages.map((message) => ({
-					role: message.role === 'assistant' ? 'model' : 'user',
-					parts: buildChatParts(message),
-				})),
-			}),
+			body: JSON.stringify(
+				applySafetySettingsToRequestBody(
+					{
+						contents: messages.map((message) => ({
+							role: message.role === 'assistant' ? 'model' : 'user',
+							parts: buildChatParts(message),
+						})),
+					},
+					allowMatureContent,
+				),
+			),
 		},
 	)
 
@@ -90,6 +100,7 @@ export async function generateImage(
 	apiKey: string,
 	modelId: string,
 	prompt: string,
+	allowMatureContent = true,
 ): Promise<{ text: string; media: MessageMedia[] }> {
 	const trimmedPrompt = prompt.trim()
 	const imagePrompt = /\b(generate|create|make|draw|render)\b/i.test(trimmedPrompt)
@@ -101,17 +112,22 @@ export async function generateImage(
 		`/models/${modelId}:generateContent`,
 		{
 			method: 'POST',
-			body: JSON.stringify({
-				contents: [
+			body: JSON.stringify(
+				applyImageGenerationRequestBody(
 					{
-						role: 'user',
-						parts: [{ text: imagePrompt }],
+						contents: [
+							{
+								role: 'user',
+								parts: [{ text: imagePrompt }],
+							},
+						],
+						generationConfig: {
+							responseModalities: ['TEXT', 'IMAGE'],
+						},
 					},
-				],
-				generationConfig: {
-					responseModalities: ['TEXT', 'IMAGE'],
-				},
-			}),
+					allowMatureContent,
+				),
+			),
 		},
 	)
 
@@ -120,14 +136,14 @@ export async function generateImage(
 	if (parsed.media.length === 0) {
 		const finishReason = response.candidates?.[0]?.finishReason
 		const blockReason = response.promptFeedback?.blockReason
-		const detail = finishReason
-			? `Finish reason: ${finishReason}.`
-			: blockReason
-				? `Blocked: ${blockReason}.`
+		const detail = blockReason
+			? `Blocked by Gemini: ${blockReason}. Illegal content (e.g. CSAM) is always blocked; some mature prompts may still be rejected.`
+			: finishReason
+				? `Finish reason: ${finishReason}.`
 				: 'The image model returned text only.'
 
 		throw new Error(
-			`Image generation did not return a file. ${detail} Start your message with "generate an image of…" and confirm your image model in the + menu.`,
+			`Image generation did not return a file. ${detail} Confirm your image model in the + menu and check Settings → Allow mature content.`,
 		)
 	}
 
@@ -138,23 +154,29 @@ export async function generateMusic(
 	apiKey: string,
 	modelId: string,
 	prompt: string,
+	allowMatureContent = true,
 ): Promise<{ text: string; media: MessageMedia[] }> {
 	const response = await geminiFetch<GenerateContentResponse>(
 		apiKey,
 		`/models/${modelId}:generateContent`,
 		{
 			method: 'POST',
-			body: JSON.stringify({
-				contents: [
+			body: JSON.stringify(
+				applySafetySettingsToRequestBody(
 					{
-						role: 'user',
-						parts: [{ text: prompt }],
+						contents: [
+							{
+								role: 'user',
+								parts: [{ text: prompt }],
+							},
+						],
+						generationConfig: {
+							responseModalities: ['TEXT', 'AUDIO'],
+						},
 					},
-				],
-				generationConfig: {
-					responseModalities: ['TEXT', 'AUDIO'],
-				},
-			}),
+					allowMatureContent,
+				),
+			),
 		},
 	)
 

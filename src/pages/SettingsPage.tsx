@@ -22,6 +22,7 @@ export function SettingsPage() {
 	const [userName, setUserName] = useState('')
 	const [aiName, setAiName] = useState('')
 	const [aiBehaviorInstructions, setAiBehaviorInstructions] = useState('')
+	const [allowMatureContent, setAllowMatureContent] = useState(true)
 	const [memoryArchiveInterval, setMemoryArchiveInterval] =
 		useState<MemoryArchiveInterval>(20)
 	const [savedApiKey, setSavedApiKey] = useState(false)
@@ -44,6 +45,7 @@ export function SettingsPage() {
 			setUserName(preferences.userName)
 			setAiName(preferences.aiName)
 			setAiBehaviorInstructions(preferences.aiBehaviorInstructions)
+			setAllowMatureContent(preferences.allowMatureContent ?? true)
 			setMemoryArchiveInterval(preferences.memoryArchiveInterval)
 		}
 	}, [isLoading, preferences])
@@ -71,6 +73,7 @@ export function SettingsPage() {
 				userName: userName.trim(),
 				aiName: aiName.trim(),
 				aiBehaviorInstructions: aiBehaviorInstructions.trim(),
+				allowMatureContent,
 			})
 			setSavedIdentity(true)
 		} finally {
@@ -198,6 +201,27 @@ export function SettingsPage() {
 							placeholder="Warm, conversational, witty, direct, British English"
 							className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 						/>
+						<label className="flex items-start gap-3 rounded-lg border border-border/60 px-3 py-3 text-sm">
+							<input
+								type="checkbox"
+								checked={allowMatureContent}
+								onChange={(event) => {
+									setAllowMatureContent(event.target.checked)
+									setSavedIdentity(false)
+								}}
+								className="mt-0.5"
+							/>
+							<span>
+								<span className="block font-medium">Allow mature content</span>
+								<span className="mt-1 block text-muted-foreground">
+									Lets chat match your tone (including swearing), relaxes
+									Gemini&apos;s adjustable filters for chat, image, and music
+									generation, and allows adult people in generated images.
+									Illegal content (e.g. CSAM) is always blocked by Google. Turn
+									off for stricter filtering.
+								</span>
+							</span>
+						</label>
 						<div className="flex flex-wrap items-center gap-3">
 							<Button
 								onClick={() => void handleSaveIdentity()}
