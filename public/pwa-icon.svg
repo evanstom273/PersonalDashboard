@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Personal Dashboard">
-	<rect width="512" height="512" fill="#101010"/>
-	<rect x="72" y="72" width="152" height="152" rx="24" fill="#c9a227"/>
-	<rect x="264" y="72" width="152" height="104" rx="24" fill="#c9a227" opacity="0.75"/>
-	<rect x="72" y="296" width="152" height="152" rx="24" fill="#c9a227" opacity="0.75"/>
-	<rect x="264" y="240" width="152" height="208" rx="24" fill="#c9a227" opacity="0.5"/>
-</svg>
