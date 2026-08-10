@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/layout/AppShell'
 import { ChatPage } from '@/pages/ChatPage'
 import { DocumentEditorPage } from '@/pages/DocumentEditorPage'
+import { HomePage } from '@/pages/HomePage'
 import { LegacyDocumentRedirect } from '@/pages/LegacyDocumentRedirect'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { MemoryPage } from '@/pages/MemoryPage'
@@ -14,7 +15,9 @@ export function App() {
 			<ChatProvider>
 				<Routes>
 					<Route element={<AppShell />}>
-						<Route index element={<ChatPage />} />
+						<Route index element={<Navigate to="/home" replace />} />
+						<Route path="home" element={<HomePage />} />
+						<Route path="chat" element={<ChatPage />} />
 						<Route path="library" element={<LibraryPage />} />
 						<Route path="library/documents/:documentId" element={<DocumentEditorPage />} />
 						<Route path="memory" element={<MemoryPage />} />
@@ -22,7 +25,7 @@ export function App() {
 						<Route path="documents/:documentId" element={<LegacyDocumentRedirect />} />
 						<Route path="settings" element={<SettingsPage />} />
 					</Route>
-					<Route path="*" element={<Navigate to="/" replace />} />
+					<Route path="*" element={<Navigate to="/home" replace />} />
 				</Routes>
 			</ChatProvider>
 		</BrowserRouter>

@@ -1,5 +1,6 @@
 import { ExternalLink, Brain, Bell, KeyRound, PlugZap, Save, Sparkles, UserRound, Volume2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -303,7 +304,13 @@ export function SettingsPage() {
 							</div>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							View archived facts anytime from the Memory tab in the sidebar.
+							<Link
+								to="/memory"
+								className="font-medium text-primary underline-offset-4 hover:underline"
+							>
+								Open Memory
+							</Link>{' '}
+							to browse archived facts from chat.
 						</p>
 					</section>
 

@@ -66,7 +66,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		truncateMessagesFrom: conversationState.truncateMessagesFrom,
 		ensureConversation: conversationState.ensureConversation,
 		saveConversation: conversationState.saveConversation,
-		isChatRoute: location.pathname === '/',
+		isChatRoute: location.pathname === '/chat',
 		onAssistantReply: handleAssistantReply,
 	})
 

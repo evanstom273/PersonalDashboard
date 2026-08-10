@@ -1,8 +1,10 @@
 import {
+	CalendarClock,
 	Copy,
 	Download,
 	FilePlus2,
 	FileText,
+	FolderKanban,
 	Image,
 	MoreHorizontal,
 	Music,
@@ -36,79 +38,150 @@ import {
 } from '@/utils/downloads'
 import { cn } from '@/utils/cn'
 
-const LIBRARY_TABS = [
+const LIBRARY_SECTIONS = [
+	{ id: 'schedule', label: 'Schedule', icon: CalendarClock },
+	{ id: 'projects', label: 'Projects', icon: FolderKanban },
 	{ id: 'documents', label: 'Documents', icon: FileText },
+] as const
+
+const DOCUMENT_TABS = [
+	{ id: 'documents', label: 'Docs', icon: FileText },
 	{ id: 'images', label: 'Images', icon: Image },
 	{ id: 'music', label: 'Music', icon: Music },
 ] as const
 
-type LibraryTab = (typeof LIBRARY_TABS)[number]['id']
+type LibrarySection = (typeof LIBRARY_SECTIONS)[number]['id']
+type DocumentTab = (typeof DOCUMENT_TABS)[number]['id']
 
-function isLibraryTab(value: string | null): value is LibraryTab {
-	return LIBRARY_TABS.some((tab) => tab.id === value)
+function isLibrarySection(value: string | null): value is LibrarySection {
+	return LIBRARY_SECTIONS.some((section) => section.id === value)
+}
+
+function isDocumentTab(value: string | null): value is DocumentTab {
+	return DOCUMENT_TABS.some((tab) => tab.id === value)
+}
+
+function resolveLibraryState(searchParams: URLSearchParams): {
+	section: LibrarySection
+	documentTab: DocumentTab
+} {
+	const sectionParam = searchParams.get('section')
+	const tabParam = searchParams.get('tab')
+
+	if (isLibrarySection(sectionParam)) {
+		return {
+			section: sectionParam,
+			documentTab: isDocumentTab(tabParam) ? tabParam : 'documents',
+		}
+	}
+
+	if (isDocumentTab(tabParam)) {
+		return { section: 'documents', documentTab: tabParam }
+	}
+
+	return { section: 'documents', documentTab: 'documents' }
 }
 
 export function LibraryPage() {
 	const [searchParams, setSearchParams] = useSearchParams()
-	const tabParam = searchParams.get('tab')
-	const activeTab: LibraryTab = isLibraryTab(tabParam) ? tabParam : 'documents'
+	const { section: activeSection, documentTab: activeDocumentTab } =
+		resolveLibraryState(searchParams)
 	const [query, setQuery] = useState('')
 
-	function setActiveTab(tab: LibraryTab): void {
+	function setActiveSection(section: LibrarySection): void {
+		if (section === 'documents') {
+			setSearchParams(activeDocumentTab === 'documents' ? {} : { tab: activeDocumentTab })
+			return
+		}
+
+		setSearchParams({ section })
+	}
+
+	function setActiveDocumentTab(tab: DocumentTab): void {
 		setSearchParams(tab === 'documents' ? {} : { tab })
 	}
 
+	const searchPlaceholder =
+		activeSection === 'documents'
+			? `Search ${activeDocumentTab}…`
+			: `Search ${activeSection}…`
+
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-hidden">
-			<header className="shrink-0 border-b border-border px-4 py-4 md:px-6">
-				<div>
-					<h1 className="text-xl font-semibold md:text-2xl">Library</h1>
-					<p className="mt-1 text-sm text-muted-foreground">
-						Documents, images, and music from uploads and generation. Everything
-						here can be downloaded.
-					</p>
-				</div>
-
-				<div className="mt-4 flex flex-wrap gap-2">
-					{LIBRARY_TABS.map(({ id, label, icon: Icon }) => (
+			<header className="shrink-0 border-b border-border/80 px-4 py-3 md:px-6">
+				<div className="library-section-tabs flex gap-1 rounded-xl bg-muted/50 p-1">
+					{LIBRARY_SECTIONS.map(({ id, label, icon: Icon }) => (
 						<button
 							key={id}
 							type="button"
-							onClick={() => setActiveTab(id)}
+							onClick={() => setActiveSection(id)}
 							className={cn(
-								'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors',
-								activeTab === id
-									? 'border-primary/40 bg-primary/15 text-primary'
-									: 'border-border bg-card text-muted-foreground hover:text-foreground',
+								'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium transition-colors sm:text-sm',
+								activeSection === id
+									? 'bg-card text-foreground shadow-sm ring-1 ring-border/60'
+									: 'text-muted-foreground hover:text-foreground',
 							)}
 						>
-							<Icon className="h-4 w-4" />
-							{label}
+							<Icon className="h-4 w-4 shrink-0" />
+							<span className="truncate">{label}</span>
 						</button>
 					))}
 				</div>
 
-				<div className="relative mt-4 max-w-md">
-					<Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-					<input
-						value={query}
-						onChange={(event) => setQuery(event.target.value)}
-						placeholder={`Search ${activeTab}…`}
-						className="w-full rounded-lg border border-input bg-background py-2 pr-3 pl-9 text-sm outline-none ring-ring focus:ring-2"
-					/>
-				</div>
+				{activeSection === 'documents' ? (
+					<div className="mt-3 flex flex-wrap gap-2">
+						{DOCUMENT_TABS.map(({ id, label, icon: Icon }) => (
+							<button
+								key={id}
+								type="button"
+								onClick={() => setActiveDocumentTab(id)}
+								className={cn(
+									'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors sm:text-sm',
+									activeDocumentTab === id
+										? 'border-primary/40 bg-primary/15 text-primary'
+										: 'border-border bg-card text-muted-foreground hover:text-foreground',
+								)}
+							>
+								<Icon className="h-3.5 w-3.5" />
+								{label}
+							</button>
+						))}
+					</div>
+				) : null}
+
+				{activeSection === 'documents' ? (
+					<div className="relative mt-3 max-w-md">
+						<Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+						<input
+							value={query}
+							onChange={(event) => setQuery(event.target.value)}
+							placeholder={searchPlaceholder}
+							className="w-full rounded-lg border border-input bg-background py-2 pr-3 pl-9 text-sm outline-none ring-ring focus:ring-2"
+						/>
+					</div>
+				) : null}
 			</header>
 
 			<ScrollArea className="min-h-0 flex-1">
 				<div className="min-w-0 px-4 py-4 md:px-6">
-					{activeTab === 'documents' ? (
+					{activeSection === 'schedule' ? (
+						<PlaceholderSection
+							title="Reminders & schedule"
+							description="Reminders, events, and your day at a glance will show up here."
+						/>
+					) : activeSection === 'projects' ? (
+						<PlaceholderSection
+							title="Projects"
+							description="Track ongoing work and link related documents. This space is ready for when projects land."
+						/>
+					) : activeDocumentTab === 'documents' ? (
 						<DocumentsSection query={query} />
 					) : (
 						<MediaSection
-							kind={activeTab === 'images' ? 'image' : 'audio'}
+							kind={activeDocumentTab === 'images' ? 'image' : 'audio'}
 							query={query}
 							emptyLabel={
-								activeTab === 'images'
+								activeDocumentTab === 'images'
 									? 'No images yet. Upload one with + in chat or generate an image.'
 									: 'No music yet. Generate music in chat to save it here.'
 							}
@@ -116,6 +189,21 @@ export function LibraryPage() {
 					)}
 				</div>
 			</ScrollArea>
+		</div>
+	)
+}
+
+function PlaceholderSection({
+	title,
+	description,
+}: {
+	title: string
+	description: string
+}) {
+	return (
+		<div className="library-placeholder rounded-2xl border border-dashed border-border/80 px-6 py-14 text-center">
+			<p className="text-sm font-medium text-foreground">{title}</p>
+			<p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{description}</p>
 		</div>
 	)
 }
@@ -184,7 +272,7 @@ function DocumentsSection({ query }: { query: string }) {
 					{filteredDocuments.map((document) => (
 						<div
 							key={document.id}
-							className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3"
+							className="flex items-center gap-3 rounded-xl border border-border/80 bg-card px-4 py-3"
 						>
 							<div className="min-w-0 flex-1">
 								{renamingId === document.id ? (
@@ -378,7 +466,7 @@ function MediaCard({
 	onDelete: () => void
 }) {
 	return (
-		<div className="min-w-0 rounded-xl border border-border bg-card p-4">
+		<div className="min-w-0 rounded-xl border border-border/80 bg-card p-4">
 			<div className="flex flex-wrap items-start justify-between gap-3">
 				<div className="min-w-0 flex-1">
 					{isRenaming ? (
@@ -461,7 +549,7 @@ function MediaCard({
 
 function EmptyState({ message }: { message: string }) {
 	return (
-		<div className="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+		<div className="rounded-xl border border-dashed border-border/80 px-4 py-10 text-center">
 			<p className="text-sm text-muted-foreground">{message}</p>
 		</div>
 	)
