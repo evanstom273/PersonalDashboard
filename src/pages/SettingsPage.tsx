@@ -36,6 +36,10 @@ import {
 } from '@/utils/notifications'
 import { isCapacitorNativePlatform } from '@/utils/capacitor'
 import { cn } from '@/utils/cn'
+import {
+	resolveSettingsTabFromParams,
+	type SettingsTab,
+} from '@/navigation/swipeNav'
 
 const SETTINGS_TABS = [
 	{ id: 'profile', label: 'Profile', icon: UserRound },
@@ -45,16 +49,9 @@ const SETTINGS_TABS = [
 	{ id: 'app', label: 'App', icon: Bell },
 ] as const
 
-type SettingsTab = (typeof SETTINGS_TABS)[number]['id']
-
-function isSettingsTab(value: string | null): value is SettingsTab {
-	return SETTINGS_TABS.some((tab) => tab.id === value)
-}
-
 export function SettingsPage() {
 	const [searchParams, setSearchParams] = useSearchParams()
-	const tabParam = searchParams.get('tab')
-	const activeTab: SettingsTab = isSettingsTab(tabParam) ? tabParam : 'profile'
+	const activeTab = resolveSettingsTabFromParams(searchParams)
 
 	const { preferences, savePreferences, isLoading } = usePreferencesContext()
 	const { previewVoice, status: speechStatus } = useTextToSpeechContext()

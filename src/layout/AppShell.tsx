@@ -3,6 +3,7 @@ import { useCallback } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
 import { useMobileNavLayout } from '@/hooks/useMobileNavLayout'
+import { useAppSwipeNavigation } from '@/hooks/useAppSwipeNavigation'
 import { BottomNav } from '@/layout/BottomNav'
 import {
 	useChatGenerationContext,
@@ -20,6 +21,10 @@ function getPageTitle(pathname: string, aiName: string): string {
 
 	if (pathname === '/chat') {
 		return aiName
+	}
+
+	if (pathname.startsWith('/library/projects/')) {
+		return 'Project'
 	}
 
 	if (pathname.startsWith('/library/documents/')) {
@@ -56,8 +61,11 @@ export function AppShell() {
 	const pageTitle = getPageTitle(location.pathname, aiName)
 	const showAppHeader =
 		!location.pathname.startsWith('/library/documents/') &&
+		!location.pathname.startsWith('/library/projects/') &&
 		location.pathname !== '/home' &&
 		!(isChatRoute && !isMobileNav)
+
+	useAppSwipeNavigation()
 
 	const handleClearChat = useCallback(async () => {
 		stopGeneration()

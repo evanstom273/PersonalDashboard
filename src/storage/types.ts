@@ -6,6 +6,43 @@ export type StoreName =
 	| 'libraryMedia'
 	| 'memories'
 	| 'reminders'
+	| 'projects'
+
+export const PROJECT_TASK_STATUS_OPTIONS = ['todo', 'doing', 'done'] as const
+
+export type ProjectTaskStatus = (typeof PROJECT_TASK_STATUS_OPTIONS)[number]
+
+export type ProjectSource = 'user' | 'assistant'
+
+export interface ProjectChecklistItem {
+	id: string
+	label: string
+	checked: boolean
+}
+
+export interface ProjectTaskRecord {
+	id: string
+	title: string
+	note?: string
+	status: ProjectTaskStatus
+	position: number
+	checklist: ProjectChecklistItem[]
+	documentIds: string[]
+	reminderId?: string
+	createdAt: number
+	updatedAt: number
+}
+
+export interface ProjectRecord {
+	id: string
+	title: string
+	description?: string
+	documentIds: string[]
+	tasks: ProjectTaskRecord[]
+	source: ProjectSource
+	createdAt: number
+	updatedAt: number
+}
 
 export const REMINDER_RECURRENCE_OPTIONS = [
 	'none',

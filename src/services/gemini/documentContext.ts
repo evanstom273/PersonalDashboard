@@ -5,6 +5,7 @@ import {
 	normalizeDocumentRecord,
 } from '@/utils/documentContent'
 import { buildMemoryContextFromStore } from '@/services/gemini/memoryContext'
+import { buildProjectContextFromStore } from '@/services/gemini/projectContext'
 import { buildScheduleContextFromStore } from '@/services/gemini/scheduleContext'
 import { buildSystemInstruction } from '@/services/gemini/systemInstruction'
 import type { UserPreferences } from '@/storage/types'
@@ -96,6 +97,7 @@ export async function buildFullSystemInstruction(
 	const base = buildSystemInstruction(preferences)
 	const memoryContext = await buildMemoryContextFromStore()
 	const scheduleContext = await buildScheduleContextFromStore()
+	const projectContext = await buildProjectContextFromStore()
 	const libraryContext = buildDocumentLibraryContext(documents)
-	return `${base}\n\n${memoryContext}\n\n${scheduleContext}\n\n${libraryContext}`
+	return `${base}\n\n${memoryContext}\n\n${scheduleContext}\n\n${projectContext}\n\n${libraryContext}`
 }
