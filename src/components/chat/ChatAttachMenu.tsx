@@ -18,6 +18,7 @@ import {
 	ModelMenuItem,
 } from '@/components/ui/dropdown-menu'
 import { CHAT_MODEL_IDS } from '@/services/gemini/constants'
+import type { GenerationIntent } from '@/services/gemini/constants'
 import {
 	getModelById,
 	getModelsByCategory,
@@ -38,6 +39,8 @@ interface ChatAttachMenuProps {
 	onImageModelChange: (modelId: string) => void
 	onMusicModelChange: (modelId: string) => void
 	onVideoModelChange: (modelId: string) => void
+	forcedNextIntent: GenerationIntent | null
+	onForceNextIntent: (intent: GenerationIntent | null) => void
 	onDocumentUpload: (file: File) => void
 	onImageUpload: (file: File) => void
 }
@@ -62,6 +65,8 @@ export function ChatAttachMenu({
 	onImageModelChange,
 	onMusicModelChange,
 	onVideoModelChange,
+	forcedNextIntent,
+	onForceNextIntent,
 	onDocumentUpload,
 	onImageUpload,
 }: ChatAttachMenuProps) {
@@ -218,8 +223,27 @@ export function ChatAttachMenu({
 										)}
 									/>
 								</DropdownMenuItem>
-								{isExpanded
-									? models.map((model) => (
+								{isExpanded ? (
+									<>
+										<DropdownMenuItem
+											onSelect={(event) => {
+												event.preventDefault()
+												onForceNextIntent(
+													forcedNextIntent === category ? null : category,
+												)
+											}}
+											className={cn(
+												'py-2 pl-8 text-xs',
+												forcedNextIntent === category && 'bg-primary/10',
+											)}
+										>
+											<span className="font-medium">
+												{forcedNextIntent === category
+													? 'Next message uses this model ✓'
+													: 'Use for next message only'}
+											</span>
+										</DropdownMenuItem>
+										{models.map((model) => (
 											<ModelMenuItem
 												key={model.id}
 												label={model.name}
@@ -230,8 +254,9 @@ export function ChatAttachMenu({
 												}
 												className="pl-8"
 											/>
-										))
-									: null}
+										))}
+									</>
+								) : null}
 							</div>
 						)
 					})}

@@ -164,11 +164,28 @@ export function useMainConversation(defaultModelId: string) {
 		[ensureConversation, persistConversation],
 	)
 
+	const clearConversation = useCallback(async (): Promise<ConversationRecord> => {
+		const existing =
+			(await getValue<ConversationRecord>(
+				'conversations',
+				MAIN_CONVERSATION_ID,
+			)) ?? (await ensureConversation())
+
+		const cleared: ConversationRecord = {
+			...existing,
+			messages: [],
+			updatedAt: Date.now(),
+		}
+		await persistConversation(cleared)
+		return cleared
+	}, [ensureConversation, persistConversation])
+
 	return {
 		conversation,
 		isLoading,
 		appendMessages,
 		updateMessage,
 		ensureConversation,
+		clearConversation,
 	}
 }

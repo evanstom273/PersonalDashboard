@@ -16,6 +16,8 @@ import { insertDocumentMention, buildDocumentMention } from '@/utils/documentMen
 import { createDocument } from '@/services/documents/documentService'
 import { normalizeDocumentContent } from '@/utils/documentContent'
 import type { ChatAttachment, ChatSubmitPayload } from '@/types/chat'
+import type { GenerationIntent } from '@/services/gemini/constants'
+import { MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
 import {
 	getFileBaseName,
 	isImageFile,
@@ -38,6 +40,8 @@ interface ChatInputProps {
 	onImageModelChange: (modelId: string) => void
 	onMusicModelChange: (modelId: string) => void
 	onVideoModelChange: (modelId: string) => void
+	forcedNextIntent: GenerationIntent | null
+	onForceNextIntent: (intent: GenerationIntent | null) => void
 	onSubmit: (payload: ChatSubmitPayload) => void
 	onStop?: () => void
 }
@@ -55,6 +59,8 @@ export function ChatInput({
 	onImageModelChange,
 	onMusicModelChange,
 	onVideoModelChange,
+	forcedNextIntent,
+	onForceNextIntent,
 	onSubmit,
 	onStop,
 }: ChatInputProps) {
@@ -313,18 +319,36 @@ export function ChatInput({
 				</div>
 			) : null}
 
-			{webSearchEnabled ? (
+			{webSearchEnabled || forcedNextIntent ? (
 				<div className="mx-auto mb-2 flex max-w-3xl flex-wrap items-center gap-2">
-					<span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground ring-1 ring-border">
-						Web search on
-					</span>
-					<button
-						type="button"
-						className="text-xs text-muted-foreground underline-offset-4 hover:underline"
-						onClick={() => onWebSearchChange(false)}
-					>
-						Turn off
-					</button>
+					{forcedNextIntent ? (
+						<>
+							<span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
+								Next: {MODEL_CATEGORY_LABELS[forcedNextIntent]} generation
+							</span>
+							<button
+								type="button"
+								className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+								onClick={() => onForceNextIntent(null)}
+							>
+								Cancel
+							</button>
+						</>
+					) : null}
+					{webSearchEnabled ? (
+						<>
+							<span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground ring-1 ring-border">
+								Web search on
+							</span>
+							<button
+								type="button"
+								className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+								onClick={() => onWebSearchChange(false)}
+							>
+								Turn off
+							</button>
+						</>
+					) : null}
 				</div>
 			) : null}
 
@@ -384,6 +408,8 @@ export function ChatInput({
 						onImageModelChange={onImageModelChange}
 						onMusicModelChange={onMusicModelChange}
 						onVideoModelChange={onVideoModelChange}
+						forcedNextIntent={forcedNextIntent}
+						onForceNextIntent={onForceNextIntent}
 						onDocumentUpload={(file) => {
 							void handleDocumentUpload(file)
 						}}

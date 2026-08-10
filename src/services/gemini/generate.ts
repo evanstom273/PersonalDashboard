@@ -18,7 +18,11 @@ interface GenerateContentResponse {
 				}
 			}>
 		}
+		finishReason?: string
 	}>
+	promptFeedback?: {
+		blockReason?: string
+	}
 }
 
 function buildChatParts(message: ChatMessageInput): Array<{
@@ -86,6 +90,11 @@ export async function generateImage(
 	modelId: string,
 	prompt: string,
 ): Promise<{ text: string; media: MessageMedia[] }> {
+	const trimmedPrompt = prompt.trim()
+	const imagePrompt = /\b(generate|create|make|draw|render)\b/i.test(trimmedPrompt)
+		? trimmedPrompt
+		: `Generate an image: ${trimmedPrompt}`
+
 	const response = await geminiFetch<GenerateContentResponse>(
 		apiKey,
 		`/models/${modelId}:generateContent`,
@@ -95,7 +104,7 @@ export async function generateImage(
 				contents: [
 					{
 						role: 'user',
-						parts: [{ text: prompt }],
+						parts: [{ text: imagePrompt }],
 					},
 				],
 				generationConfig: {
@@ -105,7 +114,23 @@ export async function generateImage(
 		},
 	)
 
-	return parseContentResponse(response)
+	const parsed = parseContentResponse(response)
+
+	if (parsed.media.length === 0) {
+		const finishReason = response.candidates?.[0]?.finishReason
+		const blockReason = response.promptFeedback?.blockReason
+		const detail = finishReason
+			? `Finish reason: ${finishReason}.`
+			: blockReason
+				? `Blocked: ${blockReason}.`
+				: 'The image model returned text only.'
+
+		throw new Error(
+			`Image generation did not return a file. ${detail} Start your message with "generate an image of…" and confirm your image model in the + menu.`,
+		)
+	}
+
+	return parsed
 }
 
 export async function generateMusic(
