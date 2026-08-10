@@ -84,7 +84,7 @@ export function ChatMessages({
 							isStreaming
 						/>
 					) : null}
-					{isGenerating && !streamingAssistant?.content ? (
+					{isGenerating && !streamingAssistant ? (
 						<div className="flex items-center gap-3 border-t border-border/40 py-6 text-sm text-muted-foreground">
 							<Loader2 className="h-4 w-4 animate-spin" />
 							{aiName} is thinking…
