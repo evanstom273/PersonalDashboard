@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
 import { useMobileNavLayout } from '@/hooks/useMobileNavLayout'
 import { useAppSwipeNavigation } from '@/hooks/useAppSwipeNavigation'
+import { useSwipePageTransition } from '@/hooks/useSwipePageTransition'
 import { BottomNav } from '@/layout/BottomNav'
 import {
 	useChatGenerationContext,
@@ -59,13 +60,14 @@ export function AppShell() {
 	const selectedModel = getModelById(preferences.defaultModelId)
 	const isChatRoute = location.pathname === '/chat'
 	const pageTitle = getPageTitle(location.pathname, aiName)
+	const { navigateWithFade, contentClassName } = useSwipePageTransition()
 	const showAppHeader =
 		!location.pathname.startsWith('/library/documents/') &&
 		!location.pathname.startsWith('/library/projects/') &&
 		location.pathname !== '/home' &&
 		!(isChatRoute && !isMobileNav)
 
-	useAppSwipeNavigation()
+	useAppSwipeNavigation(navigateWithFade)
 
 	const handleClearChat = useCallback(async () => {
 		stopGeneration()
@@ -159,7 +161,7 @@ export function AppShell() {
 				</div>
 			) : null}
 
-			<main className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', 'touch-pan-y')}>
+			<main className={cn(contentClassName, 'touch-pan-y')}>
 				<Outlet />
 			</main>
 

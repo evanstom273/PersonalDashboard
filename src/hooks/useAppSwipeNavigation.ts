@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useMobileNavLayout } from '@/hooks/useMobileNavLayout'
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation'
 import {
@@ -9,9 +9,10 @@ import {
 	resolveSwipeNavIndex,
 } from '@/navigation/swipeNav'
 
-export function useAppSwipeNavigation(): void {
+export function useAppSwipeNavigation(
+	navigateWithFade: (target: { pathname: string; search: string }) => void,
+): void {
 	const location = useLocation()
-	const navigate = useNavigate()
 	const isMobileNav = useMobileNavLayout()
 
 	const enabled =
@@ -36,18 +37,14 @@ export function useAppSwipeNavigation(): void {
 				return
 			}
 
-			const target = buildSwipeNavLocation(step)
-			navigate({
-				pathname: target.pathname,
-				search: target.search,
-			})
+			navigateWithFade(buildSwipeNavLocation(step))
 		},
-		[location.pathname, location.search, navigate],
+		[location.pathname, location.search, navigateWithFade],
 	)
 
 	useSwipeNavigation({
 		enabled,
-		onSwipeLeft: () => navigateByOffset(-1),
-		onSwipeRight: () => navigateByOffset(1),
+		onSwipeLeft: () => navigateByOffset(1),
+		onSwipeRight: () => navigateByOffset(-1),
 	})
 }
