@@ -26,7 +26,7 @@ export const MEMORY_ARCHIVE_INTERVAL_OPTIONS = [5, 10, 15, 20] as const
 export type MemoryArchiveInterval =
 	(typeof MEMORY_ARCHIVE_INTERVAL_OPTIONS)[number]
 
-export type LibraryMediaKind = 'image' | 'audio' | 'video'
+export type LibraryMediaKind = 'image' | 'audio'
 
 export interface LibraryMediaRecord {
 	id: string
@@ -45,7 +45,6 @@ export interface UserPreferences {
 	defaultModelId: string
 	defaultImageModelId: string
 	defaultMusicModelId: string
-	defaultVideoModelId: string
 	userName: string
 	aiName: string
 	aiBehaviorInstructions: string
@@ -57,7 +56,6 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	defaultModelId: 'gemini-3.6-flash',
 	defaultImageModelId: 'gemini-3.1-flash-image',
 	defaultMusicModelId: 'lyria-3-pro-preview',
-	defaultVideoModelId: 'veo-3.1-lite-generate-preview',
 	userName: '',
 	aiName: '',
 	aiBehaviorInstructions: '',
@@ -105,7 +103,7 @@ export interface PendingDeleteConfirmation {
 }
 
 export interface MessageMedia {
-	type: 'image' | 'audio' | 'video'
+	type: 'image' | 'audio'
 	mimeType: string
 	dataUrl: string
 }

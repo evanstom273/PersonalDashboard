@@ -41,8 +41,7 @@ function buildMediaTitle(
 		return fallbackName.trim()
 	}
 
-	const label =
-		kind === 'image' ? 'Image' : kind === 'audio' ? 'Music' : 'Video'
+	const label = kind === 'image' ? 'Image' : 'Music'
 	return `${label} ${new Date().toLocaleString()}`
 }
 

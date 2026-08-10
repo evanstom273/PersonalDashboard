@@ -9,7 +9,6 @@ import {
 import { cn } from '@/utils/cn'
 
 interface MediaLightboxProps {
-	kind: 'image' | 'video'
 	src: string
 	alt: string
 	title?: string
@@ -18,7 +17,6 @@ interface MediaLightboxProps {
 }
 
 export function MediaLightbox({
-	kind,
 	src,
 	alt,
 	title,
@@ -36,29 +34,16 @@ export function MediaLightbox({
 					'group relative block w-full min-w-0 overflow-hidden rounded-lg ring-1 ring-border',
 					className,
 				)}
-				aria-label={`View ${kind} full screen`}
+				aria-label="View image full screen"
 			>
-				{kind === 'image' ? (
-					<img
-						src={src}
-						alt={alt}
-						className={cn(
-							'block max-h-64 w-full max-w-full object-contain md:max-h-80',
-							previewClassName,
-						)}
-					/>
-				) : (
-					<video
-						src={src}
-						muted
-						playsInline
-						preload="metadata"
-						className={cn(
-							'block max-h-64 w-full max-w-full object-contain md:max-h-80',
-							previewClassName,
-						)}
-					/>
-				)}
+				<img
+					src={src}
+					alt={alt}
+					className={cn(
+						'block max-h-64 w-full max-w-full object-contain md:max-h-80',
+						previewClassName,
+					)}
+				/>
 				<span className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/45 via-transparent to-transparent p-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
 					<span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[11px] font-medium text-white">
 						<Maximize2 className="h-3 w-3" />
@@ -74,24 +59,14 @@ export function MediaLightbox({
 				>
 					<DialogTitle className="sr-only">{title ?? alt}</DialogTitle>
 					<DialogDescription className="sr-only">
-						Full screen {kind} viewer
+						Full screen image viewer
 					</DialogDescription>
 					<div className="flex min-h-0 flex-1 items-center justify-center p-4 pt-14">
-						{kind === 'image' ? (
-							<img
-								src={src}
-								alt={alt}
-								className="max-h-[calc(100vh-5rem)] max-w-full object-contain"
-							/>
-						) : (
-							<video
-								src={src}
-								controls
-								autoPlay
-								playsInline
-								className="max-h-[calc(100vh-5rem)] max-w-full"
-							/>
-						)}
+						<img
+							src={src}
+							alt={alt}
+							className="max-h-[calc(100vh-5rem)] max-w-full object-contain"
+						/>
 					</div>
 					{title ? (
 						<p className="shrink-0 truncate px-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-sm text-white/80">

@@ -47,35 +47,3 @@ export async function geminiFetch<T>(
 export function toDataUrl(mimeType: string, base64Data: string): string {
 	return `data:${mimeType};base64,${base64Data}`
 }
-
-export async function pollOperation<T>(
-	apiKey: string,
-	operationName: string,
-	maxAttempts = 60,
-	intervalMs = 3000,
-): Promise<T> {
-	for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-		const operation = await geminiFetch<{
-			done?: boolean
-			error?: { message?: string }
-			response?: T
-		}>(apiKey, `/${operationName}`)
-
-		if (operation.error?.message) {
-			throw new GeminiApiError(operation.error.message, 500)
-		}
-
-		if (operation.done) {
-			if (!operation.response) {
-				throw new GeminiApiError('Operation completed without a response', 500)
-			}
-			return operation.response
-		}
-
-		await new Promise((resolve) => {
-			setTimeout(resolve, intervalMs)
-		})
-	}
-
-	throw new GeminiApiError('Operation timed out', 504)
-}

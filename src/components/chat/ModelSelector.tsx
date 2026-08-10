@@ -16,7 +16,7 @@ import {
 	type ModelCategory,
 } from '@/services/gemini/models'
 
-const CATEGORY_ORDER: ModelCategory[] = ['chat', 'image', 'music', 'video']
+const CATEGORY_ORDER: ModelCategory[] = ['chat', 'image', 'music']
 
 interface ModelSelectorProps {
 	value: string

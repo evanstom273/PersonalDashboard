@@ -36,12 +36,10 @@ interface ChatInputProps {
 	selectedChatModelId: string
 	selectedImageModelId: string
 	selectedMusicModelId: string
-	selectedVideoModelId: string
 	onWebSearchChange: (enabled: boolean) => void
 	onChatModelChange: (modelId: string) => void
 	onImageModelChange: (modelId: string) => void
 	onMusicModelChange: (modelId: string) => void
-	onVideoModelChange: (modelId: string) => void
 	forcedNextIntent: GenerationIntent | null
 	onForceNextIntent: (intent: GenerationIntent | null) => void
 	onSubmit: (payload: ChatSubmitPayload) => void
@@ -55,12 +53,10 @@ export function ChatInput({
 	selectedChatModelId,
 	selectedImageModelId,
 	selectedMusicModelId,
-	selectedVideoModelId,
 	onWebSearchChange,
 	onChatModelChange,
 	onImageModelChange,
 	onMusicModelChange,
-	onVideoModelChange,
 	forcedNextIntent,
 	onForceNextIntent,
 	onSubmit,
@@ -416,12 +412,10 @@ export function ChatInput({
 						selectedChatModelId={selectedChatModelId}
 						selectedImageModelId={selectedImageModelId}
 						selectedMusicModelId={selectedMusicModelId}
-						selectedVideoModelId={selectedVideoModelId}
 						onWebSearchChange={onWebSearchChange}
 						onChatModelChange={onChatModelChange}
 						onImageModelChange={onImageModelChange}
 						onMusicModelChange={onMusicModelChange}
-						onVideoModelChange={onVideoModelChange}
 						forcedNextIntent={forcedNextIntent}
 						onForceNextIntent={onForceNextIntent}
 						onDocumentUpload={(file) => {

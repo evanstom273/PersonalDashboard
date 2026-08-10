@@ -2,7 +2,6 @@ import {
 	generateChatResponse,
 	generateImage,
 	generateMusic,
-	generateVideo,
 	type ChatMessageInput,
 } from '@/services/gemini/generate'
 import { getModelById } from '@/services/gemini/models'
@@ -34,8 +33,6 @@ export async function runModelGeneration(
 			return generateImage(apiKey, modelId, prompt)
 		case 'music':
 			return generateMusic(apiKey, modelId, prompt)
-		case 'video':
-			return generateVideo(apiKey, modelId, prompt)
 		default: {
 			const exhaustiveCheck: never = model.category
 			throw new Error(`Unsupported model category: ${exhaustiveCheck}`)

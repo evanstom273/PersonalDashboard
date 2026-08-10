@@ -13,7 +13,7 @@ export interface ResolvedPrompt {
 export interface IntentMessageContext {
 	role: 'user' | 'assistant'
 	content: string
-	mediaTypes?: Array<'image' | 'audio' | 'video'>
+	mediaTypes?: Array<'image' | 'audio'>
 }
 
 interface IntentPattern {
@@ -22,7 +22,6 @@ interface IntentPattern {
 }
 
 const INTENT_PATTERNS: IntentPattern[] = [
-	// Image — explicit "generate image" phrasing (with optional "a/an")
 	{
 		intent: 'image',
 		regex:
@@ -56,7 +55,6 @@ const INTENT_PATTERNS: IntentPattern[] = [
 		regex:
 			/^(?:can you|could you|please)\s+(?:generate|create|make|draw)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|photo|illustration|artwork)\s*(?:of|for|showing|about)?\s*([\s\S]*)$/i,
 	},
-	// Music
 	{
 		intent: 'music',
 		regex:
@@ -70,21 +68,6 @@ const INTENT_PATTERNS: IntentPattern[] = [
 		intent: 'music',
 		regex:
 			/^(?:create|make|compose)\s+(?:me\s+)?(?:an?\s+)?(?:music|song|track)(?:[:\s,-]+([\s\S]*))?$/i,
-	},
-	// Video
-	{
-		intent: 'video',
-		regex:
-			/^generate\s+(?:an?\s+)?video\s+(?:of|for|showing|about)\s+([\s\S]+)$/i,
-	},
-	{
-		intent: 'video',
-		regex: /^generate\s+(?:an?\s+)?video(?:[:\s,-]+([\s\S]*))?$/i,
-	},
-	{
-		intent: 'video',
-		regex:
-			/^(?:create|make)\s+(?:me\s+)?(?:an?\s+)?video(?:[:\s,-]+([\s\S]*))?$/i,
 	},
 ]
 
@@ -144,44 +127,6 @@ const CONVERSATIONAL_INTENT_PATTERNS: IntentPattern[] = [
 		regex:
 			/\b(?:can you|could you)\s+(?:also\s+)?(?:generate|create|make|draw|render|design)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|photo|illustration|artwork)\b/i,
 	},
-	{
-		intent: 'video',
-		regex:
-			/\bwhat about (?:an?\s+)?(?:video|clip|animation|footage|montage|sequence)\b/i,
-	},
-	{
-		intent: 'video',
-		regex:
-			/\bhow about (?:an?\s+)?(?:video|clip|animation|footage|montage|sequence)\b/i,
-	},
-	{
-		intent: 'video',
-		regex:
-			/\b(?:matching|similar|complementing|corresponding)\s+(?:\d+\s*(?:second|sec|minute|min)[-\s]*)?(?:video|clip|animation|footage|montage|sequence)\b/i,
-	},
-	{
-		intent: 'video',
-		regex:
-			/\b(?:a\s+)?\d+\s*(?:second|sec|minute|min)[-\s]*(?:video|clip|animation|footage|montage)\b/i,
-	},
-	{
-		intent: 'video',
-		regex:
-			/\b(?:also|now)\s+(?:an?\s+)?(?:video|clip|animation|footage|montage)\b/i,
-	},
-	{
-		intent: 'video',
-		regex:
-			/\b(?:an?\s+)?(?:video|clip|animation|footage|montage)\s+of\s+(?:it|that|this|them)\b/i,
-	},
-	{
-		intent: 'video',
-		regex: /\b(?:can you|could you)\s+animate\b/i,
-	},
-	{
-		intent: 'video',
-		regex: /\b(?:animate|animation of)\s+(?:it|that|this|them)\b/i,
-	},
 ]
 
 const LOOSE_INTENT_PATTERNS: IntentPattern[] = [
@@ -200,15 +145,6 @@ const LOOSE_INTENT_PATTERNS: IntentPattern[] = [
 		regex:
 			/\b(?:generate|create|make|compose)\s+(?:me\s+)?(?:an?\s+)?(?:music|song|track|beat|jingle)\b/i,
 	},
-	{
-		intent: 'video',
-		regex: /\b(?:generate|create|make)\s+(?:me\s+)?(?:an?\s+)?video\b/i,
-	},
-	{
-		intent: 'video',
-		regex:
-			/\b(?:video|clip|animation|footage|montage)\s+(?:of|for|showing|about|depicting)\s+/i,
-	},
 ]
 
 const CONTEXTUAL_FOLLOW_UP_PATTERNS: RegExp[] = [
@@ -221,10 +157,8 @@ const CONTEXTUAL_FOLLOW_UP_PATTERNS: RegExp[] = [
 	/\bto go with\b/i,
 	/\bfor that\b/i,
 	/\bfor it\b/i,
-	/\b(?:also|now)\s+(?:some\s+)?(?:music|an?\s+(?:image|picture|photo|video|clip|track|song|instrumental|animation|footage))\b/i,
-	/\b(?:image|picture|photo|illustration|video|clip|animation|footage)\s+of\s+(?:it|that|this|them)\b/i,
-	/\b(?:can you|could you)\s+animate\b/i,
-	/\b(?:animate|animation of)\s+(?:it|that|this|them)\b/i,
+	/\b(?:also|now)\s+(?:some\s+)?(?:music|an?\s+(?:image|picture|photo|track|song|instrumental))\b/i,
+	/\b(?:image|picture|photo|illustration)\s+of\s+(?:it|that|this|them)\b/i,
 	/\b(?:same|that)\s+(?:style|vibe|look|aesthetic)\b/i,
 ]
 
@@ -247,16 +181,9 @@ function formatMediaSummary(
 		return ''
 	}
 
-	const labels = mediaTypes.map((type) => {
-		switch (type) {
-			case 'image':
-				return 'generated image'
-			case 'audio':
-				return 'generated music'
-			case 'video':
-				return 'generated video'
-		}
-	})
+	const labels = mediaTypes.map((type) =>
+		type === 'image' ? 'generated image' : 'generated music',
+	)
 
 	return ` [${labels.join(', ')}]`
 }
@@ -378,7 +305,5 @@ export function getIntentLabel(intent: ResolvedPrompt['intent']): string {
 			return 'Image generation'
 		case 'music':
 			return 'Music generation'
-		case 'video':
-			return 'Video generation'
 	}
 }

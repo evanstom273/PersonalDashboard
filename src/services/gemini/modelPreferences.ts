@@ -5,7 +5,6 @@ export interface GenerationModelPreferences {
 	chatModelId: string
 	imageModelId: string
 	musicModelId: string
-	videoModelId: string
 }
 
 export function getGenerationModelPreferences(
@@ -15,7 +14,6 @@ export function getGenerationModelPreferences(
 		chatModelId: preferences.defaultModelId,
 		imageModelId: preferences.defaultImageModelId,
 		musicModelId: preferences.defaultMusicModelId,
-		videoModelId: preferences.defaultVideoModelId,
 	}
 }
 
@@ -30,7 +28,5 @@ export function getModelIdForIntent(
 			return models.imageModelId
 		case 'music':
 			return models.musicModelId
-		case 'video':
-			return models.videoModelId
 	}
 }

@@ -34,7 +34,6 @@ Your API key is stored locally in IndexedDB and sent directly from your browser 
 | Chat | Gemini 3.6 Flash, Gemini 3.1 Pro |
 | Image | Nano Banana Pro, Nano Banana 2, Nano Banana 2 Lite |
 | Music | Lyria 3 Pro, Lyria 3 Clip |
-| Video | Veo 3.1, Veo 3.1 Lite |
 
 ## Build
 

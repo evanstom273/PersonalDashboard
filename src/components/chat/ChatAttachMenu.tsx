@@ -5,7 +5,6 @@ import {
 	ImagePlus,
 	Music,
 	Plus,
-	Video,
 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import {
@@ -33,12 +32,10 @@ interface ChatAttachMenuProps {
 	selectedChatModelId: string
 	selectedImageModelId: string
 	selectedMusicModelId: string
-	selectedVideoModelId: string
 	onWebSearchChange: (enabled: boolean) => void
 	onChatModelChange: (modelId: string) => void
 	onImageModelChange: (modelId: string) => void
 	onMusicModelChange: (modelId: string) => void
-	onVideoModelChange: (modelId: string) => void
 	forcedNextIntent: GenerationIntent | null
 	onForceNextIntent: (intent: GenerationIntent | null) => void
 	onDocumentUpload: (file: File) => void
@@ -50,7 +47,6 @@ type ExpandableCategory = Exclude<ModelCategory, 'chat'>
 const CATEGORY_ICONS = {
 	image: ImagePlus,
 	music: Music,
-	video: Video,
 } as const
 
 export function ChatAttachMenu({
@@ -59,12 +55,10 @@ export function ChatAttachMenu({
 	selectedChatModelId,
 	selectedImageModelId,
 	selectedMusicModelId,
-	selectedVideoModelId,
 	onWebSearchChange,
 	onChatModelChange,
 	onImageModelChange,
 	onMusicModelChange,
-	onVideoModelChange,
 	forcedNextIntent,
 	onForceNextIntent,
 	onDocumentUpload,
@@ -83,7 +77,6 @@ export function ChatAttachMenu({
 	const selectedByCategory: Record<ExpandableCategory, string> = {
 		image: selectedImageModelId,
 		music: selectedMusicModelId,
-		video: selectedVideoModelId,
 	}
 
 	const onModelChangeByCategory: Record<
@@ -92,7 +85,6 @@ export function ChatAttachMenu({
 	> = {
 		image: onImageModelChange,
 		music: onMusicModelChange,
-		video: onVideoModelChange,
 	}
 
 	function handleMenuOpenChange(open: boolean): void {
@@ -189,7 +181,7 @@ export function ChatAttachMenu({
 
 					<DropdownMenuSeparator />
 					<DropdownMenuLabel>Generation models</DropdownMenuLabel>
-					{(['image', 'music', 'video'] as const).map((category) => {
+					{(['image', 'music'] as const).map((category) => {
 						const Icon = CATEGORY_ICONS[category]
 						const selectedModel = getModelById(selectedByCategory[category])
 						const models = getModelsByCategory(category)
