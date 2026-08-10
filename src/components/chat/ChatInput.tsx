@@ -180,60 +180,111 @@ export function ChatInput({
 		resetSpeechState()
 	}
 
-	async function handleDocumentUpload(file: File): Promise<void> {
+	async function handleDocumentUploads(files: File[]): Promise<void> {
 		setAttachError(null)
 
-		if (!isTextDocumentFile(file)) {
-			setAttachError('Upload a text document (.txt, .md, .html, etc.).')
+		if (files.length === 0) {
 			return
 		}
 
-		try {
-			const raw = await readTextFile(file)
-			const { content, contentFormat } = ingestUploadedDocumentContent(file, raw)
-			const title = getFileBaseName(file.name) || 'Uploaded document'
-			const document = await createDocument(title, content, {
-				source: 'upload',
-				contentFormat,
-				readOnly: true,
-			})
+		const results = await Promise.allSettled(
+			files.map(async (file) => {
+				if (!isTextDocumentFile(file)) {
+					throw new Error(
+						`${file.name} is not a supported text document (.txt, .md, .html, etc.).`,
+					)
+				}
 
-			setAttachments((current) => [
-				...current,
-				{
+				const raw = await readTextFile(file)
+				const { content, contentFormat } = ingestUploadedDocumentContent(file, raw)
+				const title = getFileBaseName(file.name) || 'Uploaded document'
+				const document = await createDocument(title, content, {
+					source: 'upload',
+					contentFormat,
+					readOnly: true,
+				})
+
+				return {
 					id: crypto.randomUUID(),
-					type: 'document',
+					type: 'document' as const,
 					name: document.title,
 					documentId: document.id,
-				},
-			])
-		} catch {
-			setAttachError('Could not upload that document.')
+				}
+			}),
+		)
+
+		const nextAttachments: ChatAttachment[] = []
+		const errors: string[] = []
+
+		for (const result of results) {
+			if (result.status === 'fulfilled') {
+				nextAttachments.push(result.value)
+				continue
+			}
+
+			errors.push(
+				result.reason instanceof Error
+					? result.reason.message
+					: 'Could not upload one of the documents.',
+			)
+		}
+
+		if (nextAttachments.length > 0) {
+			setAttachments((current) => [...current, ...nextAttachments])
+		}
+
+		if (errors.length > 0) {
+			setAttachError(errors.join(' '))
 		}
 	}
 
-	async function handleImageUpload(file: File): Promise<void> {
+	async function handleImageUploads(files: File[]): Promise<void> {
 		setAttachError(null)
 
-		if (!isImageFile(file)) {
-			setAttachError('Upload an image file.')
+		if (files.length === 0) {
 			return
 		}
 
-		try {
-			const { dataUrl, mimeType } = await readFileAsDataUrl(file)
-			setAttachments((current) => [
-				...current,
-				{
+		const results = await Promise.allSettled(
+			files.map(async (file) => {
+				if (!isImageFile(file)) {
+					throw new Error(`${file.name} is not an image file.`)
+				}
+
+				const { dataUrl, mimeType } = await readFileAsDataUrl(file)
+
+				return {
 					id: crypto.randomUUID(),
-					type: 'image',
+					type: 'image' as const,
 					name: file.name,
 					dataUrl,
 					mimeType,
-				},
-			])
-		} catch {
-			setAttachError('Could not upload that image.')
+				}
+			}),
+		)
+
+		const nextAttachments: ChatAttachment[] = []
+		const errors: string[] = []
+
+		for (const result of results) {
+			if (result.status === 'fulfilled') {
+				nextAttachments.push(result.value)
+				continue
+			}
+
+			errors.push(
+				result.reason instanceof Error
+					? result.reason.message
+					: 'Could not upload one of the images.',
+			)
+		}
+
+		if (nextAttachments.length > 0) {
+			setAttachments((current) => [...current, ...nextAttachments])
+		}
+
+		if (errors.length > 0) {
+			setAttachError(errors.join(' '))
 		}
 	}
 
@@ -433,11 +484,11 @@ export function ChatInput({
 						onMusicModelChange={onMusicModelChange}
 						forcedNextIntent={forcedNextIntent}
 						onForceNextIntent={onForceNextIntent}
-						onDocumentUpload={(file) => {
-							void handleDocumentUpload(file)
+						onDocumentUpload={(files) => {
+							void handleDocumentUploads(files)
 						}}
-						onImageUpload={(file) => {
-							void handleImageUpload(file)
+						onImageUpload={(files) => {
+							void handleImageUploads(files)
 						}}
 					/>
 
@@ -522,8 +573,8 @@ export function ChatInput({
 			</div>
 
 			<p className="mx-auto mt-2 hidden max-w-3xl text-center text-xs text-muted-foreground md:block">
-				Use <span className="font-medium text-foreground">+</span> to attach files or
-				choose models. Type{' '}
+				Use <span className="font-medium text-foreground">+</span> to attach one or
+				more files, or choose models. Type{' '}
 				<span className="font-medium text-foreground">@</span> to reference documents.
 			</p>
 		</form>
