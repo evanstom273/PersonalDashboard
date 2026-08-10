@@ -27,7 +27,7 @@ jobs:
       - run: npm run generate:icons
       - run: npm run build
         env:
-          VITE_BASE_PATH: /PersonalDashboard/
+          VITE_BASE_PATH: /personal-ai/
       - run: cp dist/index.html dist/404.html
       - uses: actions/upload-pages-artifact@v3
         with:
