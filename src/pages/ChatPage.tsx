@@ -172,6 +172,8 @@ export function ChatPage() {
 				disabled={!hasApiKey}
 				isGenerating={isGenerating}
 				webSearchEnabled={webSearchEnabled}
+				geminiApiKey={preferences.geminiApiKey}
+				transcriptionModelId={preferences.defaultModelId}
 				selectedChatModelId={preferences.defaultModelId}
 				selectedImageModelId={preferences.defaultImageModelId}
 				selectedMusicModelId={preferences.defaultMusicModelId}

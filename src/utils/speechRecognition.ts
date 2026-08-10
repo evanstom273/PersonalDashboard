@@ -20,11 +20,45 @@ export function isAndroidDevice(): boolean {
 	return /Android/i.test(navigator.userAgent)
 }
 
+export function isStandalonePwa(): boolean {
+	if (typeof window === 'undefined') {
+		return false
+	}
+
+	return (
+		window.matchMedia('(display-mode: standalone)').matches ||
+		(window.navigator as Navigator & { standalone?: boolean }).standalone ===
+			true
+	)
+}
+
+export function isRecorderTranscriptionSupported(): boolean {
+	if (typeof window === 'undefined') {
+		return false
+	}
+
+	return (
+		typeof MediaRecorder !== 'undefined' &&
+		typeof navigator.mediaDevices?.getUserMedia === 'function'
+	)
+}
+
+export function shouldUseRecorderTranscription(): boolean {
+	return (
+		isRecorderTranscriptionSupported() &&
+		(isAndroidDevice() || isStandalonePwa())
+	)
+}
+
+export function isVoiceInputSupported(): boolean {
+	return shouldUseRecorderTranscription() || isSpeechRecognitionSupported()
+}
+
 export interface SpeechRecognitionProfile {
 	continuous: boolean
 	interimResults: boolean
 	restartDelayMs: number
-	skipMicrophonePreflight: boolean
+	requireMicrophoneStream: boolean
 	maxSilentRestarts: number
 }
 
@@ -33,9 +67,9 @@ export function getSpeechRecognitionProfile(): SpeechRecognitionProfile {
 		return {
 			continuous: false,
 			interimResults: true,
-			restartDelayMs: 120,
-			skipMicrophonePreflight: true,
-			maxSilentRestarts: 12,
+			restartDelayMs: 250,
+			requireMicrophoneStream: true,
+			maxSilentRestarts: 8,
 		}
 	}
 
@@ -43,24 +77,24 @@ export function getSpeechRecognitionProfile(): SpeechRecognitionProfile {
 		continuous: true,
 		interimResults: true,
 		restartDelayMs: 200,
-		skipMicrophonePreflight: false,
+		requireMicrophoneStream: true,
 		maxSilentRestarts: 6,
 	}
 }
 
-export async function ensureMicrophonePermission(): Promise<
-	{ ok: true } | { ok: false; message: string }
+export async function openMicrophoneStream(): Promise<
+	{ ok: true; stream: MediaStream } | { ok: false; message: string }
 > {
 	if (!navigator.mediaDevices?.getUserMedia) {
-		return { ok: true }
+		return {
+			ok: false,
+			message: 'Microphone access is not available in this browser.',
+		}
 	}
 
 	try {
 		const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-		for (const track of stream.getTracks()) {
-			track.stop()
-		}
-		return { ok: true }
+		return { ok: true, stream }
 	} catch (error) {
 		const name =
 			error instanceof DOMException
@@ -91,6 +125,16 @@ export async function ensureMicrophonePermission(): Promise<
 	}
 }
 
+export function releaseMicrophoneStream(stream: MediaStream | null): void {
+	if (!stream) {
+		return
+	}
+
+	for (const track of stream.getTracks()) {
+		track.stop()
+	}
+}
+
 export function getSpeechRecognitionErrorMessage(error: string): string {
 	switch (error) {
 		case 'not-allowed':
@@ -110,5 +154,9 @@ export function getSpeechRecognitionErrorMessage(error: string): string {
 }
 
 export function getAndroidSpeechHelpMessage(): string {
-	return 'Voice input on Android can be unreliable in installed apps. If nothing is transcribed, open this site in Chrome (not the home-screen app) or type your message instead.'
+	return 'Voice input on Android uses your Gemini API key to transcribe a short recording. If it still fails, open the site in Chrome instead of the home-screen app.'
+}
+
+export function getRecorderSpeechHint(): string {
+	return 'Recording… speak now, then tap Continue to transcribe.'
 }
