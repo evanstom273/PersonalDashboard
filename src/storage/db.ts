@@ -26,10 +26,14 @@ interface GeminiChatDB extends DBSchema {
 		key: string
 		value: unknown
 	}
+	reminders: {
+		key: string
+		value: unknown
+	}
 }
 
 const DB_NAME = 'gemini-chat'
-const DB_VERSION = 4
+const DB_VERSION = 5
 
 let dbPromise: Promise<IDBPDatabase<GeminiChatDB>> | null = null
 
@@ -44,6 +48,7 @@ export function getDb(): Promise<IDBPDatabase<GeminiChatDB>> {
 					'documents',
 					'libraryMedia',
 					'memories',
+					'reminders',
 				]
 				for (const store of stores) {
 					if (!db.objectStoreNames.contains(store)) {
@@ -61,6 +66,10 @@ export function getDb(): Promise<IDBPDatabase<GeminiChatDB>> {
 
 				if (oldVersion < 4) {
 					// memories store added in v4
+				}
+
+				if (oldVersion < 5) {
+					// reminders store added in v5
 				}
 			},
 		})

@@ -1,5 +1,6 @@
 const NOTIFICATION_ICON = '/pwa-192x192.png'
 const NOTIFICATION_TAG = 'chat-generation-complete'
+const REMINDER_NOTIFICATION_TAG = 'reminder-due'
 
 export function getNotificationIcon(): string {
 	return NOTIFICATION_ICON
@@ -82,6 +83,44 @@ function showWindowNotification(
 	notification.onclick = () => {
 		window.focus()
 		notification.close()
+	}
+}
+
+export async function notifyReminderDue(
+	aiName: string,
+	title: string,
+	preview: string,
+	options?: { isChatRoute?: boolean },
+): Promise<void> {
+	if (!canUseNotifications() || Notification.permission !== 'granted') {
+		return
+	}
+
+	const isChatRoute = options?.isChatRoute ?? true
+	if (!shouldShowSystemNotification(isChatRoute)) {
+		return
+	}
+
+	const body = preview.trim().slice(0, 160) || title
+	const icon = getNotificationIcon()
+	const notificationOptions = {
+		body,
+		icon,
+		badge: icon,
+		tag: REMINDER_NOTIFICATION_TAG,
+		data: { url: '/chat' },
+	}
+
+	const shown = await showServiceWorkerNotification(`${aiName} reminder`, {
+		...notificationOptions,
+		renotify: true,
+	})
+	if (!shown) {
+		try {
+			showWindowNotification(`${aiName} reminder`, notificationOptions)
+		} catch {
+			// ignore notification failures
+		}
 	}
 }
 

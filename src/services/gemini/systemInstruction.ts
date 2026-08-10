@@ -53,6 +53,9 @@ export function buildSystemInstruction(preferences: UserPreferences): string {
 			'- Create and update documents using Markdown (headings, lists, bold, links, code blocks). Uploaded documents can be edited in the app or via document tools.',
 			'- Use read_document if you need to confirm content after a recent edit, or when a document was omitted from context due to size limits.',
 			'- Deleting a document requires user confirmation in the app UI.',
+			'- Reminders and schedules are stored in the app. Use reminder tools to list, create, update, or delete them.',
+			'- When a reminder fires, the app sends an assistant chat message and a system notification.',
+			'- Use the current date and time above when the user asks to schedule something. Confirm the datetime you chose.',
 			'- Format replies with markdown when helpful: use blockquotes for quoted document excerpts, fenced code blocks for code, and headings for longer structured answers.',
 		].join('\n'),
 	)
