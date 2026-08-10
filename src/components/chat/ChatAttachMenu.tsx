@@ -5,7 +5,6 @@ import {
 	MessageSquare,
 	Music,
 	Plus,
-	Sparkles,
 	Video,
 } from 'lucide-react'
 import { useRef } from 'react'
@@ -15,34 +14,56 @@ import {
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 	ModelMenuItem,
 } from '@/components/ui/dropdown-menu'
 import { CHAT_MODEL_IDS } from '@/services/gemini/constants'
-import { getModelById } from '@/services/gemini/models'
-import type { GenerationMode } from '@/types/chat'
+import {
+	getModelById,
+	getModelsByCategory,
+	MODEL_CATEGORY_LABELS,
+	type ModelCategory,
+} from '@/services/gemini/models'
 import { cn } from '@/utils/cn'
 
 interface ChatAttachMenuProps {
 	disabled?: boolean
-	generationMode: GenerationMode
 	webSearchEnabled: boolean
 	selectedChatModelId: string
-	onGenerationModeChange: (mode: GenerationMode) => void
+	selectedImageModelId: string
+	selectedMusicModelId: string
+	selectedVideoModelId: string
 	onWebSearchChange: (enabled: boolean) => void
 	onChatModelChange: (modelId: string) => void
+	onImageModelChange: (modelId: string) => void
+	onMusicModelChange: (modelId: string) => void
+	onVideoModelChange: (modelId: string) => void
 	onDocumentUpload: (file: File) => void
 	onImageUpload: (file: File) => void
 }
 
+const CATEGORY_ICONS = {
+	chat: MessageSquare,
+	image: ImagePlus,
+	music: Music,
+	video: Video,
+} as const
+
 export function ChatAttachMenu({
 	disabled,
-	generationMode,
 	webSearchEnabled,
 	selectedChatModelId,
-	onGenerationModeChange,
+	selectedImageModelId,
+	selectedMusicModelId,
+	selectedVideoModelId,
 	onWebSearchChange,
 	onChatModelChange,
+	onImageModelChange,
+	onMusicModelChange,
+	onVideoModelChange,
 	onDocumentUpload,
 	onImageUpload,
 }: ChatAttachMenuProps) {
@@ -51,6 +72,21 @@ export function ChatAttachMenu({
 	const chatModels = CHAT_MODEL_IDS.map((id) => getModelById(id)).filter(
 		(model) => model !== undefined,
 	)
+
+	const selectedByCategory: Record<Exclude<ModelCategory, 'chat'>, string> = {
+		image: selectedImageModelId,
+		music: selectedMusicModelId,
+		video: selectedVideoModelId,
+	}
+
+	const onModelChangeByCategory: Record<
+		Exclude<ModelCategory, 'chat'>,
+		(modelId: string) => void
+	> = {
+		image: onImageModelChange,
+		music: onMusicModelChange,
+		video: onVideoModelChange,
+	}
 
 	return (
 		<>
@@ -86,7 +122,7 @@ export function ChatAttachMenu({
 					hideChevron
 					disabled={disabled}
 					className="h-10 w-10 shrink-0 justify-center p-0"
-					aria-label="Attach or choose generation mode"
+					aria-label="Attach files or choose models"
 				>
 					<Plus className="h-4 w-4" />
 				</DropdownMenuTrigger>
@@ -110,81 +146,73 @@ export function ChatAttachMenu({
 					</DropdownMenuItem>
 
 					<DropdownMenuSeparator />
-					<DropdownMenuLabel>Generation mode</DropdownMenuLabel>
-					<ModeMenuItem
-						icon={Sparkles}
-						label="Auto"
-						description="Detect from your message"
-						selected={generationMode === 'auto'}
-						onSelect={() => onGenerationModeChange('auto')}
+					<DropdownMenuLabel>Chat</DropdownMenuLabel>
+					<ToggleMenuItem
+						icon={Globe}
+						label="Web search"
+						description="Look up wikis and current info via Google"
+						selected={webSearchEnabled}
+						onSelect={() => onWebSearchChange(!webSearchEnabled)}
 					/>
-					<ModeMenuItem
-						icon={MessageSquare}
-						label="Chat"
-						description="Text conversation"
-						selected={generationMode === 'chat'}
-						onSelect={() => onGenerationModeChange('chat')}
-					/>
-					<ModeMenuItem
-						icon={ImagePlus}
-						label="Image"
-						description="Generate an image from your prompt"
-						selected={generationMode === 'image'}
-						onSelect={() => onGenerationModeChange('image')}
-					/>
-					<ModeMenuItem
-						icon={Music}
-						label="Music"
-						description="Generate music or a clip"
-						selected={generationMode === 'music'}
-						onSelect={() => onGenerationModeChange('music')}
-					/>
-					<ModeMenuItem
-						icon={Video}
-						label="Video"
-						description="Generate a video from your prompt"
-						selected={generationMode === 'video'}
-						onSelect={() => onGenerationModeChange('video')}
-					/>
+					{chatModels.map((model) => (
+						<ModelMenuItem
+							key={model.id}
+							label={model.name}
+							description={model.description}
+							selected={model.id === selectedChatModelId}
+							onSelect={() => onChatModelChange(model.id)}
+						/>
+					))}
 
-					{generationMode === 'chat' || generationMode === 'auto' ? (
-						<>
-							<DropdownMenuSeparator />
-							<DropdownMenuLabel>Chat options</DropdownMenuLabel>
-							<ModeMenuItem
-								icon={Globe}
-								label="Web search"
-								description="Look up wikis and current info via Google"
-								selected={webSearchEnabled}
-								onSelect={() => onWebSearchChange(!webSearchEnabled)}
-							/>
-							<DropdownMenuSeparator />
-							<DropdownMenuLabel>Chat model</DropdownMenuLabel>
-							{chatModels.map((model) => (
-								<ModelMenuItem
-									key={model.id}
-									label={model.name}
-									description={model.description}
-									selected={model.id === selectedChatModelId}
-									onSelect={() => onChatModelChange(model.id)}
-								/>
-							))}
-						</>
-					) : null}
+					{(['image', 'music', 'video'] as const).map((category) => {
+						const Icon = CATEGORY_ICONS[category]
+						const selectedModel = getModelById(selectedByCategory[category])
+						const models = getModelsByCategory(category)
+
+						return (
+							<DropdownMenuSub key={category}>
+								<DropdownMenuSubTrigger className="flex items-start gap-3 py-2.5">
+									<Icon className="mt-0.5 h-4 w-4 shrink-0" />
+									<span className="min-w-0 flex-1">
+										<span className="block font-medium">
+											{MODEL_CATEGORY_LABELS[category]}
+										</span>
+										<span className="block truncate text-xs text-muted-foreground">
+											{selectedModel?.name ?? 'Select model'}
+										</span>
+									</span>
+								</DropdownMenuSubTrigger>
+								<DropdownMenuSubContent className="w-72">
+									<DropdownMenuLabel>
+										{MODEL_CATEGORY_LABELS[category]} model
+									</DropdownMenuLabel>
+									{models.map((model) => (
+										<ModelMenuItem
+											key={model.id}
+											label={model.name}
+											description={model.description}
+											selected={model.id === selectedByCategory[category]}
+											onSelect={() => onModelChangeByCategory[category](model.id)}
+										/>
+									))}
+								</DropdownMenuSubContent>
+							</DropdownMenuSub>
+						)
+					})}
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</>
 	)
 }
 
-function ModeMenuItem({
+function ToggleMenuItem({
 	icon: Icon,
 	label,
 	description,
 	selected,
 	onSelect,
 }: {
-	icon: typeof Sparkles
+	icon: typeof Globe
 	label: string
 	description: string
 	selected: boolean

@@ -1,46 +1,33 @@
 import { usePreferencesContext, useMainConversationContext } from '@/providers/ChatProvider'
 import { generateChatWithTools } from '@/services/gemini/chatWithTools'
-import { CHAT_MODEL_IDS, type ChatModelId } from '@/services/gemini/constants'
 import { confirmDocumentDeletion } from '@/services/gemini/documentTools'
 import { getIntentLabel, resolvePromptIntent } from '@/services/gemini/intent'
+import { getGenerationModelPreferences } from '@/services/gemini/modelPreferences'
 import { getModelById } from '@/services/gemini/models'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import { runModelGeneration } from '@/services/gemini'
 import { saveMessageMediaToLibrary } from '@/services/library/libraryMediaService'
-import type { StoredMessage } from '@/storage/types'
-import type { ChatSubmitPayload, GenerationMode } from '@/types/chat'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { StoredMessage, UserPreferences } from '@/storage/types'
+import type { ChatSubmitPayload } from '@/types/chat'
+import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { ChatMessages } from '@/components/chat/ChatMessages'
 import { ChatModelSelector } from '@/components/chat/ChatModelSelector'
 
 export function ChatPage() {
-	const { preferences, savePreferences, isLoading } = usePreferencesContext()
+	const { preferences, savePreferences } = usePreferencesContext()
 	const { conversation, appendMessages, updateMessage, ensureConversation } =
 		useMainConversationContext()
 
-	const [selectedChatModelId, setSelectedChatModelId] = useState(
-		preferences.defaultModelId,
-	)
 	const [isGenerating, setIsGenerating] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [lastIntent, setLastIntent] = useState<string | null>(null)
-	const [generationMode, setGenerationMode] = useState<GenerationMode>('auto')
 	const [webSearchEnabled, setWebSearchEnabled] = useState(false)
 
 	const aiName = getConfiguredAiName(preferences)
-	const selectedModel = getModelById(selectedChatModelId)
+	const selectedModel = getModelById(preferences.defaultModelId)
 	const hasApiKey = preferences.geminiApiKey.trim().length > 0
-
-	useEffect(() => {
-		if (
-			!isLoading &&
-			CHAT_MODEL_IDS.includes(preferences.defaultModelId as ChatModelId)
-		) {
-			setSelectedChatModelId(preferences.defaultModelId)
-		}
-	}, [isLoading, preferences.defaultModelId])
 
 	const chatHistory = useMemo(
 		() =>
@@ -51,19 +38,18 @@ export function ChatPage() {
 		[conversation?.messages],
 	)
 
-	const handleModelChange = useCallback(
-		async (modelId: string) => {
-			setSelectedChatModelId(modelId)
+	const saveModelPreference = useCallback(
+		async (patch: Partial<UserPreferences>) => {
 			await savePreferences({
 				...preferences,
-				defaultModelId: modelId,
+				...patch,
 			})
 		},
 		[preferences, savePreferences],
 	)
 
 	const handleSubmit = useCallback(
-		async ({ text, generationMode: submitMode, attachments, webSearchEnabled: useWebSearch }: ChatSubmitPayload) => {
+		async ({ text, attachments, webSearchEnabled: useWebSearch }: ChatSubmitPayload) => {
 			if (!hasApiKey) {
 				setError('Add your Gemini API key in Settings before generating.')
 				return
@@ -72,14 +58,11 @@ export function ChatPage() {
 			setError(null)
 			setIsGenerating(true)
 
-			const resolved = resolvePromptIntent(
-				text,
-				selectedChatModelId,
-				submitMode,
-			)
+			const modelPreferences = getGenerationModelPreferences(preferences)
+			const resolved = resolvePromptIntent(text, modelPreferences)
 
 			if (resolved.intent !== 'chat' && !text.trim()) {
-				setError('Add a prompt when using image, music, or video mode.')
+				setError('Add a prompt for image, music, or video generation.')
 				setIsGenerating(false)
 				return
 			}
@@ -104,7 +87,7 @@ export function ChatPage() {
 					media: imageAttachments.length > 0 ? imageAttachments : undefined,
 					createdAt: Date.now(),
 				}
-				await appendMessages([userMessage], selectedChatModelId)
+				await appendMessages([userMessage], preferences.defaultModelId)
 
 				if (imageAttachments.length > 0) {
 					await saveMessageMediaToLibrary(imageAttachments, {
@@ -162,7 +145,7 @@ export function ChatPage() {
 					createdAt: Date.now(),
 				}
 
-				await appendMessages([assistantMessage], selectedChatModelId)
+				await appendMessages([assistantMessage], preferences.defaultModelId)
 
 				if (assistantMedia && assistantMedia.length > 0) {
 					await saveMessageMediaToLibrary(assistantMedia, {
@@ -186,7 +169,6 @@ export function ChatPage() {
 			ensureConversation,
 			hasApiKey,
 			preferences,
-			selectedChatModelId,
 		],
 	)
 
@@ -236,14 +218,16 @@ export function ChatPage() {
 					</p>
 				</div>
 				<ChatModelSelector
-					value={selectedChatModelId}
-					onChange={handleModelChange}
+					value={preferences.defaultModelId}
+					onChange={(modelId) => {
+						void saveModelPreference({ defaultModelId: modelId })
+					}}
 				/>
 			</header>
 
 			<div className="hidden shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-2 md:hidden">
 				<p className="text-xs text-muted-foreground">
-					{selectedModel?.name ?? 'Chat model'} · tap + to attach or change mode
+					{selectedModel?.name ?? 'Chat model'} · tap + to attach or choose models
 				</p>
 			</div>
 
@@ -278,13 +262,23 @@ export function ChatPage() {
 			<ChatInput
 				disabled={!hasApiKey}
 				isGenerating={isGenerating}
-				generationMode={generationMode}
 				webSearchEnabled={webSearchEnabled}
-				selectedChatModelId={selectedChatModelId}
-				onGenerationModeChange={setGenerationMode}
+				selectedChatModelId={preferences.defaultModelId}
+				selectedImageModelId={preferences.defaultImageModelId}
+				selectedMusicModelId={preferences.defaultMusicModelId}
+				selectedVideoModelId={preferences.defaultVideoModelId}
 				onWebSearchChange={setWebSearchEnabled}
 				onChatModelChange={(modelId) => {
-					void handleModelChange(modelId)
+					void saveModelPreference({ defaultModelId: modelId })
+				}}
+				onImageModelChange={(modelId) => {
+					void saveModelPreference({ defaultImageModelId: modelId })
+				}}
+				onMusicModelChange={(modelId) => {
+					void saveModelPreference({ defaultMusicModelId: modelId })
+				}}
+				onVideoModelChange={(modelId) => {
+					void saveModelPreference({ defaultVideoModelId: modelId })
 				}}
 				onSubmit={(payload) => {
 					void handleSubmit(payload)
