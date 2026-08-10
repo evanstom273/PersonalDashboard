@@ -8,7 +8,12 @@ import {
 import type { ChatMessageInput } from '@/services/gemini/generate'
 import { geminiStreamGenerateContent } from '@/services/gemini/stream'
 import type { MessageMedia, PendingDeleteConfirmation, UserPreferences } from '@/storage/types'
+import type { MessageDocumentLink } from '@/storage/types'
 import { formatMessageForModel } from '@/utils/dateTime'
+import {
+	extractDocumentLinkFromToolResult,
+	mergeDocumentLinks,
+} from '@/utils/messageAttachments'
 
 interface GeminiPart {
 	text?: string
@@ -35,6 +40,7 @@ interface GeminiContent {
 export interface ChatWithToolsResult {
 	text: string
 	media: MessageMedia[]
+	documentLinks: MessageDocumentLink[]
 	pendingDeleteConfirmation?: PendingDeleteConfirmation
 }
 
@@ -58,6 +64,7 @@ export async function generateChatWithTools(
 	}))
 
 	let pendingDeleteConfirmation: PendingDeleteConfirmation | undefined
+	let documentLinks: MessageDocumentLink[] = []
 	const useWebSearch = options?.useWebSearch ?? false
 
 	for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
@@ -113,6 +120,14 @@ export async function generateChatWithTools(
 					pendingDeleteConfirmation = toolResult.pendingDeleteConfirmation
 				}
 
+				const documentLink = extractDocumentLinkFromToolResult(
+					functionCall.name,
+					toolResult.response,
+				)
+				if (documentLink) {
+					documentLinks = mergeDocumentLinks(documentLinks, [documentLink])
+				}
+
 				functionResponseParts.push({
 					functionResponse: {
 						name: toolResult.name,
@@ -144,6 +159,7 @@ export async function generateChatWithTools(
 		return {
 			text: groundedText,
 			media: [],
+			documentLinks,
 			pendingDeleteConfirmation,
 		}
 	}
@@ -151,6 +167,7 @@ export async function generateChatWithTools(
 	return {
 		text: 'I completed the requested document actions.',
 		media: [],
+		documentLinks,
 		pendingDeleteConfirmation,
 	}
 }

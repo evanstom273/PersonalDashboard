@@ -94,6 +94,7 @@ export interface StoredMessage {
 	role: 'user' | 'assistant'
 	content: string
 	media?: MessageMedia[]
+	documentLinks?: MessageDocumentLink[]
 	pendingDeleteConfirmation?: PendingDeleteConfirmation
 	createdAt: number
 }
@@ -107,4 +108,12 @@ export interface MessageMedia {
 	type: 'image' | 'audio' | 'video'
 	mimeType: string
 	dataUrl: string
+}
+
+export type MessageDocumentLinkAction = 'created' | 'updated'
+
+export interface MessageDocumentLink {
+	id: string
+	title: string
+	action: MessageDocumentLinkAction
 }

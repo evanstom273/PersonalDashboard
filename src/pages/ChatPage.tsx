@@ -173,6 +173,7 @@ export function ChatPage() {
 
 				let assistantText = ''
 				let assistantMedia: StoredMessage['media']
+				let assistantDocumentLinks: StoredMessage['documentLinks']
 				let pendingDeleteConfirmation: StoredMessage['pendingDeleteConfirmation']
 
 				if (resolved.intent === 'chat') {
@@ -209,6 +210,10 @@ export function ChatPage() {
 					assistantText = chatResult.text
 					assistantMedia =
 						chatResult.media.length > 0 ? chatResult.media : undefined
+					assistantDocumentLinks =
+						chatResult.documentLinks.length > 0
+							? chatResult.documentLinks
+							: undefined
 					pendingDeleteConfirmation = chatResult.pendingDeleteConfirmation
 				} else {
 					const result = await runModelGeneration(
@@ -218,8 +223,20 @@ export function ChatPage() {
 						history,
 					)
 					const modelUsed = getModelById(resolved.modelId)
-					assistantText = `[${getIntentLabel(resolved.intent)} · ${modelUsed?.name ?? resolved.modelId}]\n${result.text}`
 					assistantMedia = result.media.length > 0 ? result.media : undefined
+					const intentLabel = getIntentLabel(resolved.intent)
+
+					if (assistantMedia?.length) {
+						const trimmedText = result.text.trim()
+						assistantText =
+							trimmedText &&
+							!/^generation completed\.?$/i.test(trimmedText) &&
+							!/^generated (image|video|music):?\.?$/i.test(trimmedText)
+								? trimmedText
+								: `${intentLabel} generated with ${modelUsed?.name ?? resolved.modelId}.`
+					} else {
+						assistantText = `[${intentLabel} · ${modelUsed?.name ?? resolved.modelId}]\n${result.text}`
+					}
 				}
 
 				const assistantMessage: StoredMessage = {
@@ -227,6 +244,7 @@ export function ChatPage() {
 					role: 'assistant',
 					content: assistantText,
 					media: assistantMedia,
+					documentLinks: assistantDocumentLinks,
 					pendingDeleteConfirmation,
 					createdAt: Date.now(),
 				}
