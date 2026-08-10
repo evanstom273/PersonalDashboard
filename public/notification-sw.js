@@ -1,7 +1,10 @@
 self.addEventListener('notificationclick', (event) => {
 	event.notification.close()
 
-	const targetUrl = event.notification.data?.url ?? '/'
+	const targetUrl =
+		typeof event.notification.data?.url === 'string'
+			? event.notification.data.url
+			: '/'
 
 	event.waitUntil(
 		self.clients

@@ -25,8 +25,13 @@ import {
 	type ReminderRecord,
 	type ReminderRecurrence,
 } from '@/storage/types'
+import { canUseNotificationTriggers } from '@/services/reminders/reminderNotificationTriggers'
 import { formatMessageTime } from '@/utils/dateTime'
 import { cn } from '@/utils/cn'
+import {
+	getNotificationPermission,
+	isStandaloneDisplayMode,
+} from '@/utils/notifications'
 
 function padDatePart(value: number): string {
 	return String(value).padStart(2, '0')
@@ -65,6 +70,11 @@ export function ScheduleSection() {
 	const [deliveryMessage, setDeliveryMessage] = useState('')
 	const [formError, setFormError] = useState<string | null>(null)
 	const [isSaving, setIsSaving] = useState(false)
+
+	const backgroundRemindersSupported =
+		canUseNotificationTriggers() &&
+		getNotificationPermission() === 'granted' &&
+		isStandaloneDisplayMode()
 
 	const grouped = useMemo(() => {
 		const now = Date.now()
@@ -181,6 +191,11 @@ export function ScheduleSection() {
 					<p className="mt-1 text-xs text-muted-foreground">
 						When due, {`you'll`} get a chat message from your assistant and a
 						notification.
+						{backgroundRemindersSupported
+							? ' On this Android install, alerts can fire while the app is closed; tap the notification or reopen the app for the chat message.'
+							: canUseNotificationTriggers()
+								? ' Install this PWA to your home screen and enable notifications in Settings for background alerts on Android.'
+								: ' Keep the app open for on-time delivery on this browser; background alerts need Android Chrome with the installed PWA.'}
 					</p>
 				</div>
 				<Button
