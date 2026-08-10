@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DocumentEditor } from '@/components/documents/DocumentEditor'
 import { Button } from '@/components/ui/button'
+import { usePreferencesContext } from '@/providers/ChatProvider'
 import { getDocument, createDocument, updateDocument } from '@/services/documents/documentService'
 import type { DocumentRecord } from '@/storage/types'
 import {
@@ -17,6 +18,7 @@ const AUTOSAVE_MS = 800
 export function DocumentEditorPage() {
 	const { documentId } = useParams<{ documentId: string }>()
 	const navigate = useNavigate()
+	const { preferences } = usePreferencesContext()
 	const [document, setDocument] = useState<DocumentRecord | null>(null)
 	const [title, setTitle] = useState('')
 	const [content, setContent] = useState('<p></p>')
@@ -166,6 +168,8 @@ export function DocumentEditorPage() {
 				content={content}
 				onChange={setContent}
 				editable={!readOnly}
+				documentTitle={title}
+				preferences={preferences}
 			/>
 		</div>
 	)
