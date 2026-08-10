@@ -5,6 +5,7 @@ export interface ChatMessageInput {
 	role: 'user' | 'assistant'
 	content: string
 	media?: MessageMedia[]
+	createdAt?: number
 }
 
 interface GenerateContentResponse {

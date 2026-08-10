@@ -1,4 +1,5 @@
 import type { UserPreferences } from '@/storage/types'
+import { formatCurrentDateTimeContext } from '@/utils/dateTime'
 
 const DEFAULT_AI_NAME = 'Assistant'
 const DEFAULT_USER_NAME = 'the user'
@@ -18,6 +19,7 @@ export function buildSystemInstruction(preferences: UserPreferences): string {
 
 	const sections = [
 		`You are ${aiName}. You are speaking with ${userName}.`,
+		`Current date and time: ${formatCurrentDateTimeContext()}.`,
 		behavior
 			? behavior
 			: 'Be helpful, clear, and accurate. Match the user\'s tone when appropriate.',
@@ -30,6 +32,7 @@ export function buildSystemInstruction(preferences: UserPreferences): string {
 			'- The full document library is injected into your context on every message (see below). Document tools and IndexedDB remain authoritative for changes.',
 			'- Long-term memory entries from earlier conversation are also injected on every message. Treat them as durable facts unless the user updates them.',
 			'- Older chat messages are archived into memory automatically; you only see the recent message window directly, plus the memory index.',
+			'- Each message in the conversation includes its sent date and time. Use those timestamps for temporal reasoning.',
 			'- Create and update documents using Markdown (headings, lists, bold, links, code blocks). Uploaded documents are read-only in the editor.',
 			'- Use read_document if you need to confirm content after a recent edit, or when a document was omitted from context due to size limits.',
 			'- Deleting a document requires user confirmation in the app UI.',

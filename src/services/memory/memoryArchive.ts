@@ -11,6 +11,7 @@ import type {
 	StoredMessage,
 	UserPreferences,
 } from '@/storage/types'
+import { formatMessageDateTime } from '@/utils/dateTime'
 
 interface ExtractedMemoryItem {
 	content: string
@@ -32,7 +33,7 @@ function formatMessagesForArchive(messages: StoredMessage[]): string {
 	return messages
 		.map((message) => {
 			const speaker = message.role === 'user' ? 'User' : 'Assistant'
-			return `${speaker}: ${message.content.trim()}`
+			return `[${formatMessageDateTime(message.createdAt)}] ${speaker}: ${message.content.trim()}`
 		})
 		.join('\n\n')
 }

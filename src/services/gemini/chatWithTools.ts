@@ -1,4 +1,3 @@
-import { geminiFetch } from '@/services/gemini/client'
 import { executeDocumentToolCall, DOCUMENT_TOOL_DECLARATIONS } from '@/services/gemini/documentTools'
 import { buildFullSystemInstruction } from '@/services/gemini/documentContext'
 import {
@@ -7,7 +6,9 @@ import {
 	type GroundingMetadata,
 } from '@/services/gemini/grounding'
 import type { ChatMessageInput } from '@/services/gemini/generate'
+import { geminiStreamGenerateContent } from '@/services/gemini/stream'
 import type { MessageMedia, PendingDeleteConfirmation, UserPreferences } from '@/storage/types'
+import { formatMessageForModel } from '@/utils/dateTime'
 
 interface GeminiPart {
 	text?: string
@@ -31,13 +32,6 @@ interface GeminiContent {
 	parts: GeminiPart[]
 }
 
-interface GenerateContentResponse {
-	candidates?: Array<{
-		content?: GeminiContent
-		groundingMetadata?: GroundingMetadata
-	}>
-}
-
 export interface ChatWithToolsResult {
 	text: string
 	media: MessageMedia[]
@@ -53,6 +47,9 @@ export async function generateChatWithTools(
 	preferences: UserPreferences,
 	options?: {
 		useWebSearch?: boolean
+		signal?: AbortSignal
+		onTextDelta?: (delta: string) => void
+		onToolActivity?: () => void
 	},
 ): Promise<ChatWithToolsResult> {
 	const contents: GeminiContent[] = messages.map((message) => ({
@@ -64,6 +61,10 @@ export async function generateChatWithTools(
 	const useWebSearch = options?.useWebSearch ?? false
 
 	for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
+		if (options?.signal?.aborted) {
+			throw new DOMException('Generation aborted', 'AbortError')
+		}
+
 		const requestBody: Record<string, unknown> = {
 			systemInstruction: {
 				parts: [{ text: await buildFullSystemInstruction(preferences) }],
@@ -78,28 +79,24 @@ export async function generateChatWithTools(
 			}
 		}
 
-		const response = await geminiFetch<GenerateContentResponse>(
+		const streamed = await geminiStreamGenerateContent(
 			apiKey,
-			`/models/${modelId}:generateContent`,
+			modelId,
+			requestBody,
 			{
-				method: 'POST',
-				body: JSON.stringify(requestBody),
+				signal: options?.signal,
+				onTextDelta: options?.onTextDelta,
 			},
 		)
 
-		const candidate = response.candidates?.[0]
-		const modelContent = candidate?.content
-		const parts = modelContent?.parts ?? []
-
-		const functionCallParts = parts.filter(
-			(part) => part.functionCall?.name,
-		)
+		const parts = streamed.parts
+		const functionCallParts = parts.filter((part) => part.functionCall?.name)
 
 		if (functionCallParts.length > 0) {
-			// Preserve the full model response (including thoughtSignature on
-			// functionCall parts). Rebuilding parts strips required signatures.
+			options?.onToolActivity?.()
+
 			contents.push({
-				role: modelContent?.role ?? 'model',
+				role: streamed.role ?? 'model',
 				parts,
 			})
 
@@ -139,7 +136,9 @@ export async function generateChatWithTools(
 
 		const groundedText = formatGroundedResponseText(
 			text || 'Done.',
-			extractGroundingMetadata(candidate ?? {}),
+			extractGroundingMetadata({
+				groundingMetadata: streamed.groundingMetadata as GroundingMetadata | undefined,
+			}),
 		)
 
 		return {
@@ -158,9 +157,13 @@ export async function generateChatWithTools(
 
 function buildMessageParts(message: ChatMessageInput): GeminiPart[] {
 	const parts: GeminiPart[] = []
+	const body =
+		typeof message.createdAt === 'number'
+			? formatMessageForModel(message.content, message.createdAt, message.role)
+			: message.content
 
-	if (message.content.trim()) {
-		parts.push({ text: message.content })
+	if (body.trim()) {
+		parts.push({ text: body })
 	}
 
 	for (const item of message.media ?? []) {
@@ -182,7 +185,7 @@ function buildMessageParts(message: ChatMessageInput): GeminiPart[] {
 	}
 
 	if (parts.length === 0) {
-		parts.push({ text: message.content || ' ' })
+		parts.push({ text: body || ' ' })
 	}
 
 	return parts
