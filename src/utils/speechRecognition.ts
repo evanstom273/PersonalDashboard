@@ -12,6 +12,42 @@ export function isSpeechRecognitionSupported(): boolean {
 	return getSpeechRecognitionConstructor() !== null
 }
 
+export function isAndroidDevice(): boolean {
+	if (typeof navigator === 'undefined') {
+		return false
+	}
+
+	return /Android/i.test(navigator.userAgent)
+}
+
+export interface SpeechRecognitionProfile {
+	continuous: boolean
+	interimResults: boolean
+	restartDelayMs: number
+	skipMicrophonePreflight: boolean
+	maxSilentRestarts: number
+}
+
+export function getSpeechRecognitionProfile(): SpeechRecognitionProfile {
+	if (isAndroidDevice()) {
+		return {
+			continuous: false,
+			interimResults: true,
+			restartDelayMs: 120,
+			skipMicrophonePreflight: true,
+			maxSilentRestarts: 12,
+		}
+	}
+
+	return {
+		continuous: true,
+		interimResults: true,
+		restartDelayMs: 200,
+		skipMicrophonePreflight: false,
+		maxSilentRestarts: 6,
+	}
+}
+
 export async function ensureMicrophonePermission(): Promise<
 	{ ok: true } | { ok: false; message: string }
 > {
@@ -66,7 +102,13 @@ export function getSpeechRecognitionErrorMessage(error: string): string {
 			return 'Speech recognition needs an internet connection.'
 		case 'no-speech':
 			return 'No speech was detected. Try speaking closer to the microphone.'
+		case 'aborted':
+			return 'Speech recognition was stopped.'
 		default:
 			return `Speech recognition error: ${error}`
 	}
+}
+
+export function getAndroidSpeechHelpMessage(): string {
+	return 'Voice input on Android can be unreliable in installed apps. If nothing is transcribed, open this site in Chrome (not the home-screen app) or type your message instead.'
 }

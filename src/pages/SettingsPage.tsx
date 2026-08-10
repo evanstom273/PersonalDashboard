@@ -1,4 +1,4 @@
-import { ExternalLink, Brain, KeyRound, PlugZap, Save, Sparkles, UserRound } from 'lucide-react'
+import { ExternalLink, Brain, Bell, KeyRound, PlugZap, Save, Sparkles, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -10,6 +10,11 @@ import {
 	MEMORY_ARCHIVE_INTERVAL_OPTIONS,
 	type MemoryArchiveInterval,
 } from '@/storage/types'
+import {
+	canUseNotifications,
+	getNotificationPermission,
+	requestNotificationPermission,
+} from '@/utils/notifications'
 
 export function SettingsPage() {
 	const { preferences, savePreferences, isLoading } = usePreferencesContext()
@@ -26,6 +31,12 @@ export function SettingsPage() {
 	const [isValidating, setIsValidating] = useState(false)
 	const [validationMessage, setValidationMessage] = useState<string | null>(null)
 	const [validationOk, setValidationOk] = useState<boolean | null>(null)
+	const [notificationPermission, setNotificationPermission] = useState(
+		getNotificationPermission(),
+	)
+	const [notificationMessage, setNotificationMessage] = useState<string | null>(
+		null,
+	)
 
 	useEffect(() => {
 		if (!isLoading) {
@@ -78,6 +89,33 @@ export function SettingsPage() {
 			...preferences,
 			memoryArchiveInterval: interval,
 		})
+	}
+
+	async function handleEnableNotifications(): Promise<void> {
+		setNotificationMessage(null)
+		if (!canUseNotifications()) {
+			setNotificationMessage('Notifications are not supported in this browser.')
+			return
+		}
+
+		const permission = await requestNotificationPermission()
+		setNotificationPermission(permission)
+
+		if (permission === 'granted') {
+			setNotificationMessage(
+				'Notifications enabled. You will get Android system alerts when a reply finishes in the background.',
+			)
+			return
+		}
+
+		if (permission === 'denied') {
+			setNotificationMessage(
+				'Notifications are blocked. Enable them in Android app settings for this PWA or Chrome.',
+			)
+			return
+		}
+
+		setNotificationMessage('Notification permission was not granted.')
 	}
 
 	async function handleValidate(): Promise<void> {
@@ -289,8 +327,56 @@ export function SettingsPage() {
 						<p className="text-sm text-muted-foreground">
 							The mic on the home page uses your browser&apos;s built-in speech
 							recognition. It does not call the Gemini API or use your API key.
-							On Android, allow microphone access when prompted — installed PWAs
-							need permission just like the browser.
+							Allow microphone access when prompted.
+						</p>
+						<p className="text-sm text-muted-foreground">
+							On Android, voice input works best in the Chrome browser tab.
+							Installed PWAs can fail silently — if the mic listens but nothing
+							appears, open the site in Chrome instead of the home-screen app.
+						</p>
+					</section>
+
+					<section className="space-y-4 rounded-xl border border-border bg-card p-5">
+						<div className="flex items-center gap-2">
+							<Bell className="h-5 w-5 text-primary" />
+							<h2 className="text-lg font-medium">Android &amp; system notifications</h2>
+						</div>
+						<p className="text-sm text-muted-foreground">
+							Get a real phone notification when a chat reply finishes while you are
+							in another app, or browsing Library / Memory / Settings in the installed
+							PWA. Tap the notification to jump back to chat.
+						</p>
+						<p className="text-sm text-muted-foreground">
+							Status:{' '}
+							<span className="font-medium text-foreground">
+								{notificationPermission === 'granted'
+									? 'Enabled'
+									: notificationPermission === 'denied'
+										? 'Blocked'
+										: 'Not enabled yet'}
+							</span>
+						</p>
+						{notificationPermission !== 'granted' ? (
+							<Button
+								variant="outline"
+								onClick={() => void handleEnableNotifications()}
+							>
+								<Bell className="h-4 w-4" />
+								Enable notifications
+							</Button>
+						) : null}
+						{notificationMessage ? (
+							<p className="text-sm text-muted-foreground">{notificationMessage}</p>
+						) : null}
+					</section>
+
+					<section className="space-y-3 rounded-xl border border-border bg-card p-5">
+						<h2 className="text-lg font-medium">Background replies</h2>
+						<p className="text-sm text-muted-foreground">
+							Chat keeps generating if you switch to Library, Memory, or Settings.
+							You will see an in-app banner while a reply is in progress. With
+							notifications enabled, Android also shows a system tray alert when the
+							reply is ready.
 						</p>
 					</section>
 

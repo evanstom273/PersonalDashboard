@@ -1,10 +1,11 @@
-import { Bot, Loader2, User } from 'lucide-react'
+import { Bot, ExternalLink, FileText, Loader2, Music, User, Video } from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ChatMarkdown } from '@/components/chat/ChatMarkdown'
 import { MessageActions } from '@/components/chat/MessageActions'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import type { StoredMessage } from '@/storage/types'
+import type { MessageDocumentLink, StoredMessage } from '@/storage/types'
 import { formatMessageTime } from '@/utils/dateTime'
 import { cn } from '@/utils/cn'
 
@@ -84,7 +85,7 @@ export function ChatMessages({
 							isStreaming
 						/>
 					) : null}
-					{isGenerating && !streamingAssistant?.content ? (
+					{isGenerating && !streamingAssistant ? (
 						<div className="flex items-center gap-3 border-t border-border/40 py-6 text-sm text-muted-foreground">
 							<Loader2 className="h-4 w-4 animate-spin" />
 							{aiName} is thinking…
@@ -112,6 +113,8 @@ function MessageRow({
 }) {
 	const contentRef = useRef<HTMLDivElement>(null)
 	const isUser = message.role === 'user'
+	const hasMedia = (message.media?.length ?? 0) > 0
+	const showMediaFirst = !isUser && hasMedia
 
 	return (
 		<article
@@ -150,6 +153,16 @@ function MessageRow({
 								'max-w-full rounded-[1.25rem] bg-secondary px-4 py-3 ring-1 ring-border/60',
 						)}
 					>
+						{showMediaFirst
+							? message.media?.map((media, index) => (
+									<MediaPreview
+										key={`${message.id}-media-${index}`}
+										media={media}
+										className={index === 0 ? '' : 'mt-3'}
+									/>
+								))
+							: null}
+
 						<div
 							ref={contentRef}
 							tabIndex={-1}
@@ -158,6 +171,8 @@ function MessageRow({
 								isUser
 									? 'text-sm leading-relaxed whitespace-pre-wrap'
 									: 'text-[0.9375rem] leading-7',
+								showMediaFirst && message.content.trim() ? 'mt-4' : '',
+								isUser && hasMedia && message.content.trim() ? 'mb-3' : '',
 							)}
 						>
 							{isUser ? (
@@ -172,11 +187,20 @@ function MessageRow({
 							) : null}
 						</div>
 
-						{message.media?.map((media, index) => (
-							<MediaPreview
-								key={`${message.id}-media-${index}`}
-								media={media}
-								className={index === 0 ? 'mt-4' : 'mt-3'}
+						{!showMediaFirst
+							? message.media?.map((media, index) => (
+									<MediaPreview
+										key={`${message.id}-media-${index}`}
+										media={media}
+										className={index === 0 ? (isUser ? '' : 'mt-4') : 'mt-3'}
+									/>
+								))
+							: null}
+
+						{message.documentLinks?.map((link) => (
+							<DocumentLinkCard
+								key={`${message.id}-doc-${link.id}`}
+								link={link}
 							/>
 						))}
 
@@ -248,6 +272,38 @@ function MessageAvatar({
 	)
 }
 
+function DocumentLinkCard({
+	link,
+	className,
+}: {
+	link: MessageDocumentLink
+	className?: string
+}) {
+	return (
+		<Link
+			to={`/library/documents/${link.id}`}
+			className={cn(
+				'mt-3 flex items-center gap-3 rounded-xl border border-border bg-secondary/40 px-4 py-3 transition-colors hover:bg-secondary/70',
+				className,
+			)}
+		>
+			<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+				<FileText className="h-5 w-5" />
+			</div>
+			<div className="min-w-0 flex-1">
+				<p className="truncate text-sm font-medium">{link.title}</p>
+				<p className="text-xs text-muted-foreground">
+					Document {link.action === 'created' ? 'created' : 'updated'}
+				</p>
+			</div>
+			<span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
+				Open
+				<ExternalLink className="h-3.5 w-3.5" />
+			</span>
+		</Link>
+	)
+}
+
 function MediaPreview({
 	media,
 	className,
@@ -255,31 +311,33 @@ function MediaPreview({
 	media: NonNullable<StoredMessage['media']>[number]
 	className?: string
 }) {
-	if (media.type === 'image') {
-		return (
-			<img
-				src={media.dataUrl}
-				alt="Generated"
-				className={cn(
-					'max-h-64 w-full rounded-xl object-contain ring-1 ring-border md:max-h-96',
-					className,
-				)}
-			/>
-		)
-	}
-
-	if (media.type === 'audio') {
-		return <audio controls src={media.dataUrl} className={cn('w-full', className)} />
-	}
+	const label =
+		media.type === 'image' ? 'Image' : media.type === 'audio' ? 'Music' : 'Video'
+	const Icon = media.type === 'audio' ? Music : media.type === 'video' ? Video : null
 
 	return (
-		<video
-			controls
-			src={media.dataUrl}
-			className={cn(
-				'max-h-64 w-full rounded-xl ring-1 ring-border md:max-h-96',
-				className,
-			)}
-		/>
+		<div className={cn('overflow-hidden rounded-xl ring-1 ring-border', className)}>
+			<div className="flex items-center gap-2 border-b border-border/60 bg-secondary/40 px-3 py-2 text-xs font-medium text-muted-foreground">
+				{Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+				{label}
+			</div>
+			<div className="bg-background p-2">
+				{media.type === 'image' ? (
+					<img
+						src={media.dataUrl}
+						alt="Generated"
+						className="max-h-64 w-full rounded-lg object-contain md:max-h-96"
+					/>
+				) : media.type === 'audio' ? (
+					<audio controls src={media.dataUrl} className="w-full" />
+				) : (
+					<video
+						controls
+						src={media.dataUrl}
+						className="max-h-64 w-full rounded-lg md:max-h-96"
+					/>
+				)}
+			</div>
+		</div>
 	)
 }

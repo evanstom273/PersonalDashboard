@@ -1,21 +1,13 @@
+import type { GenerationIntent } from '@/services/gemini/constants'
 import {
-	useChatUiContext,
+	useChatGenerationContext,
 	useMainConversationContext,
 	usePreferencesContext,
 } from '@/providers/ChatProvider'
-import { generateChatWithTools } from '@/services/gemini/chatWithTools'
-import type { GenerationIntent } from '@/services/gemini/constants'
 import { confirmDocumentDeletion } from '@/services/gemini/documentTools'
-import { getIntentLabel, resolvePromptIntent } from '@/services/gemini/intent'
-import { getGenerationModelPreferences } from '@/services/gemini/modelPreferences'
-import { getModelById } from '@/services/gemini/models'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
-import { queueMemoryArchive, getUnarchivedMessages } from '@/services/memory/memoryArchive'
-import { runModelGeneration } from '@/services/gemini'
-import { saveMessageMediaToLibrary } from '@/services/library/libraryMediaService'
-import type { StoredMessage, UserPreferences } from '@/storage/types'
-import type { ChatSubmitPayload } from '@/types/chat'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { UserPreferences } from '@/storage/types'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
 import { ChatInput } from '@/components/chat/ChatInput'
@@ -28,42 +20,29 @@ export function ChatPage() {
 		conversation,
 		appendMessages,
 		updateMessage,
-		ensureConversation,
 		clearConversation,
 		replaceConversation,
-		saveConversation,
 	} = useMainConversationContext()
-	const { setIsChatGenerating } = useChatUiContext()
+	const {
+		isGenerating,
+		error,
+		lastIntent,
+		streamingAssistant,
+		submitMessage,
+		stopGeneration,
+		clearCompletionNotice,
+	} = useChatGenerationContext()
 
-	const [isGenerating, setIsGenerating] = useState(false)
-	const [error, setError] = useState<string | null>(null)
-	const [lastIntent, setLastIntent] = useState<string | null>(null)
 	const [webSearchEnabled, setWebSearchEnabled] = useState(false)
 	const [forcedNextIntent, setForcedNextIntent] =
 		useState<GenerationIntent | null>(null)
-	const [streamingAssistant, setStreamingAssistant] = useState<{
-		id: string
-		content: string
-	} | null>(null)
-	const streamingContentRef = useRef('')
-	const abortControllerRef = useRef<AbortController | null>(null)
 
 	const aiName = getConfiguredAiName(preferences)
 	const hasApiKey = preferences.geminiApiKey.trim().length > 0
 
 	useEffect(() => {
-		setIsChatGenerating(isGenerating)
-	}, [isGenerating, setIsChatGenerating])
-
-	const chatHistory = useMemo(
-		() =>
-			(conversation ? getUnarchivedMessages(conversation) : []).map((message) => ({
-				role: message.role,
-				content: message.content,
-				createdAt: message.createdAt,
-			})),
-		[conversation],
-	)
+		clearCompletionNotice()
+	}, [clearCompletionNotice])
 
 	const saveModelPreference = useCallback(
 		async (patch: Partial<UserPreferences>) => {
@@ -76,226 +55,29 @@ export function ChatPage() {
 	)
 
 	const handleClearChat = useCallback(async () => {
-		abortControllerRef.current?.abort()
-		setStreamingAssistant(null)
+		stopGeneration()
 		await clearConversation()
-		setLastIntent(null)
-		setError(null)
 		setForcedNextIntent(null)
-	}, [clearConversation])
+	}, [clearConversation, stopGeneration])
 
 	const handleImportChat = useCallback(
 		async (imported: Parameters<typeof replaceConversation>[0]) => {
 			await replaceConversation(imported)
-			setLastIntent(null)
-			setError(null)
 			setForcedNextIntent(null)
 		},
 		[replaceConversation],
 	)
 
 	const handleSubmit = useCallback(
-		async ({ text, attachments, webSearchEnabled: useWebSearch }: ChatSubmitPayload) => {
-			if (!hasApiKey) {
-				setError('Add your Gemini API key in Settings before generating.')
-				return
-			}
-
-			setError(null)
-			setIsGenerating(true)
-			setStreamingAssistant(null)
-			streamingContentRef.current = ''
-
-			const abortController = new AbortController()
-			abortControllerRef.current = abortController
-
-			const modelPreferences = getGenerationModelPreferences(preferences)
+		async (payload: Parameters<typeof submitMessage>[0]) => {
 			const activeForcedIntent = forcedNextIntent
-			const resolved = resolvePromptIntent(
-				text,
-				modelPreferences,
-				activeForcedIntent,
-			)
-
 			if (activeForcedIntent) {
 				setForcedNextIntent(null)
 			}
 
-			if (resolved.intent !== 'chat' && !text.trim()) {
-				setError('Add a prompt for image, music, or video generation.')
-				setIsGenerating(false)
-				return
-			}
-
-			setLastIntent(getIntentLabel(resolved.intent))
-
-			const imageAttachments = attachments
-				.filter((attachment) => attachment.type === 'image' && attachment.dataUrl)
-				.map((attachment) => ({
-					type: 'image' as const,
-					mimeType: attachment.mimeType ?? 'image/png',
-					dataUrl: attachment.dataUrl!,
-				}))
-
-			let assistantMessageId = crypto.randomUUID()
-
-			try {
-				await ensureConversation()
-
-				const userMessage: StoredMessage = {
-					id: crypto.randomUUID(),
-					role: 'user',
-					content: text,
-					media: imageAttachments.length > 0 ? imageAttachments : undefined,
-					createdAt: Date.now(),
-				}
-				await appendMessages([userMessage], preferences.defaultModelId)
-
-				if (imageAttachments.length > 0) {
-					await saveMessageMediaToLibrary(imageAttachments, {
-						source: 'upload',
-						prompt: text,
-					})
-				}
-
-				const history =
-					resolved.intent === 'chat'
-						? [
-								...chatHistory,
-								{
-									role: 'user' as const,
-									content: text,
-									media: userMessage.media,
-									createdAt: userMessage.createdAt,
-								},
-							]
-						: []
-
-				let assistantText = ''
-				let assistantMedia: StoredMessage['media']
-				let pendingDeleteConfirmation: StoredMessage['pendingDeleteConfirmation']
-
-				if (resolved.intent === 'chat') {
-					streamingContentRef.current = ''
-					setStreamingAssistant({ id: assistantMessageId, content: '' })
-
-					const chatResult = await generateChatWithTools(
-						preferences.geminiApiKey,
-						resolved.modelId,
-						history,
-						preferences,
-						{
-							useWebSearch: useWebSearch,
-							signal: abortController.signal,
-							onTextDelta: (delta) => {
-								streamingContentRef.current += delta
-								setStreamingAssistant((current) =>
-									current
-										? {
-												...current,
-												content: streamingContentRef.current,
-											}
-										: null,
-								)
-							},
-							onToolActivity: () => {
-								streamingContentRef.current = ''
-								setStreamingAssistant((current) =>
-									current ? { ...current, content: '' } : null,
-								)
-							},
-						},
-					)
-					assistantText = chatResult.text
-					assistantMedia =
-						chatResult.media.length > 0 ? chatResult.media : undefined
-					pendingDeleteConfirmation = chatResult.pendingDeleteConfirmation
-				} else {
-					const result = await runModelGeneration(
-						preferences.geminiApiKey,
-						resolved.modelId,
-						resolved.prompt,
-						history,
-					)
-					const modelUsed = getModelById(resolved.modelId)
-					assistantText = `[${getIntentLabel(resolved.intent)} · ${modelUsed?.name ?? resolved.modelId}]\n${result.text}`
-					assistantMedia = result.media.length > 0 ? result.media : undefined
-				}
-
-				const assistantMessage: StoredMessage = {
-					id: assistantMessageId,
-					role: 'assistant',
-					content: assistantText,
-					media: assistantMedia,
-					pendingDeleteConfirmation,
-					createdAt: Date.now(),
-				}
-
-				const updatedConversation = await appendMessages(
-					[assistantMessage],
-					preferences.defaultModelId,
-				)
-				setStreamingAssistant(null)
-				streamingContentRef.current = ''
-
-				if (resolved.intent === 'chat') {
-					queueMemoryArchive(
-						preferences.geminiApiKey,
-						resolved.modelId,
-						updatedConversation,
-						preferences,
-						saveConversation,
-					)
-				}
-
-				if (assistantMedia && assistantMedia.length > 0) {
-					await saveMessageMediaToLibrary(assistantMedia, {
-						source: 'generated',
-						prompt: resolved.prompt,
-					})
-				}
-			} catch (generationError) {
-				if (
-					generationError instanceof DOMException &&
-					generationError.name === 'AbortError'
-				) {
-					const partialContent = streamingContentRef.current.trim()
-					if (partialContent) {
-						await appendMessages([
-							{
-								id: assistantMessageId,
-								role: 'assistant',
-								content: partialContent,
-								createdAt: Date.now(),
-							},
-						])
-					}
-					setStreamingAssistant(null)
-					streamingContentRef.current = ''
-					return
-				}
-
-				setError(
-					generationError instanceof Error
-						? generationError.message
-						: 'Generation failed',
-				)
-				setStreamingAssistant(null)
-				streamingContentRef.current = ''
-			} finally {
-				abortControllerRef.current = null
-				setIsGenerating(false)
-			}
+			await submitMessage(payload, { forcedNextIntent: activeForcedIntent })
 		},
-		[
-			appendMessages,
-			chatHistory,
-			ensureConversation,
-			forcedNextIntent,
-			hasApiKey,
-			preferences,
-			saveConversation,
-		],
+		[forcedNextIntent, submitMessage],
 	)
 
 	const handleConfirmDelete = useCallback(
@@ -413,10 +195,7 @@ export function ChatPage() {
 				onSubmit={(payload) => {
 					void handleSubmit(payload)
 				}}
-				onStop={() => {
-					abortControllerRef.current?.abort()
-					setIsGenerating(false)
-				}}
+				onStop={stopGeneration}
 			/>
 		</div>
 	)

@@ -1,12 +1,12 @@
-import { Menu } from 'lucide-react'
+import { Loader2, Menu, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { AppNav } from '@/layout/AppNav'
 import {
-	useChatUiContext,
+	useChatGenerationContext,
 	useMainConversationContext,
 	usePreferencesContext,
 } from '@/providers/ChatProvider'
@@ -17,7 +17,8 @@ export function AppShell() {
 	const { preferences } = usePreferencesContext()
 	const { conversation, clearConversation, replaceConversation } =
 		useMainConversationContext()
-	const { isChatGenerating } = useChatUiContext()
+	const { isGenerating, completionNotice, clearCompletionNotice, stopGeneration } =
+		useChatGenerationContext()
 	const location = useLocation()
 	const [drawerOpen, setDrawerOpen] = useState(false)
 	const aiName = getConfiguredAiName(preferences)
@@ -25,8 +26,9 @@ export function AppShell() {
 	const isChatRoute = location.pathname === '/'
 
 	const handleClearChat = useCallback(async () => {
+		stopGeneration()
 		await clearConversation()
-	}, [clearConversation])
+	}, [clearConversation, stopGeneration])
 
 	const handleImportChat = useCallback(
 		async (imported: Parameters<typeof replaceConversation>[0]) => {
@@ -63,17 +65,57 @@ export function AppShell() {
 							{isChatRoute ? (
 								<ChatConversationActions
 									conversation={conversation}
-									isGenerating={isChatGenerating}
+									isGenerating={isGenerating}
 									onClear={handleClearChat}
 									onImport={handleImportChat}
 								/>
 							) : null}
 						</div>
 						<p className="text-xs text-muted-foreground">
-							{selectedModel?.name ?? 'Chat model'}
+							{isGenerating && !isChatRoute
+								? `${aiName} is replying in the background…`
+								: (selectedModel?.name ?? 'Chat model')}
 						</p>
 					</div>
 				</header>
+
+				{isGenerating && !isChatRoute ? (
+					<div className="flex shrink-0 items-center justify-between gap-3 border-b border-primary/20 bg-primary/10 px-4 py-2 text-sm md:px-6">
+						<span className="inline-flex items-center gap-2 text-primary">
+							<Loader2 className="h-4 w-4 animate-spin" />
+							{aiName} is replying…
+						</span>
+						<Link
+							to="/"
+							className="shrink-0 text-xs font-medium text-primary underline-offset-4 hover:underline"
+						>
+							View chat
+						</Link>
+					</div>
+				) : null}
+
+				{completionNotice && !isChatRoute ? (
+					<div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-secondary/50 px-4 py-2 text-sm md:px-6">
+						<span className="text-foreground">{completionNotice}</span>
+						<div className="flex shrink-0 items-center gap-2">
+							<Link
+								to="/"
+								onClick={clearCompletionNotice}
+								className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+							>
+								Open chat
+							</Link>
+							<button
+								type="button"
+								onClick={clearCompletionNotice}
+								className="rounded-md p-1 text-muted-foreground hover:text-foreground"
+								aria-label="Dismiss"
+							>
+								<X className="h-4 w-4" />
+							</button>
+						</div>
+					</div>
+				) : null}
 
 				<main className="flex min-h-0 flex-1 flex-col overflow-hidden">
 					<Outlet />

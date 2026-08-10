@@ -77,6 +77,7 @@ export function ChatInput({
 		status,
 		transcript,
 		error: speechError,
+		hint: speechHint,
 		startListening,
 		continueListening,
 		cancelListening,
@@ -317,6 +318,12 @@ export function ChatInput({
 			{speechError ? (
 				<div className="mx-auto mb-2 max-w-3xl text-xs text-destructive">
 					{speechError}
+				</div>
+			) : null}
+
+			{speechHint ? (
+				<div className="mx-auto mb-2 max-w-3xl text-xs text-muted-foreground">
+					{speechHint}
 				</div>
 			) : null}
 
