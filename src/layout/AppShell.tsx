@@ -1,18 +1,39 @@
 import { Menu } from 'lucide-react'
-import { useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { useCallback, useState } from 'react'
+import { Outlet, useLocation } from 'react-router-dom'
+import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { AppNav } from '@/layout/AppNav'
-import { usePreferencesContext } from '@/providers/ChatProvider'
+import {
+	useChatUiContext,
+	useMainConversationContext,
+	usePreferencesContext,
+} from '@/providers/ChatProvider'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import { getModelById } from '@/services/gemini/models'
 
 export function AppShell() {
 	const { preferences } = usePreferencesContext()
+	const { conversation, clearConversation, replaceConversation } =
+		useMainConversationContext()
+	const { isChatGenerating } = useChatUiContext()
+	const location = useLocation()
 	const [drawerOpen, setDrawerOpen] = useState(false)
 	const aiName = getConfiguredAiName(preferences)
 	const selectedModel = getModelById(preferences.defaultModelId)
+	const isChatRoute = location.pathname === '/'
+
+	const handleClearChat = useCallback(async () => {
+		await clearConversation()
+	}, [clearConversation])
+
+	const handleImportChat = useCallback(
+		async (imported: Parameters<typeof replaceConversation>[0]) => {
+			await replaceConversation(imported)
+		},
+		[replaceConversation],
+	)
 
 	return (
 		<div className="app-shell flex overflow-hidden bg-background">
@@ -36,8 +57,18 @@ export function AppShell() {
 					>
 						<Menu className="h-4 w-4" />
 					</Button>
-					<div>
-						<p className="text-sm font-semibold">{aiName}</p>
+					<div className="min-w-0 flex-1">
+						<div className="flex items-center gap-2">
+							<p className="truncate text-sm font-semibold">{aiName}</p>
+							{isChatRoute ? (
+								<ChatConversationActions
+									conversation={conversation}
+									isGenerating={isChatGenerating}
+									onClear={handleClearChat}
+									onImport={handleImportChat}
+								/>
+							) : null}
+						</div>
 						<p className="text-xs text-muted-foreground">
 							{selectedModel?.name ?? 'Chat model'}
 						</p>

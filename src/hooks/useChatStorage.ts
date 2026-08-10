@@ -180,6 +180,19 @@ export function useMainConversation(defaultModelId: string) {
 		return cleared
 	}, [ensureConversation, persistConversation])
 
+	const replaceConversation = useCallback(
+		async (next: ConversationRecord): Promise<ConversationRecord> => {
+			const replaced: ConversationRecord = {
+				...next,
+				id: MAIN_CONVERSATION_ID,
+				updatedAt: Date.now(),
+			}
+			await persistConversation(replaced)
+			return replaced
+		},
+		[persistConversation],
+	)
+
 	return {
 		conversation,
 		isLoading,
@@ -187,5 +200,6 @@ export function useMainConversation(defaultModelId: string) {
 		updateMessage,
 		ensureConversation,
 		clearConversation,
+		replaceConversation,
 	}
 }

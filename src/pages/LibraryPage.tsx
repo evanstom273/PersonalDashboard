@@ -232,16 +232,22 @@ function DocumentsSection({ query }: { query: string }) {
 										<Link to={`/library/documents/${document.id}`}>Open</Link>
 									</DropdownMenuItem>
 									<DropdownMenuItem
-										onSelect={() => downloadDocument(document, 'html')}
-									>
-										<Download className="h-4 w-4" />
-										Download HTML
-									</DropdownMenuItem>
-									<DropdownMenuItem
 										onSelect={() => downloadDocument(document, 'txt')}
 									>
 										<Download className="h-4 w-4" />
-										Download text
+										Download TXT
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										onSelect={() => downloadDocument(document, 'md')}
+									>
+										<Download className="h-4 w-4" />
+										Download MD
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										onSelect={() => downloadDocument(document, 'pdf')}
+									>
+										<Download className="h-4 w-4" />
+										Download PDF
 									</DropdownMenuItem>
 									<DropdownMenuItem
 										onSelect={() => {
