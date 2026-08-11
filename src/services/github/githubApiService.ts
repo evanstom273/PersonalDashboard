@@ -155,6 +155,105 @@ function buildFileTree(
 	return sortNodes(root)
 }
 
+export interface GitHubRepositorySummary {
+	fullName: string
+	defaultBranch: string
+	isPrivate: boolean
+	updatedAt: string
+}
+
+interface GitHubRepoListResponse {
+	full_name: string
+	default_branch: string
+	private: boolean
+	updated_at: string
+}
+
+export async function listAccessibleRepositories(
+	token: string,
+): Promise<{
+	repositories: GitHubRepositorySummary[]
+	rateLimit: GitHubRateLimit | null
+}> {
+	const repositories: GitHubRepositorySummary[] = []
+	let page = 1
+	let rateLimit: GitHubRateLimit | null = null
+
+	while (page <= 10) {
+		const result = await githubFetch<GitHubRepoListResponse[]>(
+			token,
+			`/user/repos?per_page=100&page=${page}&sort=updated&affiliation=owner,collaborator,organization_member`,
+		)
+
+		rateLimit = result.rateLimit ?? rateLimit
+
+		if (result.data.length === 0) {
+			break
+		}
+
+		for (const repo of result.data) {
+			repositories.push({
+				fullName: repo.full_name,
+				defaultBranch: repo.default_branch || 'main',
+				isPrivate: repo.private,
+				updatedAt: repo.updated_at,
+			})
+		}
+
+		if (result.data.length < 100) {
+			break
+		}
+
+		page += 1
+	}
+
+	return { repositories, rateLimit }
+}
+
+export interface CreateRepositoryInput {
+	name: string
+	description?: string
+	isPrivate?: boolean
+	autoInit?: boolean
+}
+
+export async function createRepository(
+	token: string,
+	input: CreateRepositoryInput,
+): Promise<{
+	repository: GitHubRepositorySummary
+	rateLimit: GitHubRateLimit | null
+}> {
+	const name = input.name.trim()
+	if (!name) {
+		throw new GitHubApiError('Repository name is required.', 400)
+	}
+
+	const { data, rateLimit } = await githubFetch<GitHubRepoListResponse>(
+		token,
+		'/user/repos',
+		{
+			method: 'POST',
+			body: JSON.stringify({
+				name,
+				description: input.description?.trim() || undefined,
+				private: input.isPrivate ?? true,
+				auto_init: input.autoInit ?? true,
+			}),
+		},
+	)
+
+	return {
+		repository: {
+			fullName: data.full_name,
+			defaultBranch: data.default_branch || 'main',
+			isPrivate: data.private,
+			updatedAt: data.updated_at,
+		},
+		rateLimit,
+	}
+}
+
 export async function fetchRepositoryTree(
 	token: string,
 	repo: DevStudioRepoRef,

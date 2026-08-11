@@ -1,5 +1,4 @@
 import {
-	FolderGit2,
 	GitBranch,
 	GitPullRequest,
 	Loader2,
@@ -8,13 +7,15 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { DevStudioCreateRepoButton } from '@/components/devStudio/DevStudioCreateRepoDialog'
+import { DevStudioRepoSwitcher } from '@/components/devStudio/DevStudioRepoSwitcher'
 import { useDevStudio } from '@/providers/DevStudioProvider'
+import { formatRateLimitLabel } from '@/utils/githubRateLimit'
 import { cn } from '@/utils/cn'
 
 export function DevStudioHeader() {
 	const {
 		isConfigured,
-		repositorySlug,
 		branch,
 		connectionStatus,
 		connectionError,
@@ -27,12 +28,7 @@ export function DevStudioHeader() {
 		<header className="dev-studio-header shrink-0 border-b border-border/70 px-4 py-3 md:px-5">
 			<div className="flex min-w-0 items-start justify-between gap-3">
 				<div className="min-w-0">
-					<div className="flex items-center gap-2">
-						<FolderGit2 className="h-4 w-4 shrink-0 text-primary" />
-						<h1 className="truncate text-base font-semibold">
-							{isConfigured ? repositorySlug : 'Dev Studio'}
-						</h1>
-					</div>
+					<DevStudioRepoSwitcher />
 					<div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
 						{isConfigured ? (
 							<>
@@ -42,7 +38,9 @@ export function DevStudioHeader() {
 								</span>
 								<ConnectionBadge status={connectionStatus} />
 								{rateLimit ? (
-									<span>{rateLimit.remaining} API calls left</span>
+									<span title="GitHub REST API hourly limit">
+										{formatRateLimitLabel(rateLimit)}
+									</span>
 								) : null}
 							</>
 						) : (
@@ -56,20 +54,23 @@ export function DevStudioHeader() {
 
 				<div className="flex shrink-0 items-center gap-1">
 					{isConfigured ? (
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							onClick={() => void refreshWorkspace()}
-							disabled={connectionStatus === 'connecting'}
-							aria-label="Refresh workspace"
-						>
-							{connectionStatus === 'connecting' ? (
-								<Loader2 className="h-4 w-4 animate-spin" />
-							) : (
-								<RefreshCw className="h-4 w-4" />
-							)}
-						</Button>
+						<>
+							<DevStudioCreateRepoButton />
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								onClick={() => void refreshWorkspace()}
+								disabled={connectionStatus === 'connecting'}
+								aria-label="Refresh workspace"
+							>
+								{connectionStatus === 'connecting' ? (
+									<Loader2 className="h-4 w-4 animate-spin" />
+								) : (
+									<RefreshCw className="h-4 w-4" />
+								)}
+							</Button>
+						</>
 					) : (
 						<Button
 							type="button"

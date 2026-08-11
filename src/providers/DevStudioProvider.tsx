@@ -43,6 +43,9 @@ interface DevStudioContextValue {
 	setSelectedFilePath: (path: string | null) => void
 	connectWorkspace: () => Promise<void>
 	refreshWorkspace: () => Promise<void>
+	switchRepository: (fullName: string, defaultBranch?: string) => Promise<void>
+	bumpRepositoriesRevision: () => void
+	repositoriesRevision: number
 	appendMessage: (message: StoredMessage) => void
 	setComposerSending: (value: boolean) => void
 	discardStagedChange: (id: string) => void
@@ -77,7 +80,7 @@ function buildRepoRef(
 }
 
 export function DevStudioProvider({ children }: { children: ReactNode }) {
-	const { preferences } = usePreferencesContext()
+	const { preferences, savePreferences } = usePreferencesContext()
 	const [connectionStatus, setConnectionStatus] =
 		useState<DevStudioConnectionStatus>('disconnected')
 	const [connectionError, setConnectionError] = useState<string | null>(null)
@@ -100,6 +103,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 		},
 	])
 	const [isComposerSending, setComposerSending] = useState(false)
+	const [repositoriesRevision, setRepositoriesRevision] = useState(0)
 
 	const repoRef = useMemo(
 		() =>
@@ -116,41 +120,47 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 
 	const repositorySlug = repoRef ? formatRepositorySlug(repoRef) : ''
 
-	const hydrateWorkspace = useCallback(async () => {
-		if (!repoRef || !preferences.githubPat.trim()) {
-			setConnectionStatus('disconnected')
-			setWorkspace(null)
+	const hydrateWorkspace = useCallback(
+		async (repoOverride?: DevStudioRepoRef) => {
+			const activeRepo = repoOverride ?? repoRef
+			if (!activeRepo || !preferences.githubPat.trim()) {
+				setConnectionStatus('disconnected')
+				setWorkspace(null)
+				setConnectionError(null)
+				return
+			}
+
+			setConnectionStatus('connecting')
 			setConnectionError(null)
-			return
-		}
+			setSelectedFilePath(null)
 
-		setConnectionStatus('connecting')
-		setConnectionError(null)
+			try {
+				const token = preferences.githubPat.trim()
+				const [treeResult, pullResult] = await Promise.all([
+					fetchRepositoryTree(token, activeRepo),
+					listOpenPullRequests(token, activeRepo),
+				])
 
-		try {
-			const [treeResult, pullResult] = await Promise.all([
-				fetchRepositoryTree(preferences.githubPat.trim(), repoRef),
-				listOpenPullRequests(preferences.githubPat.trim(), repoRef),
-			])
-
-			setRateLimit(pullResult.rateLimit ?? treeResult.rateLimit)
-			setWorkspace({
-				repo: repoRef,
-				tree: treeResult.tree,
-				pullRequests: pullResult.pullRequests,
-				lastSyncedAt: Date.now(),
-			})
-			setConnectionStatus('connected')
-		} catch (caught) {
-			setConnectionStatus('error')
-			setWorkspace(null)
-			setConnectionError(
-				caught instanceof Error
-					? caught.message
-					: 'Could not connect to GitHub.',
-			)
-		}
-	}, [preferences.githubPat, repoRef])
+				setRateLimit(pullResult.rateLimit ?? treeResult.rateLimit)
+				setWorkspace({
+					repo: activeRepo,
+					tree: treeResult.tree,
+					pullRequests: pullResult.pullRequests,
+					lastSyncedAt: Date.now(),
+				})
+				setConnectionStatus('connected')
+			} catch (caught) {
+				setConnectionStatus('error')
+				setWorkspace(null)
+				setConnectionError(
+					caught instanceof Error
+						? caught.message
+						: 'Could not connect to GitHub.',
+				)
+			}
+		},
+		[preferences.githubPat, repoRef],
+	)
 
 	const connectWorkspace = useCallback(async () => {
 		await hydrateWorkspace()
@@ -159,6 +169,34 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	const refreshWorkspace = useCallback(async () => {
 		await hydrateWorkspace()
 	}, [hydrateWorkspace])
+
+	const switchRepository = useCallback(
+		async (fullName: string, defaultBranch?: string) => {
+			const parsed = parseRepositorySlug(fullName)
+			if (!parsed) {
+				setConnectionError('Invalid repository format.')
+				return
+			}
+
+			const branch = defaultBranch?.trim() || preferences.devStudioBranch || 'main'
+			const nextRepo: DevStudioRepoRef = {
+				...parsed,
+				branch,
+			}
+
+			await savePreferences({
+				...preferences,
+				devStudioRepository: fullName,
+				devStudioBranch: branch,
+			})
+			await hydrateWorkspace(nextRepo)
+		},
+		[hydrateWorkspace, preferences, savePreferences],
+	)
+
+	const bumpRepositoriesRevision = useCallback(() => {
+		setRepositoriesRevision((current) => current + 1)
+	}, [])
 
 	const appendMessage = useCallback((message: StoredMessage) => {
 		setMessages((current) => [...current, message])
@@ -190,12 +228,16 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			setSelectedFilePath,
 			connectWorkspace,
 			refreshWorkspace,
+			switchRepository,
+			bumpRepositoriesRevision,
+			repositoriesRevision,
 			appendMessage,
 			setComposerSending,
 			discardStagedChange,
 		}),
 		[
 			appendMessage,
+			bumpRepositoriesRevision,
 			branch,
 			connectWorkspace,
 			connectionError,
@@ -208,9 +250,11 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			mobileTab,
 			rateLimit,
 			refreshWorkspace,
+			repositoriesRevision,
 			repositorySlug,
 			selectedFilePath,
 			stagedChanges,
+			switchRepository,
 			workspace,
 		],
 	)
