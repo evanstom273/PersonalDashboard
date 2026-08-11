@@ -27,6 +27,10 @@ interface GeminiPart {
 		name: string
 		response: Record<string, unknown>
 	}
+	inlineData?: {
+		mimeType: string
+		data: string
+	}
 }
 
 interface GeminiContent {
@@ -79,6 +83,38 @@ function buildDevStudioSystemInstruction(
 	].join('\n\n')
 }
 
+function buildDevStudioMessageParts(message: StoredMessage): GeminiPart[] {
+	const parts: GeminiPart[] = []
+
+	if (message.content.trim()) {
+		parts.push({ text: message.content })
+	}
+
+	for (const item of message.media ?? []) {
+		if (item.type !== 'image') {
+			continue
+		}
+
+		const base64 = item.dataUrl.split(',')[1]
+		if (!base64) {
+			continue
+		}
+
+		parts.push({
+			inlineData: {
+				mimeType: item.mimeType,
+				data: base64,
+			},
+		})
+	}
+
+	if (parts.length === 0) {
+		parts.push({ text: message.content || ' ' })
+	}
+
+	return parts
+}
+
 export async function generateDevStudioChat(
 	apiKey: string,
 	modelId: string,
@@ -97,7 +133,7 @@ export async function generateDevStudioChat(
 ): Promise<string> {
 	const contents: GeminiContent[] = messages.map((message) => ({
 		role: message.role === 'assistant' ? 'model' : 'user',
-		parts: [{ text: message.content }],
+		parts: buildDevStudioMessageParts(message),
 	}))
 
 	const maxIterations = getMaxIterationsForModel(modelId)
