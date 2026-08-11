@@ -9,6 +9,7 @@ import {
 	type KeyboardEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { DevStudioAttachMenu } from '@/components/devStudio/DevStudioModelSelector'
 import { DevStudioResumeBanner } from '@/components/devStudio/DevStudioTaskStatus'
@@ -94,6 +95,7 @@ function completeLatestActivity(
 }
 
 export function DevStudioComposer() {
+	const location = useLocation()
 	const { preferences } = usePreferencesContext()
 	const {
 		appendMessage,
@@ -124,6 +126,15 @@ export function DevStudioComposer() {
 	const abortRef = useRef<AbortController | null>(null)
 
 	const [mentionMenuStyle, setMentionMenuStyle] = useState<CSSProperties | null>(null)
+
+	useEffect(() => {
+		const initialPrompt = (location.state as { initialPrompt?: string } | null)?.initialPrompt
+		if (initialPrompt) {
+			setDraft(initialPrompt)
+			setCursorPosition(initialPrompt.length)
+			window.history.replaceState({}, document.title)
+		}
+	}, [location.state])
 
 	const adjustTextareaHeight = useCallback(() => {
 		const textarea = textareaRef.current
