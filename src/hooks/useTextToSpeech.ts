@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { synthesizeSpeechWithGemini } from '@/services/gemini/synthesizeSpeech'
+import { streamSpeechWithGemini } from '@/services/gemini/streamingTtsService'
 import { normalizeTtsVoiceName } from '@/services/gemini/ttsVoices'
 import type { TtsReadAloudMode, UserPreferences } from '@/storage/types'
+import { PcmStreamPlayer } from '@/utils/pcmStreamPlayer'
 import { prepareTextForSpeech } from '@/utils/speechText'
 
 export type TtsPlaybackStatus = 'idle' | 'loading' | 'playing'
@@ -9,6 +11,9 @@ export type TtsPlaybackStatus = 'idle' | 'loading' | 'playing'
 export interface SpeakAssistantMessageOptions {
 	messageId: string
 	text: string
+	onEnded?: () => void
+	onError?: (error: Error) => void
+	suppressErrorState?: boolean
 }
 
 interface UseTextToSpeechOptions {
@@ -62,12 +67,22 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 	const objectUrlRef = useRef<string | null>(null)
 	const cacheRef = useRef<Map<string, CachedSpeech>>(new Map())
 	const requestIdRef = useRef(0)
+	const pcmPlayerRef = useRef<PcmStreamPlayer | null>(null)
+	const abortControllerRef = useRef<AbortController | null>(null)
+	const onEndedRef = useRef<(() => void) | null>(null)
 
 	const revokeObjectUrl = useCallback(() => {
 		if (objectUrlRef.current) {
 			URL.revokeObjectURL(objectUrlRef.current)
 			objectUrlRef.current = null
 		}
+	}, [])
+
+	const stopPcmPlayback = useCallback(() => {
+		abortControllerRef.current?.abort()
+		abortControllerRef.current = null
+		pcmPlayerRef.current?.stop()
+		pcmPlayerRef.current = null
 	}, [])
 
 	const stopPlayback = useCallback(() => {
@@ -79,13 +94,15 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 			audio.onerror = null
 		}
 		revokeObjectUrl()
-	}, [revokeObjectUrl])
+		stopPcmPlayback()
+	}, [revokeObjectUrl, stopPcmPlayback])
 
 	const stop = useCallback(() => {
 		requestIdRef.current += 1
 		stopPlayback()
 		setActiveMessageId(null)
 		setStatus('idle')
+		onEndedRef.current = null
 	}, [stopPlayback])
 
 	const clearError = useCallback(() => {
@@ -98,6 +115,20 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 			return `${messageId}:${voiceName}:${speechText}`
 		},
 		[preferences.ttsVoiceName],
+	)
+
+	const finishPlayback = useCallback(
+		(requestId: number) => {
+			if (requestId !== requestIdRef.current) {
+				return
+			}
+			const onEnded = onEndedRef.current
+			onEndedRef.current = null
+			setActiveMessageId(null)
+			setStatus('idle')
+			onEnded?.()
+		},
+		[],
 	)
 
 	const playDataUrl = useCallback(
@@ -142,17 +173,14 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 			}
 
 			audio.onended = () => {
-				if (requestId !== requestIdRef.current) {
-					return
-				}
-				stop()
+				finishPlayback(requestId)
 			}
 			audio.onerror = () => {
 				if (requestId !== requestIdRef.current) {
 					return
 				}
 				setError('Could not play speech audio.')
-				stop()
+				finishPlayback(requestId)
 			}
 
 			setActiveMessageId(messageId)
@@ -164,7 +192,7 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 				if (requestId !== requestIdRef.current) {
 					return
 				}
-				stop()
+				finishPlayback(requestId)
 				const message =
 					playError instanceof Error && playError.name === 'NotAllowedError'
 						? 'Speech playback was blocked by the browser. Tap Listen again to start audio.'
@@ -172,20 +200,83 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 				setError(message)
 			}
 		},
-		[stop, stopPlayback],
+		[finishPlayback, stopPlayback],
+	)
+
+	const playStreamingSpeech = useCallback(
+		async (
+			messageId: string,
+			speechText: string,
+			requestId: number,
+		): Promise<void> => {
+			stopPlayback()
+
+			const abortController = new AbortController()
+			abortControllerRef.current = abortController
+
+			const player = new PcmStreamPlayer(24000)
+			pcmPlayerRef.current = player
+			player.setOnPlaybackEnded(() => {
+				finishPlayback(requestId)
+			})
+			await player.start()
+
+			if (requestId !== requestIdRef.current) {
+				return
+			}
+
+			setActiveMessageId(messageId)
+			setStatus('playing')
+
+			await streamSpeechWithGemini({
+				apiKey: preferences.geminiApiKey,
+				text: speechText,
+				voiceName: normalizeTtsVoiceName(preferences.ttsVoiceName),
+				preferences,
+				signal: abortController.signal,
+				onAudioChunk: (base64) => {
+					if (requestId !== requestIdRef.current) {
+						return
+					}
+					player.enqueuePcmBase64(base64)
+				},
+			})
+
+			if (requestId !== requestIdRef.current) {
+				return
+			}
+
+			player.markStreamComplete()
+		},
+		[finishPlayback, preferences, stopPlayback],
 	)
 
 	const speakAssistantMessage = useCallback(
-		async ({ messageId, text }: SpeakAssistantMessageOptions) => {
+		async ({
+			messageId,
+			text,
+			onEnded,
+			onError,
+			suppressErrorState = false,
+		}: SpeakAssistantMessageOptions) => {
 			const apiKey = preferences.geminiApiKey.trim()
 			if (!apiKey) {
-				setError('Add your Gemini API key in Settings to use text-to-speech.')
+				const message = 'Add your Gemini API key in Settings to use text-to-speech.'
+				if (!suppressErrorState) {
+					setError(message)
+				}
+				onError?.(new Error(message))
 				return
 			}
 
 			const speechText = prepareTextForSpeech(text)
 			if (!speechText) {
-				setError('There is no readable text to speak in this message.')
+				const message = 'There is no readable text to speak in this message.'
+				if (!suppressErrorState) {
+					setError(message)
+				}
+				onError?.(new Error(message))
+				onEnded?.()
 				return
 			}
 
@@ -195,18 +286,38 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 			}
 
 			stopPlayback()
+			onEndedRef.current = onEnded ?? null
 
 			const requestId = requestIdRef.current + 1
 			requestIdRef.current = requestId
-			setError(null)
+			if (!suppressErrorState) {
+				setError(null)
+			}
 			setActiveMessageId(messageId)
 			setStatus('loading')
 
-			try {
-				const cacheKey = buildCacheKey(messageId, speechText)
-				let dataUrl = cacheRef.current.get(cacheKey)?.dataUrl
+			const cacheKey = buildCacheKey(messageId, speechText)
+			const cached = cacheRef.current.get(cacheKey)?.dataUrl
 
-				if (!dataUrl) {
+			try {
+				if (cached) {
+					await playDataUrl(messageId, cached, requestId)
+					return
+				}
+
+				try {
+					await playStreamingSpeech(messageId, speechText, requestId)
+				} catch (streamError) {
+					if (requestId !== requestIdRef.current) {
+						return
+					}
+					if (
+						streamError instanceof DOMException &&
+						streamError.name === 'AbortError'
+					) {
+						return
+					}
+
 					const synthesized = await synthesizeSpeechWithGemini({
 						apiKey,
 						text: speechText,
@@ -216,27 +327,30 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 					if (requestId !== requestIdRef.current) {
 						return
 					}
-					dataUrl = synthesized.dataUrl
-					cacheRef.current.set(cacheKey, { dataUrl })
+					cacheRef.current.set(cacheKey, { dataUrl: synthesized.dataUrl })
+					await playDataUrl(messageId, synthesized.dataUrl, requestId)
 				}
-
-				await playDataUrl(messageId, dataUrl, requestId)
 			} catch (speechError) {
 				if (requestId !== requestIdRef.current) {
 					return
 				}
-				stop()
-				setError(
+				finishPlayback(requestId)
+				const errorInstance =
 					speechError instanceof Error
-						? speechError.message
-						: 'Speech generation failed.',
-				)
+						? speechError
+						: new Error('Speech generation failed.')
+				if (!suppressErrorState) {
+					setError(errorInstance.message)
+				}
+				onError?.(errorInstance)
 			}
 		},
 		[
 			activeMessageId,
 			buildCacheKey,
+			finishPlayback,
 			playDataUrl,
+			playStreamingSpeech,
 			preferences,
 			status,
 			stop,
@@ -263,33 +377,36 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 			try {
 				const sampleText =
 					'Hello! This is a short preview of how replies will sound when read aloud.'
-				const synthesized = await synthesizeSpeechWithGemini({
-					apiKey,
-					text: sampleText,
-					voiceName: normalizeTtsVoiceName(voiceName),
-					preferences: {
-						...preferences,
-						ttsVoiceName: normalizeTtsVoiceName(voiceName),
-					},
-				})
-				if (requestId !== requestIdRef.current) {
-					return
-				}
-
-				await playDataUrl('voice-preview', synthesized.dataUrl, requestId)
+				await playStreamingSpeech('voice-preview', sampleText, requestId)
 			} catch (speechError) {
 				if (requestId !== requestIdRef.current) {
 					return
 				}
-				stop()
-				setError(
-					speechError instanceof Error
-						? speechError.message
-						: 'Voice preview failed.',
-				)
+				try {
+					const synthesized = await synthesizeSpeechWithGemini({
+						apiKey,
+						text: 'Hello! This is a short preview of how replies will sound when read aloud.',
+						voiceName: normalizeTtsVoiceName(voiceName),
+						preferences: {
+							...preferences,
+							ttsVoiceName: normalizeTtsVoiceName(voiceName),
+						},
+					})
+					if (requestId !== requestIdRef.current) {
+						return
+					}
+					await playDataUrl('voice-preview', synthesized.dataUrl, requestId)
+				} catch (fallbackError) {
+					finishPlayback(requestId)
+					setError(
+						fallbackError instanceof Error
+							? fallbackError.message
+							: 'Voice preview failed.',
+					)
+				}
 			}
 		},
-		[playDataUrl, preferences, stop, stopPlayback],
+		[finishPlayback, playDataUrl, playStreamingSpeech, preferences, stopPlayback],
 	)
 
 	useEffect(() => {

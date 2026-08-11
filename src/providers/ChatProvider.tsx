@@ -12,6 +12,7 @@ import {
 	createContext,
 	useCallback,
 	useContext,
+	useRef,
 	type ReactNode,
 } from 'react'
 import { useLocation } from 'react-router-dom'
@@ -29,6 +30,12 @@ const ChatGenerationContext = createContext<ChatGenerationContextValue | null>(
 )
 const TextToSpeechContext = createContext<TextToSpeechContextValue | null>(null)
 
+interface VoiceSessionContextValue {
+	conversationModeActiveRef: React.MutableRefObject<boolean>
+}
+
+const VoiceSessionContext = createContext<VoiceSessionContextValue | null>(null)
+
 export function ChatProvider({ children }: { children: ReactNode }) {
 	const preferencesState = usePreferences()
 	const conversationState = useMainConversation(
@@ -38,11 +45,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 	const textToSpeechState = useTextToSpeech({
 		preferences: preferencesState.preferences,
 	})
+	const conversationModeActiveRef = useRef(false)
 
 	const handleAssistantReply = useCallback<
 		NonNullable<Parameters<typeof useChatGeneration>[0]['onAssistantReply']>
 	>(
 		({ message, inputMethod }) => {
+			if (conversationModeActiveRef.current) {
+				return
+			}
+
 			if (
 				!shouldAutoPlayAssistantSpeech(
 					preferencesState.preferences.ttsReadAloudMode,
@@ -98,9 +110,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		<PreferencesContext.Provider value={preferencesState}>
 			<MainConversationContext.Provider value={conversationState}>
 				<TextToSpeechContext.Provider value={textToSpeechState}>
-					<ChatGenerationContext.Provider value={generationState}>
-						{children}
-					</ChatGenerationContext.Provider>
+					<VoiceSessionContext.Provider value={{ conversationModeActiveRef }}>
+						<ChatGenerationContext.Provider value={generationState}>
+							{children}
+						</ChatGenerationContext.Provider>
+					</VoiceSessionContext.Provider>
 				</TextToSpeechContext.Provider>
 			</MainConversationContext.Provider>
 		</PreferencesContext.Provider>
@@ -141,6 +155,14 @@ export function useTextToSpeechContext(): TextToSpeechContextValue {
 		throw new Error(
 			'useTextToSpeechContext must be used within ChatProvider',
 		)
+	}
+	return context
+}
+
+export function useVoiceSessionContext(): VoiceSessionContextValue {
+	const context = useContext(VoiceSessionContext)
+	if (!context) {
+		throw new Error('useVoiceSessionContext must be used within ChatProvider')
 	}
 	return context
 }

@@ -1,12 +1,5 @@
 import { ArrowUp, Mic, Square, X } from 'lucide-react'
-import {
-	useCallback,
-	useEffect,
-	useRef,
-	useState,
-	type FormEvent,
-	type KeyboardEvent,
-} from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { ChatAttachMenu } from '@/components/chat/ChatAttachMenu'
 import { DocumentMentionMenu } from '@/components/chat/DocumentMentionMenu'
 import { Button } from '@/components/ui/button'

@@ -895,9 +895,21 @@ function VoiceTab({
 						<span className="font-medium text-foreground">
 							gemini-3.1-flash-tts-preview
 						</span>{' '}
-						and your saved API key. Tap Listen on a reply for manual playback.
+						with streaming playback. Tap Listen on a reply for manual playback.
 					</p>
 				</div>
+			</section>
+
+			<section className="surface-panel space-y-3 rounded-xl p-5">
+				<div className="flex items-center gap-2">
+					<Mic className="h-5 w-5 text-primary" />
+					<h3 className="text-sm font-medium">Voice conversation</h3>
+				</div>
+				<p className="text-sm text-muted-foreground">
+					In chat, tap the phone icon next to your assistant&apos;s name for
+					Conversation Mode, or the headphones icon for Live Mode. Each shows a
+					short explanation before you start.
+				</p>
 			</section>
 		</div>
 	)

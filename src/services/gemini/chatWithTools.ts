@@ -1,18 +1,16 @@
-import { executeDocumentToolCall, DOCUMENT_TOOL_DECLARATIONS } from '@/services/gemini/documentTools'
+import { executeDocumentToolCall } from '@/services/gemini/documentTools'
 import {
-	CODEBASE_TOOL_DECLARATIONS,
 	executeCodebaseToolCall,
 	isCodebaseToolName,
 } from '@/services/gemini/codebaseTools'
+import { buildChatTools } from '@/services/gemini/executeAppToolCall'
 import {
 	executeProjectToolCall,
 	isProjectToolName,
-	PROJECT_TOOL_DECLARATIONS,
 } from '@/services/projects/projectTools'
 import {
 	executeReminderToolCall,
 	isReminderToolName,
-	REMINDER_TOOL_DECLARATIONS,
 } from '@/services/reminders/reminderTools'
 import { buildFullSystemInstruction } from '@/services/gemini/documentContext'
 import {
@@ -268,27 +266,4 @@ function buildMessageParts(message: ChatMessageInput): GeminiPart[] {
 	}
 
 	return parts
-}
-
-function buildChatTools(
-	useWebSearch: boolean,
-	allowCodebaseInspection: boolean,
-): Array<Record<string, unknown>> {
-	const declarations = [
-		...DOCUMENT_TOOL_DECLARATIONS,
-		...PROJECT_TOOL_DECLARATIONS,
-		...REMINDER_TOOL_DECLARATIONS,
-		...(allowCodebaseInspection ? CODEBASE_TOOL_DECLARATIONS : []),
-	]
-
-	if (useWebSearch) {
-		return [
-			{
-				googleSearch: {},
-				functionDeclarations: declarations,
-			},
-		]
-	}
-
-	return [{ functionDeclarations: declarations }]
 }

@@ -46,6 +46,7 @@ export default defineConfig({
 				importScripts: ['notification-sw.js'],
 				skipWaiting: true,
 				clientsClaim: true,
+				maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
 			},
 			devOptions: {
 				enabled: true,
