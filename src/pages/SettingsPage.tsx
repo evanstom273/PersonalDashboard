@@ -39,7 +39,12 @@ import {
 } from '@/utils/notifications'
 import { isCapacitorNativePlatform } from '@/utils/capacitor'
 import { cn } from '@/utils/cn'
-import { downloadAppReferenceMarkdown } from '@/utils/downloads'
+import { downloadAppReferenceMarkdown, downloadChangelogMarkdown } from '@/utils/downloads'
+import {
+	APP_VERSION,
+	CHANGELOG,
+	formatChangelogDate,
+} from '@/data/changelog'
 import { clearAllMemory } from '@/services/memory/memoryService'
 import {
 	getUnarchivedMessages,
@@ -991,6 +996,49 @@ function AppTab({
 					while a reply is in progress. With notifications enabled, Android also
 					shows a system tray alert when the reply is ready.
 				</p>
+			</section>
+
+			<section className="surface-panel space-y-4 rounded-xl p-5">
+				<div className="flex flex-wrap items-start justify-between gap-3">
+					<div className="space-y-1">
+						<div className="flex items-center gap-2">
+							<RefreshCw className="h-5 w-5 text-primary" />
+							<h3 className="text-sm font-medium">Changelog</h3>
+						</div>
+						<p className="text-sm text-muted-foreground">
+							Current version:{' '}
+							<span className="font-medium text-foreground">v{APP_VERSION}</span>
+						</p>
+					</div>
+					<Button type="button" variant="outline" size="sm" onClick={downloadChangelogMarkdown}>
+						<Download className="h-4 w-4" />
+						Export changelog (.md)
+					</Button>
+				</div>
+				<div className="max-h-[min(28rem,50vh)] space-y-3 overflow-y-auto overscroll-contain rounded-lg border border-border/60 p-3">
+					{CHANGELOG.map((entry) => (
+						<article
+							key={entry.version}
+							className="border-b border-border/50 pb-3 last:border-b-0 last:pb-0"
+						>
+							<div className="flex flex-wrap items-baseline justify-between gap-2">
+								<h4 className="text-sm font-medium">v{entry.version}</h4>
+								<time
+									className="text-xs text-muted-foreground"
+									dateTime={entry.releasedAt}
+								>
+									{formatChangelogDate(entry.releasedAt)}
+								</time>
+							</div>
+							<p className="mt-0.5 text-xs text-muted-foreground">{entry.summary}</p>
+							<ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-muted-foreground">
+								{entry.changes.map((change) => (
+									<li key={change}>{change}</li>
+								))}
+							</ul>
+						</article>
+					))}
+				</div>
 			</section>
 
 			<section className="surface-panel space-y-4 rounded-xl p-5">
