@@ -45,7 +45,7 @@ function buildDevStudioGenerationConfig(modelId: string): Record<string, unknown
 
 	const resolvedId = resolveDevStudioModelId(modelId)
 	const thinkingLevel =
-		resolvedId === 'gemini-3-flash-preview'
+		resolvedId === 'gemini-3.1-pro-preview'
 			? 'high'
 			: resolvedId === 'gemini-3.6-flash'
 				? 'medium'

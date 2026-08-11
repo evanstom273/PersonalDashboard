@@ -1,7 +1,7 @@
 export const DEV_STUDIO_MODEL_IDS = [
 	'gemini-2.5-flash',
 	'gemini-3.6-flash',
-	'gemini-3-flash-preview',
+	'gemini-3.1-pro-preview',
 ] as const
 
 export type DevStudioModelId = (typeof DEV_STUDIO_MODEL_IDS)[number]
@@ -31,8 +31,8 @@ export const DEV_STUDIO_MODELS: DevStudioModelDefinition[] = [
 			'Default balance of speed and quality. Great for everyday coding and small features.',
 	},
 	{
-		id: 'gemini-3-flash-preview',
-		name: 'Gemini 3.1 Flash',
+		id: 'gemini-3.1-pro-preview',
+		name: 'Gemini 3.1 Pro',
 		analogy: 'Opus',
 		description:
 			'Deepest reasoning. Slower but better for multi-file refactors and tricky bugs.',
@@ -50,6 +50,9 @@ export function getDevStudioModelById(
 export function resolveDevStudioModelId(
 	preferredId: string | undefined,
 ): DevStudioModelId {
+	if (preferredId === 'gemini-3-flash-preview') {
+		return 'gemini-3.1-pro-preview'
+	}
 	if (preferredId && modelMap.has(preferredId as DevStudioModelId)) {
 		return preferredId as DevStudioModelId
 	}
