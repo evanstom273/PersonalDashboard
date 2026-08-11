@@ -7,6 +7,7 @@ import {
 	subscribeDocumentsChanged,
 	updateDocument,
 } from '@/services/documents/documentService'
+import type { DocumentTemplate } from '@/data/documentTemplates'
 import type { DocumentRecord } from '@/storage/types'
 
 export function useDocuments() {
@@ -31,6 +32,21 @@ export function useDocuments() {
 		return createDocument('Untitled document')
 	}, [])
 
+	const createDocumentFromTemplate = useCallback(
+		async (template: DocumentTemplate | null) => {
+			if (!template) {
+				return createDocument('Untitled document')
+			}
+
+			return createDocument(template.name, template.content, {
+				source: 'user',
+				contentFormat: 'markdown',
+				readOnly: false,
+			})
+		},
+		[],
+	)
+
 	const saveDocument = useCallback(
 		async (
 			id: string,
@@ -54,6 +70,7 @@ export function useDocuments() {
 		isLoading,
 		refreshDocuments,
 		createBlankDocument,
+		createDocumentFromTemplate,
 		saveDocument,
 		removeDocument,
 		copyDocument,

@@ -127,6 +127,7 @@ export interface UserPreferences {
 	ttsReadAloudMode: TtsReadAloudMode
 	ttsVoiceName: string
 	allowCodebaseInspection: boolean
+	scratchpadContent: string
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -142,6 +143,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	ttsReadAloudMode: 'never',
 	ttsVoiceName: 'Kore',
 	allowCodebaseInspection: true,
+	scratchpadContent: '',
 }
 
 export interface DocumentRecord {

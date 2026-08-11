@@ -1,10 +1,19 @@
-import { ArrowLeft, Lock } from 'lucide-react'
+import { ArrowLeft, LayoutTemplate, Lock } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DocumentEditor } from '@/components/documents/DocumentEditor'
 import { Button } from '@/components/ui/button'
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
 import { usePreferencesContext } from '@/providers/ChatProvider'
 import { getDocument, createDocument, updateDocument } from '@/services/documents/documentService'
+import { saveDocumentAsTemplate } from '@/services/documents/documentTemplateService'
 import type { DocumentContentFormat, DocumentRecord } from '@/storage/types'
 import {
 	documentContentToEditorHtml,
@@ -22,6 +31,10 @@ export function DocumentEditorPage() {
 	const [title, setTitle] = useState('')
 	const [content, setContent] = useState('<p></p>')
 	const [isLoading, setIsLoading] = useState(true)
+	const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
+	const [templateName, setTemplateName] = useState('')
+	const [templateSaved, setTemplateSaved] = useState(false)
+	const [templateError, setTemplateError] = useState<string | null>(null)
 	const saveTimerRef = useRef<number | null>(null)
 	const latestRef = useRef({ title, content })
 	const documentMetaRef = useRef<{
@@ -37,6 +50,48 @@ export function DocumentEditorPage() {
 
 	const readOnly = document ? isDocumentReadOnly(document) : false
 	readOnlyRef.current = readOnly
+
+	const handleSaveAsTemplate = useCallback(async () => {
+		const trimmedName = templateName.trim()
+		if (!trimmedName) {
+			setTemplateError('Template name is required.')
+			return
+		}
+
+		const meta = documentMetaRef.current
+		if (!meta) {
+			return
+		}
+
+		try {
+			await saveDocumentAsTemplate({
+				name: trimmedName,
+				content: editorHtmlToDocumentContent(
+					latestRef.current.content,
+					meta.contentFormat,
+				),
+				description: `From “${latestRef.current.title.trim() || 'Untitled document'}”`,
+			})
+			setTemplateSaved(true)
+			setTemplateError(null)
+			window.setTimeout(() => {
+				setTemplateDialogOpen(false)
+				setTemplateSaved(false)
+				setTemplateName('')
+			}, 1200)
+		} catch (caught) {
+			setTemplateError(
+				caught instanceof Error ? caught.message : 'Could not save template.',
+			)
+		}
+	}, [templateName])
+
+	const openTemplateDialog = useCallback(() => {
+		setTemplateName(title.trim() || 'My template')
+		setTemplateError(null)
+		setTemplateSaved(false)
+		setTemplateDialogOpen(true)
+	}, [title])
 
 	const persistDocument = useCallback(async () => {
 		const meta = documentMetaRef.current
@@ -171,13 +226,59 @@ export function DocumentEditorPage() {
 							<Lock className="h-3.5 w-3.5" />
 							Read-only
 						</div>
-					) : document.source === 'upload' ? (
-						<span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
-							Uploaded
-						</span>
-					) : null}
+					) : (
+						<>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={openTemplateDialog}
+							>
+								<LayoutTemplate className="h-4 w-4" />
+								Save as template
+							</Button>
+							{document.source === 'upload' ? (
+								<span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+									Uploaded
+								</span>
+							) : null}
+						</>
+					)}
 				</div>
 			</header>
+
+			<Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+				<DialogContent className="w-[min(24rem,calc(100vw-2rem))]">
+					<DialogHeader>
+						<DialogTitle>Save as template</DialogTitle>
+						<DialogDescription>
+							Reuse this document structure when creating new documents in Library.
+						</DialogDescription>
+					</DialogHeader>
+					<input
+						value={templateName}
+						onChange={(event) => setTemplateName(event.target.value)}
+						className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+						placeholder="Template name"
+					/>
+					{templateError ? (
+						<p className="text-xs text-destructive">{templateError}</p>
+					) : templateSaved ? (
+						<p className="text-xs text-primary">Template saved.</p>
+					) : null}
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setTemplateDialogOpen(false)}
+						>
+							Cancel
+						</Button>
+						<Button onClick={() => void handleSaveAsTemplate()}>
+							Save template
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			<DocumentEditor
 				content={content}
