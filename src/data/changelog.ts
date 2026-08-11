@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.4'
+export const APP_VERSION = '2.0.5'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.5',
+		releasedAt: '2026-08-11',
+		summary: 'Workflows PAT permission for deploy.yml pushes',
+		changes: [
+			'Diff warns when staged files include .github/workflows/* — needs Workflows: Read and write.',
+			'Push errors at “building commit tree” now explain the Workflows permission gap.',
+			'Settings PAT checklist includes Workflows permission.',
+		],
+	},
 	{
 		version: '2.0.3',
 		releasedAt: '2026-08-11',

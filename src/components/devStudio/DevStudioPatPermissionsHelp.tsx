@@ -5,9 +5,11 @@ export function DevStudioPatPermissionsHelp() {
 		<div className="rounded-lg border border-border/70 bg-background/40 p-3 text-xs text-muted-foreground">
 			<p className="font-medium text-foreground">Fine-grained token permissions</p>
 			<p className="mt-2">
-				Push uses two separate permissions. Both must be{' '}
-				<span className="text-foreground">Read and write</span> — Read-only on either
-				will fail when opening a PR, even if the first push seemed to work.
+				Push needs <span className="text-foreground">Contents</span> and{' '}
+				<span className="text-foreground">Pull requests</span> both set to{' '}
+				<span className="text-foreground">Read and write</span>. Pushing{' '}
+				<code className="text-foreground">.github/workflows/*</code> also requires{' '}
+				<span className="text-foreground">Workflows: Read and write</span>.
 			</p>
 			<ul className="mt-3 space-y-2">
 				{DEV_STUDIO_PAT_PERMISSIONS.map((permission) => (

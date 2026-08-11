@@ -1,9 +1,16 @@
 import { ExternalLink, GitCommitHorizontal, Loader2, RefreshCw, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { GitHubApiError } from '@/services/github/githubApiService'
 import { useDevStudio } from '@/providers/DevStudioProvider'
 import { generateDevStudioPushMetadata } from '@/utils/devStudioPushMetadata'
+import {
+	formatGitHubApiErrorForPush,
+} from '@/utils/githubPatHelp'
+import {
+	getWorkflowFilePaths,
+	stagedChangesNeedWorkflowsPermission,
+} from '@/utils/devStudioWorkflowPaths'
 import { cn } from '@/utils/cn'
 
 export function DevStudioDiffPanel({ className }: { className?: string }) {
@@ -18,6 +25,15 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 	const [commitMessage, setCommitMessage] = useState('')
 	const [pullRequestTitle, setPullRequestTitle] = useState('')
 	const [pushError, setPushError] = useState<string | null>(null)
+	const stagedPaths = useMemo(
+		() => stagedChanges.map((change) => change.path),
+		[stagedChanges],
+	)
+	const workflowPaths = useMemo(
+		() => getWorkflowFilePaths(stagedPaths),
+		[stagedPaths],
+	)
+	const needsWorkflowsPermission = stagedChangesNeedWorkflowsPermission(stagedPaths)
 
 	const applySuggestedMetadata = useCallback(() => {
 		if (stagedChanges.length === 0) {
@@ -44,13 +60,13 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 		} catch (caught) {
 			setPushError(
 				caught instanceof GitHubApiError
-					? caught.formatWithPatHint()
+					? formatGitHubApiErrorForPush(caught, stagedPaths)
 					: caught instanceof Error
 						? caught.message
 						: 'Could not push changes.',
 			)
 		}
-	}, [commitMessage, pullRequestTitle, pushStagedChanges])
+	}, [commitMessage, pullRequestTitle, pushStagedChanges, stagedPaths])
 
 	if (stagedChanges.length === 0) {
 		return (
@@ -106,6 +122,19 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 						</Button>
 					</div>
 				</div>
+
+				{needsWorkflowsPermission ? (
+					<div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+						<p className="font-medium text-amber-50">
+							Workflow files staged — extra PAT permission required
+						</p>
+						<p className="mt-1">
+							{workflowPaths.join(', ')} needs{' '}
+							<span className="font-medium">Workflows: Read and write</span> on your
+							fine-grained token (in addition to Contents and Pull requests).
+						</p>
+					</div>
+				) : null}
 
 				<div className="grid gap-2">
 					<textarea
