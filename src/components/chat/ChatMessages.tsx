@@ -7,7 +7,7 @@ import {
 	Music,
 	User,
 } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ChatMarkdown } from '@/components/chat/ChatMarkdown'
@@ -43,6 +43,7 @@ interface ChatMessagesProps {
 	onSpeakMessage?: (message: StoredMessage) => void
 	onStopSpeech?: () => void
 	speechDisabled?: boolean
+	streamingSlot?: ReactNode
 }
 
 export function ChatMessages({
@@ -59,6 +60,7 @@ export function ChatMessages({
 	onSpeakMessage,
 	onStopSpeech,
 	speechDisabled = false,
+	streamingSlot,
 }: ChatMessagesProps) {
 	const viewportRef = useRef<HTMLDivElement>(null)
 	const previousMessageCountRef = useRef(messages.length)
@@ -224,6 +226,7 @@ export function ChatMessages({
 							onConfirmDelete={onConfirmDelete}
 							onCancelDelete={onCancelDelete}
 							isStreaming
+							streamingSlot={streamingSlot}
 						/>
 					) : null}
 					{isGenerating && !streamingAssistant ? (
@@ -267,6 +270,7 @@ function MessageRow({
 	onStopSpeech,
 	speechDisabled = false,
 	isStreaming = false,
+	streamingSlot,
 }: {
 	message: StoredMessage
 	aiName: string
@@ -281,6 +285,7 @@ function MessageRow({
 	onStopSpeech?: () => void
 	speechDisabled?: boolean
 	isStreaming?: boolean
+	streamingSlot?: ReactNode
 }) {
 	const contentRef = useRef<HTMLDivElement>(null)
 	const isUser = message.role === 'user'
@@ -356,6 +361,13 @@ function MessageRow({
 						>
 							{isUser ? (
 								message.content
+							) : streamingSlot && isStreaming ? (
+								<div className="space-y-3">
+									{streamingSlot}
+									{message.content ? (
+										<ChatMarkdown content={message.content} />
+									) : null}
+								</div>
 							) : message.content ? (
 								<ChatMarkdown content={message.content} />
 							) : isStreaming ? (
