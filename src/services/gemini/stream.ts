@@ -4,6 +4,7 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 interface StreamPart {
 	text?: string
+	thought?: boolean
 	thoughtSignature?: string
 	functionCall?: {
 		name: string
@@ -32,6 +33,7 @@ export async function geminiStreamGenerateContent(
 	options?: {
 		signal?: AbortSignal
 		onTextDelta?: (delta: string) => void
+		onThoughtDelta?: (delta: string) => void
 	},
 ): Promise<StreamedGenerateResult> {
 	const url = `${GEMINI_API_BASE}/models/${modelId}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`
@@ -121,8 +123,12 @@ export async function geminiStreamGenerateContent(
 
 			for (const part of content?.parts ?? []) {
 				if (part.text) {
-					accumulatedText += part.text
-					options?.onTextDelta?.(part.text)
+					if (part.thought) {
+						options?.onThoughtDelta?.(part.text)
+					} else {
+						accumulatedText += part.text
+						options?.onTextDelta?.(part.text)
+					}
 				}
 
 				if (part.functionCall?.name) {

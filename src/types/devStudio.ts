@@ -40,6 +40,25 @@ export interface DevStudioMergedPullRequest {
 	mergedAt: number
 }
 
+export type DevStudioAgentPhase = 'thinking' | 'tool' | 'writing'
+
+export interface DevStudioAgentActivity {
+	id: string
+	label: string
+	status: 'running' | 'done'
+	startedAt: number
+	endedAt?: number
+}
+
+export interface DevStudioStreamingState {
+	id: string
+	content: string
+	thoughts: string
+	phase: DevStudioAgentPhase
+	startedAt: number
+	activities: DevStudioAgentActivity[]
+}
+
 export interface DevStudioStagedChange {
 	id: string
 	path: string
