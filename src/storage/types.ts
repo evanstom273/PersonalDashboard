@@ -126,6 +126,7 @@ export interface UserPreferences {
 	memoryArchiveInterval: MemoryArchiveInterval
 	ttsReadAloudMode: TtsReadAloudMode
 	ttsVoiceName: string
+	allowCodebaseInspection: boolean
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -140,6 +141,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	memoryArchiveInterval: 20,
 	ttsReadAloudMode: 'never',
 	ttsVoiceName: 'Kore',
+	allowCodebaseInspection: true,
 }
 
 export interface DocumentRecord {

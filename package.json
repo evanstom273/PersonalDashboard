@@ -5,13 +5,14 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"build": "tsc -b && vite build",
+		"build": "node scripts/generate-app-reference.mjs && tsc -b && vite build",
 		"build:android": "VITE_BASE_PATH=/ npm run build && npx cap sync android",
 		"cap:sync": "npx cap sync",
 		"cap:open:android": "npx cap open android",
 		"lint": "oxlint",
 		"preview": "vite preview",
-		"generate:icons": "node scripts/generate-pwa-icons.mjs"
+		"generate:icons": "node scripts/generate-pwa-icons.mjs",
+		"generate:app-reference": "node scripts/generate-app-reference.mjs"
 	},
 	"dependencies": {
 		"@capacitor/android": "^8.5.0",

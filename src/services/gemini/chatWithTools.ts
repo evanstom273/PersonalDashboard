@@ -1,5 +1,10 @@
 import { executeDocumentToolCall, DOCUMENT_TOOL_DECLARATIONS } from '@/services/gemini/documentTools'
 import {
+	CODEBASE_TOOL_DECLARATIONS,
+	executeCodebaseToolCall,
+	isCodebaseToolName,
+} from '@/services/gemini/codebaseTools'
+import {
 	executeProjectToolCall,
 	isProjectToolName,
 	PROJECT_TOOL_DECLARATIONS,
@@ -88,7 +93,7 @@ export async function generateChatWithTools(
 				systemInstruction: {
 					parts: [{ text: await buildFullSystemInstruction(preferences) }],
 				},
-				tools: buildChatTools(useWebSearch),
+				tools: buildChatTools(useWebSearch, preferences.allowCodebaseInspection ?? true),
 				contents,
 			},
 			preferences.allowMatureContent ?? true,
@@ -125,6 +130,20 @@ export async function generateChatWithTools(
 
 			for (const part of functionCallParts) {
 				const functionCall = part.functionCall!
+
+				if (isCodebaseToolName(functionCall.name)) {
+					const toolResult = executeCodebaseToolCall(
+						functionCall.name,
+						functionCall.args ?? {},
+					)
+					functionResponseParts.push({
+						functionResponse: {
+							name: toolResult.name,
+							response: toolResult.response,
+						},
+					})
+					continue
+				}
 
 				if (isReminderToolName(functionCall.name)) {
 					const toolResult = await executeReminderToolCall(
@@ -251,11 +270,15 @@ function buildMessageParts(message: ChatMessageInput): GeminiPart[] {
 	return parts
 }
 
-function buildChatTools(useWebSearch: boolean): Array<Record<string, unknown>> {
+function buildChatTools(
+	useWebSearch: boolean,
+	allowCodebaseInspection: boolean,
+): Array<Record<string, unknown>> {
 	const declarations = [
 		...DOCUMENT_TOOL_DECLARATIONS,
 		...PROJECT_TOOL_DECLARATIONS,
 		...REMINDER_TOOL_DECLARATIONS,
+		...(allowCodebaseInspection ? CODEBASE_TOOL_DECLARATIONS : []),
 	]
 
 	if (useWebSearch) {

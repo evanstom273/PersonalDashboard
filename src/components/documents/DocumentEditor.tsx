@@ -132,6 +132,7 @@ export function DocumentEditor({
 			memoryArchiveInterval: 20,
 			ttsReadAloudMode: 'never',
 			ttsVoiceName: 'Kore',
+			allowCodebaseInspection: true,
 		},
 		documentTitle,
 	})
