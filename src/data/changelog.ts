@@ -16,6 +16,7 @@ export const CHANGELOG: ChangelogEntry[] = [
 			'New Dev tab with Cursor-style split layout on wide screens.',
 			'Mobile tabs for Chat, Diff, Files, and Git.',
 			'GitHub PAT and repository settings for workspace hydration.',
+			'Repository dropdown loads all repos your token can access.',
 			'Repository file tree and open PR list via GitHub REST API.',
 			'Staged diff review UI scaffold with sample change preview.',
 		],

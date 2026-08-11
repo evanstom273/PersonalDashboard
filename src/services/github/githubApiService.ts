@@ -155,6 +155,61 @@ function buildFileTree(
 	return sortNodes(root)
 }
 
+export interface GitHubRepositorySummary {
+	fullName: string
+	defaultBranch: string
+	isPrivate: boolean
+	updatedAt: string
+}
+
+interface GitHubRepoListResponse {
+	full_name: string
+	default_branch: string
+	private: boolean
+	updated_at: string
+}
+
+export async function listAccessibleRepositories(
+	token: string,
+): Promise<{
+	repositories: GitHubRepositorySummary[]
+	rateLimit: GitHubRateLimit | null
+}> {
+	const repositories: GitHubRepositorySummary[] = []
+	let page = 1
+	let rateLimit: GitHubRateLimit | null = null
+
+	while (page <= 10) {
+		const result = await githubFetch<GitHubRepoListResponse[]>(
+			token,
+			`/user/repos?per_page=100&page=${page}&sort=updated&affiliation=owner,collaborator,organization_member`,
+		)
+
+		rateLimit = result.rateLimit ?? rateLimit
+
+		if (result.data.length === 0) {
+			break
+		}
+
+		for (const repo of result.data) {
+			repositories.push({
+				fullName: repo.full_name,
+				defaultBranch: repo.default_branch || 'main',
+				isPrivate: repo.private,
+				updatedAt: repo.updated_at,
+			})
+		}
+
+		if (result.data.length < 100) {
+			break
+		}
+
+		page += 1
+	}
+
+	return { repositories, rateLimit }
+}
+
 export async function fetchRepositoryTree(
 	token: string,
 	repo: DevStudioRepoRef,

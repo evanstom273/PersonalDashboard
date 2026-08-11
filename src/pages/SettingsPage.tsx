@@ -17,6 +17,7 @@ import {
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { DevStudioRepositorySelect } from '@/components/devStudio/DevStudioRepositorySelect'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { usePreferencesContext, useTextToSpeechContext, useMainConversationContext } from '@/providers/ChatProvider'
 import { validateApiKey } from '@/services/gemini/validate'
@@ -1012,24 +1013,13 @@ function AppTab({
 						autoComplete="off"
 					/>
 				</label>
-				<label className="block space-y-2 text-sm">
-					<span className="font-medium">Repository</span>
-					<input
-						value={devStudioRepository}
-						onChange={(event) => onDevStudioRepositoryChange(event.target.value)}
-						placeholder="owner/repo"
-						className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
-					/>
-				</label>
-				<label className="block space-y-2 text-sm">
-					<span className="font-medium">Default branch</span>
-					<input
-						value={devStudioBranch}
-						onChange={(event) => onDevStudioBranchChange(event.target.value)}
-						placeholder="main"
-						className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
-					/>
-				</label>
+				<DevStudioRepositorySelect
+					githubPat={githubPat}
+					repository={devStudioRepository}
+					branch={devStudioBranch}
+					onRepositoryChange={onDevStudioRepositoryChange}
+					onBranchChange={onDevStudioBranchChange}
+				/>
 				<div className="flex items-center gap-3">
 					<Button type="button" onClick={onSaveDevStudio} disabled={isSavingDevStudio}>
 						<Save className="h-4 w-4" />
