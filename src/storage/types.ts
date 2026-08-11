@@ -100,6 +100,9 @@ export type TtsReadAloudMode = (typeof TTS_READ_ALOUD_MODE_OPTIONS)[number]
 
 export type ChatInputMethod = 'typed' | 'speech'
 
+export const DEFAULT_VOICE_MODE_OPTIONS = ['conversation', 'live'] as const
+export type DefaultVoiceMode = (typeof DEFAULT_VOICE_MODE_OPTIONS)[number]
+
 export type LibraryMediaKind = 'image' | 'audio'
 
 export interface LibraryMediaRecord {
@@ -126,6 +129,10 @@ export interface UserPreferences {
 	memoryArchiveInterval: MemoryArchiveInterval
 	ttsReadAloudMode: TtsReadAloudMode
 	ttsVoiceName: string
+	conversationModeEnabled: boolean
+	liveModeEnabled: boolean
+	defaultVoiceMode: DefaultVoiceMode
+	liveModelId: string
 	allowCodebaseInspection: boolean
 }
 
@@ -141,6 +148,10 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	memoryArchiveInterval: 20,
 	ttsReadAloudMode: 'never',
 	ttsVoiceName: 'Kore',
+	conversationModeEnabled: true,
+	liveModeEnabled: true,
+	defaultVoiceMode: 'conversation',
+	liveModelId: 'gemini-3.1-flash-live-preview',
 	allowCodebaseInspection: true,
 }
 

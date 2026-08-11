@@ -3,14 +3,17 @@ import { MAIN_CONVERSATION_ID } from '@/services/gemini/constants'
 import { getValue, setValue } from '@/storage/storageService'
 import {
 	DEFAULT_PREFERENCES,
+	DEFAULT_VOICE_MODE_OPTIONS,
 	MEMORY_ARCHIVE_INTERVAL_OPTIONS,
 	TTS_READ_ALOUD_MODE_OPTIONS,
 	type ConversationRecord,
+	type DefaultVoiceMode,
 	type MemoryArchiveInterval,
 	type StoredMessage,
 	type TtsReadAloudMode,
 	type UserPreferences,
 } from '@/storage/types'
+import { DEFAULT_LIVE_MODEL_ID } from '@/services/gemini/liveConstants'
 import { normalizeTtsVoiceName } from '@/services/gemini/ttsVoices'
 
 const PREFERENCES_KEY = 'user'
@@ -35,6 +38,17 @@ function normalizeTtsReadAloudMode(value: unknown): TtsReadAloudMode {
 	}
 
 	return DEFAULT_PREFERENCES.ttsReadAloudMode
+}
+
+function normalizeDefaultVoiceMode(value: unknown): DefaultVoiceMode {
+	if (
+		typeof value === 'string' &&
+		DEFAULT_VOICE_MODE_OPTIONS.includes(value as DefaultVoiceMode)
+	) {
+		return value as DefaultVoiceMode
+	}
+
+	return DEFAULT_PREFERENCES.defaultVoiceMode
 }
 
 function normalizeConversation(
@@ -85,6 +99,16 @@ export function usePreferences() {
 					),
 					ttsReadAloudMode: normalizeTtsReadAloudMode(stored?.ttsReadAloudMode),
 					ttsVoiceName: normalizeTtsVoiceName(stored?.ttsVoiceName),
+					conversationModeEnabled:
+						stored?.conversationModeEnabled ??
+						DEFAULT_PREFERENCES.conversationModeEnabled,
+					liveModeEnabled:
+						stored?.liveModeEnabled ?? DEFAULT_PREFERENCES.liveModeEnabled,
+					defaultVoiceMode: normalizeDefaultVoiceMode(stored?.defaultVoiceMode),
+					liveModelId:
+						typeof stored?.liveModelId === 'string' && stored.liveModelId.trim()
+							? stored.liveModelId.trim()
+							: DEFAULT_LIVE_MODEL_ID,
 				})
 				setIsLoading(false)
 			}

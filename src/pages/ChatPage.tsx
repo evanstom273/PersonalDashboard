@@ -1,14 +1,20 @@
 import type { GenerationIntent } from '@/services/gemini/constants'
+import { ConversationModeOverlay } from '@/components/chat/ConversationModeOverlay'
+import { LiveModeOverlay } from '@/components/chat/LiveModeOverlay'
+import { VoiceModeControls } from '@/components/chat/VoiceModeControls'
+import { useConversationMode } from '@/hooks/useConversationMode'
+import { useGeminiLive } from '@/hooks/useGeminiLive'
 import {
 	useChatGenerationContext,
 	useMainConversationContext,
 	usePreferencesContext,
 	useTextToSpeechContext,
+	useVoiceSessionContext,
 } from '@/providers/ChatProvider'
 import { confirmDocumentDeletion } from '@/services/gemini/documentTools'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
 import { ChatInput } from '@/components/chat/ChatInput'
@@ -41,6 +47,7 @@ export function ChatPage() {
 		stop: stopSpeech,
 		clearError: clearSpeechError,
 	} = useTextToSpeechContext()
+	const { conversationModeActiveRef } = useVoiceSessionContext()
 
 	const [webSearchEnabled, setWebSearchEnabled] = useState(false)
 	const [forcedNextIntent, setForcedNextIntent] =
@@ -49,8 +56,107 @@ export function ChatPage() {
 		null,
 	)
 
+	const awaitingConversationReplyRef = useRef(false)
+	const lastSpokenMessageIdRef = useRef<string | null>(null)
+
 	const aiName = getConfiguredAiName(preferences)
 	const hasApiKey = preferences.geminiApiKey.trim().length > 0
+
+	const handleConversationSubmit = useCallback(
+		async (payload: Parameters<typeof submitMessage>[0]) => {
+			awaitingConversationReplyRef.current = true
+			await submitMessage(payload)
+		},
+		[submitMessage],
+	)
+
+	const conversationMode = useConversationMode({
+		enabled: preferences.conversationModeEnabled,
+		geminiApiKey: preferences.geminiApiKey,
+		transcriptionModelId: preferences.defaultModelId,
+		onSubmit: handleConversationSubmit,
+		onStopSpeaking: stopSpeech,
+	})
+
+	const persistLiveTranscript = useCallback(
+		async (turns: Array<{ role: 'user' | 'assistant'; content: string }>) => {
+			const messages = turns
+				.filter((turn) => turn.content.trim().length > 0)
+				.map((turn) => ({
+					id: crypto.randomUUID(),
+					role: turn.role,
+					content: turn.content.trim(),
+					createdAt: Date.now(),
+				}))
+			if (messages.length > 0) {
+				await appendMessages(messages as StoredMessage[])
+			}
+		},
+		[appendMessages],
+	)
+
+	const liveMode = useGeminiLive({
+		preferences,
+		recentMessages: conversation?.messages ?? [],
+		useWebSearch: webSearchEnabled,
+		onTranscriptTurns: (turns) => {
+			void persistLiveTranscript(turns)
+		},
+		onPendingDelete: async (confirmation) => {
+			await appendMessages([
+				{
+					id: crypto.randomUUID(),
+					role: 'assistant',
+					content: `Please confirm deletion of "${confirmation.documentTitle}" in the chat.`,
+					pendingDeleteConfirmation: confirmation,
+					createdAt: Date.now(),
+				},
+			])
+		},
+	})
+
+	useEffect(() => {
+		conversationModeActiveRef.current = conversationMode.isActive
+	}, [conversationMode.isActive, conversationModeActiveRef])
+
+	useEffect(() => {
+		if (!conversationMode.isActive || isGenerating) {
+			return
+		}
+		if (!awaitingConversationReplyRef.current) {
+			return
+		}
+
+		const messages = conversation?.messages ?? []
+		const lastMessage = messages[messages.length - 1]
+		if (!lastMessage || lastMessage.role !== 'assistant') {
+			return
+		}
+		if (lastSpokenMessageIdRef.current === lastMessage.id) {
+			return
+		}
+
+		awaitingConversationReplyRef.current = false
+		lastSpokenMessageIdRef.current = lastMessage.id
+		conversationMode.setStatus('speaking')
+
+		void speakAssistantMessage({
+			messageId: lastMessage.id,
+			text: lastMessage.content,
+			suppressErrorState: true,
+			onEnded: () => {
+				void conversationMode.resumeListening()
+			},
+			onError: () => {
+				void conversationMode.resumeListening()
+			},
+		})
+	}, [
+		conversation?.messages,
+		conversationMode,
+		isGenerating,
+		speakAssistantMessage,
+	])
 
 	useEffect(() => {
 		clearCompletionNotice()
@@ -166,12 +272,24 @@ export function ChatPage() {
 						{lastIntent ? ` · last: ${lastIntent}` : ''}
 					</p>
 				</div>
-				<ChatModelSelector
-					value={preferences.defaultModelId}
-					onChange={(modelId) => {
-						void saveModelPreference({ defaultModelId: modelId })
-					}}
-				/>
+				<div className="flex items-center gap-2">
+					<VoiceModeControls
+						conversationEnabled={preferences.conversationModeEnabled}
+						liveEnabled={preferences.liveModeEnabled}
+						hasApiKey={hasApiKey}
+						isConversationActive={conversationMode.isActive}
+						isLiveActive={liveMode.isActive}
+						isGenerating={isGenerating}
+						onStartConversation={() => void conversationMode.startConversation()}
+						onStartLive={() => void liveMode.startSession()}
+					/>
+					<ChatModelSelector
+						value={preferences.defaultModelId}
+						onChange={(modelId) => {
+							void saveModelPreference({ defaultModelId: modelId })
+						}}
+					/>
+				</div>
 			</header>
 
 			{!hasApiKey ? (
@@ -252,7 +370,44 @@ export function ChatPage() {
 					void handleSubmit(payload)
 				}}
 				onStop={stopGeneration}
+				voiceModeControls={
+					<VoiceModeControls
+						conversationEnabled={preferences.conversationModeEnabled}
+						liveEnabled={preferences.liveModeEnabled}
+						hasApiKey={hasApiKey}
+						isConversationActive={conversationMode.isActive}
+						isLiveActive={liveMode.isActive}
+						isGenerating={isGenerating}
+						onStartConversation={() => void conversationMode.startConversation()}
+						onStartLive={() => void liveMode.startSession()}
+					/>
+				}
 			/>
+
+			{conversationMode.isActive ? (
+				<ConversationModeOverlay
+					aiName={aiName}
+					status={conversationMode.status}
+					liveTranscript={conversationMode.liveTranscript}
+					isMuted={conversationMode.isMuted}
+					error={conversationMode.error}
+					onEnd={() => void conversationMode.endConversation()}
+					onToggleMute={conversationMode.toggleMute}
+					onInterrupt={conversationMode.interruptSpeaking}
+					isSpeaking={speechStatus === 'playing'}
+				/>
+			) : null}
+
+			{liveMode.isActive ? (
+				<LiveModeOverlay
+					aiName={aiName}
+					status={liveMode.status}
+					inputTranscript={liveMode.inputTranscript}
+					outputTranscript={liveMode.outputTranscript}
+					error={liveMode.error}
+					onEnd={() => void liveMode.endSession()}
+				/>
+			) : null}
 		</div>
 	)
 }

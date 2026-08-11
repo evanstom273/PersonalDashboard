@@ -38,7 +38,7 @@ import {
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useDocumentAiWriting } from '@/hooks/useDocumentAiWriting'
-import type { UserPreferences } from '@/storage/types'
+import { DEFAULT_PREFERENCES, type UserPreferences } from '@/storage/types'
 import { cn } from '@/utils/cn'
 
 const TEXT_COLORS = [
@@ -120,20 +120,7 @@ export function DocumentEditor({
 
 	const ai = useDocumentAiWriting({
 		editor,
-		preferences: preferences ?? {
-			geminiApiKey: '',
-			defaultModelId: 'gemini-3.6-flash',
-			defaultImageModelId: 'gemini-3.1-flash-image',
-			defaultMusicModelId: 'lyria-3-pro-preview',
-			userName: '',
-			aiName: '',
-			aiBehaviorInstructions: '',
-			allowMatureContent: true,
-			memoryArchiveInterval: 20,
-			ttsReadAloudMode: 'never',
-			ttsVoiceName: 'Kore',
-			allowCodebaseInspection: true,
-		},
+		preferences: preferences ?? DEFAULT_PREFERENCES,
 		documentTitle,
 	})
 
