@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.1'
+export const APP_VERSION = '2.0.4'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,37 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.3',
+		releasedAt: '2026-08-11',
+		summary: 'Auto-generated PR titles and commit messages',
+		changes: [
+			'Diff tab auto-suggests commit message and PR title from staged files and timestamp.',
+			'Regenerate button refreshes suggestions; fields remain editable before push.',
+			'Agent push_staged_changes can omit titles — they are auto-generated from staged edits.',
+			'PR body lists each staged file with status and source (agent/user).',
+		],
+	},
+	{
+		version: '2.0.2',
+		releasedAt: '2026-08-11',
+		summary: 'Dev Studio chat UX and PR actions',
+		changes: [
+			'Dev Studio chat uses the same scrolling, streaming, and markdown presentation as main chat.',
+			'Agent PR tools: list, push staged changes, merge, and close pull requests.',
+			'Merge button on open PRs in the Git tab.',
+			'Clearer PAT permission errors when push or merge fails.',
+		],
+	},
+	{
+		version: '2.0.1',
+		releasedAt: '2026-08-11',
+		summary: 'Chat input newline on Enter',
+		changes: [
+			'Pressing Enter in chat inserts a new line instead of sending.',
+			'Use the send button to submit messages (physical and mobile keyboards).',
+		],
+	},
 	{
 		version: '2.0.0',
 		releasedAt: '2026-08-11',

@@ -12,14 +12,14 @@ export function DevStudioMobileContent() {
 	const { mobileTab } = useDevStudio()
 
 	return (
-		<div className="flex min-h-0 flex-1 flex-col">
+		<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 			<DevStudioMobileTabs />
-			<div className="min-h-0 flex-1">
-				{mobileTab === 'chat' ? <DevStudioChatPane /> : null}
-				{mobileTab === 'editor' ? <DevStudioEditorPanel /> : null}
-				{mobileTab === 'diff' ? <DevStudioDiffPanel /> : null}
-				{mobileTab === 'files' ? <DevStudioFilesPanel /> : null}
-				{mobileTab === 'git' ? <DevStudioGitPanel /> : null}
+			<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+				{mobileTab === 'chat' ? <DevStudioChatPane className="h-full" /> : null}
+				{mobileTab === 'editor' ? <DevStudioEditorPanel className="h-full" /> : null}
+				{mobileTab === 'diff' ? <DevStudioDiffPanel className="h-full" /> : null}
+				{mobileTab === 'files' ? <DevStudioFilesPanel className="h-full" /> : null}
+				{mobileTab === 'git' ? <DevStudioGitPanel className="h-full" /> : null}
 			</div>
 		</div>
 	)

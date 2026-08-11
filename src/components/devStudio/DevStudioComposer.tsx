@@ -11,7 +11,6 @@ export function DevStudioComposer() {
 	const { preferences } = usePreferencesContext()
 	const {
 		appendMessage,
-		updateMessage,
 		isComposerSending,
 		setComposerSending,
 		isConfigured,
@@ -81,16 +80,10 @@ export function DevStudioComposer() {
 		appendMessage(userMessage)
 		setDraft('')
 		setComposerSending(true)
-		setStreamingAssistant('')
 		streamingRef.current = ''
 
-		const assistantId = crypto.randomUUID()
-		appendMessage({
-			id: assistantId,
-			role: 'assistant',
-			content: '',
-			createdAt: Date.now(),
-		})
+		const assistantMessageId = crypto.randomUUID()
+		setStreamingAssistant({ id: assistantMessageId, content: '' })
 
 		const abortController = new AbortController()
 		abortRef.current = abortController
@@ -108,27 +101,42 @@ export function DevStudioComposer() {
 					signal: abortController.signal,
 					onTextDelta: (delta) => {
 						streamingRef.current += delta
-						setStreamingAssistant(streamingRef.current)
-						updateMessage(assistantId, streamingRef.current)
+						setStreamingAssistant({
+							id: assistantMessageId,
+							content: streamingRef.current,
+						})
 					},
 					onToolActivity: () => {
-						setStreamingAssistant('Using workspace tools…')
+						if (!streamingRef.current.trim()) {
+							setStreamingAssistant({
+								id: assistantMessageId,
+								content: 'Using workspace tools…',
+							})
+						}
 					},
 				},
 			)
 
-			updateMessage(assistantId, reply)
-			setStreamingAssistant('')
+			appendMessage({
+				id: assistantMessageId,
+				role: 'assistant',
+				content: reply,
+				createdAt: Date.now(),
+			})
+			setStreamingAssistant(null)
 		} catch (caught) {
-			if (caught instanceof DOMException && caught.name === 'AbortError') {
-				updateMessage(assistantId, 'Generation stopped.')
-			} else {
-				updateMessage(
-					assistantId,
-					caught instanceof Error ? caught.message : 'Generation failed.',
-				)
-			}
-			setStreamingAssistant('')
+			appendMessage({
+				id: assistantMessageId,
+				role: 'assistant',
+				content:
+					caught instanceof DOMException && caught.name === 'AbortError'
+						? 'Generation stopped.'
+						: caught instanceof Error
+							? caught.message
+							: 'Generation failed.',
+				createdAt: Date.now(),
+			})
+			setStreamingAssistant(null)
 		} finally {
 			setComposerSending(false)
 			abortRef.current = null
@@ -145,7 +153,6 @@ export function DevStudioComposer() {
 		repositorySlug,
 		setComposerSending,
 		setStreamingAssistant,
-		updateMessage,
 	])
 
 	return (
@@ -154,16 +161,11 @@ export function DevStudioComposer() {
 				<textarea
 					value={draft}
 					onChange={(event) => setDraft(event.target.value)}
-					onKeyDown={(event) => {
-						if (event.key === 'Enter' && !event.shiftKey) {
-							event.preventDefault()
-							void handleSubmit()
-						}
-					}}
 					rows={1}
+					enterKeyHint="enter"
 					placeholder={
 						preferences.geminiApiKey.trim()
-							? 'Ask the code agent to inspect or change the repo…'
+							? 'Ask the code agent to inspect, edit, push, or merge PRs…'
 							: 'Add your Gemini API key in Settings to chat'
 					}
 					className="max-h-32 min-h-[2.5rem] flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none"

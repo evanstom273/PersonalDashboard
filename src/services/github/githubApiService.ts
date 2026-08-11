@@ -3,6 +3,7 @@ import type {
 	DevStudioPullRequest,
 	DevStudioRepoRef,
 } from '@/types/devStudio'
+import { buildPatPermissionErrorHint } from '@/utils/githubPatHelp'
 
 const GITHUB_API = 'https://api.github.com'
 
@@ -14,11 +15,33 @@ export interface GitHubRateLimit {
 
 export class GitHubApiError extends Error {
 	status: number
+	step?: string
+	requiredPermissions?: string
 
-	constructor(message: string, status: number) {
+	constructor(
+		message: string,
+		status: number,
+		options?: { step?: string; requiredPermissions?: string },
+	) {
 		super(message)
 		this.name = 'GitHubApiError'
 		this.status = status
+		this.step = options?.step
+		this.requiredPermissions = options?.requiredPermissions
+	}
+
+	formatWithPatHint(): string {
+		if (
+			this.status !== 403 ||
+			!this.message.includes('Resource not accessible by personal access token')
+		) {
+			return this.message
+		}
+
+		return `${this.message}\n\n${buildPatPermissionErrorHint({
+			step: this.step,
+			requiredPermissions: this.requiredPermissions,
+		})}`
 	}
 }
 
@@ -42,6 +65,7 @@ async function githubFetch<T>(
 	token: string,
 	path: string,
 	init?: RequestInit,
+	options?: { step?: string },
 ): Promise<{ data: T; rateLimit: GitHubRateLimit | null }> {
 	const headers: Record<string, string> = {
 		Accept: 'application/vnd.github+json',
@@ -65,6 +89,8 @@ async function githubFetch<T>(
 
 	if (!response.ok) {
 		let message = `GitHub API error (${response.status})`
+		const requiredPermissions =
+			response.headers.get('x-accepted-github-permissions') ?? undefined
 		try {
 			const body = (await response.json()) as { message?: string }
 			if (body.message) {
@@ -73,7 +99,10 @@ async function githubFetch<T>(
 		} catch {
 			// Ignore JSON parse failures.
 		}
-		throw new GitHubApiError(message, response.status)
+		throw new GitHubApiError(message, response.status, {
+			step: options?.step,
+			requiredPermissions,
+		})
 	}
 
 	const data = (await response.json()) as T
@@ -385,16 +414,11 @@ export async function pushStagedChangesAndOpenPullRequest(
 	const baseRef = await githubFetch<GitRefResponse>(
 		token,
 		`${encodeRepoPath(repo)}/git/ref/heads/${encodeURIComponent(input.baseBranch)}`,
+		undefined,
+		{ step: 'reading base branch' },
 	)
 	rateLimit = baseRef.rateLimit ?? rateLimit
 	const baseCommitSha = baseRef.data.object.sha
-
-	const baseCommit = await githubFetch<GitCommitResponse>(
-		token,
-		`${encodeRepoPath(repo)}/git/commits/${baseCommitSha}`,
-	)
-	rateLimit = baseCommit.rateLimit ?? rateLimit
-	const baseTreeSha = baseCommit.data.tree.sha
 
 	try {
 		await githubFetch(
@@ -407,12 +431,31 @@ export async function pushStagedChangesAndOpenPullRequest(
 					sha: baseCommitSha,
 				}),
 			},
+			{ step: 'creating branch' },
 		)
 	} catch (error) {
 		if (!(error instanceof GitHubApiError) || error.status !== 422) {
 			throw error
 		}
 	}
+
+	const branchRef = await githubFetch<GitRefResponse>(
+		token,
+		`${encodeRepoPath(repo)}/git/ref/heads/${encodeURIComponent(input.branchName)}`,
+		undefined,
+		{ step: 'reading push branch' },
+	)
+	rateLimit = branchRef.rateLimit ?? rateLimit
+	const branchTipSha = branchRef.data.object.sha
+
+	const branchTipCommit = await githubFetch<GitCommitResponse>(
+		token,
+		`${encodeRepoPath(repo)}/git/commits/${branchTipSha}`,
+		undefined,
+		{ step: 'reading branch commit' },
+	)
+	rateLimit = branchTipCommit.rateLimit ?? rateLimit
+	const baseTreeSha = branchTipCommit.data.tree.sha
 
 	const treeEntries: Array<{
 		path: string
@@ -442,6 +485,7 @@ export async function pushStagedChangesAndOpenPullRequest(
 					encoding: 'utf-8',
 				}),
 			},
+			{ step: `uploading ${change.path}` },
 		)
 		rateLimit = blob.rateLimit ?? rateLimit
 		treeEntries.push({
@@ -462,6 +506,7 @@ export async function pushStagedChangesAndOpenPullRequest(
 				tree: treeEntries,
 			}),
 		},
+		{ step: 'building commit tree' },
 	)
 	rateLimit = tree.rateLimit ?? rateLimit
 
@@ -473,9 +518,10 @@ export async function pushStagedChangesAndOpenPullRequest(
 			body: JSON.stringify({
 				message: input.commitMessage,
 				tree: tree.data.sha,
-				parents: [baseCommitSha],
+				parents: [branchTipSha],
 			}),
 		},
+		{ step: 'creating commit' },
 	)
 	rateLimit = commit.rateLimit ?? rateLimit
 
@@ -486,30 +532,127 @@ export async function pushStagedChangesAndOpenPullRequest(
 			method: 'PATCH',
 			body: JSON.stringify({ sha: commit.data.sha, force: true }),
 		},
+		{ step: 'updating branch' },
 	)
 
-	const pull = await githubFetch<GitHubPullCreateResponse>(
-		token,
-		`${encodeRepoPath(repo)}/pulls`,
-		{
-			method: 'POST',
-			body: JSON.stringify({
-				title: input.pullRequestTitle,
-				body: input.pullRequestBody ?? input.commitMessage,
-				head: input.branchName,
-				base: input.baseBranch,
-			}),
-		},
-	)
-	rateLimit = pull.rateLimit ?? rateLimit
+	let pullNumber: number
+	let pullRequestUrl: string
+
+	try {
+		const pull = await githubFetch<GitHubPullCreateResponse>(
+			token,
+			`${encodeRepoPath(repo)}/pulls`,
+			{
+				method: 'POST',
+				body: JSON.stringify({
+					title: input.pullRequestTitle,
+					body: input.pullRequestBody ?? input.commitMessage,
+					head: input.branchName,
+					base: input.baseBranch,
+				}),
+			},
+			{ step: 'opening pull request' },
+		)
+		rateLimit = pull.rateLimit ?? rateLimit
+		pullNumber = pull.data.number
+		pullRequestUrl = pull.data.html_url
+	} catch (error) {
+		if (!(error instanceof GitHubApiError) || error.status !== 422) {
+			throw error
+		}
+
+		const existing = await findOpenPullRequestForHead(token, repo, input.branchName)
+		if (!existing) {
+			throw error
+		}
+		rateLimit = existing.rateLimit ?? rateLimit
+		pullNumber = existing.pullRequest.number
+		pullRequestUrl = `https://github.com/${repo.owner}/${repo.repo}/pull/${existing.pullRequest.number}`
+	}
 
 	return {
 		result: {
 			branchName: input.branchName,
 			commitSha: commit.data.sha,
-			pullRequestNumber: pull.data.number,
-			pullRequestUrl: pull.data.html_url,
+			pullRequestNumber: pullNumber,
+			pullRequestUrl,
 		},
 		rateLimit,
 	}
+}
+
+async function findOpenPullRequestForHead(
+	token: string,
+	repo: DevStudioRepoRef,
+	branchName: string,
+): Promise<{
+	pullRequest: GitHubPullResponse
+	rateLimit: GitHubRateLimit | null
+} | null> {
+	const head = `${repo.owner}:${branchName}`
+	const result = await githubFetch<GitHubPullResponse[]>(
+		token,
+		`${encodeRepoPath(repo)}/pulls?state=open&head=${encodeURIComponent(head)}&per_page=5`,
+		undefined,
+		{ step: 'finding existing pull request' },
+	)
+
+	const match = result.data.find(
+		(pull) => pull.head.ref === branchName && pull.state === 'open',
+	)
+
+	return match ? { pullRequest: match, rateLimit: result.rateLimit } : null
+}
+
+export async function mergePullRequest(
+	token: string,
+	repo: DevStudioRepoRef,
+	pullNumber: number,
+	options?: {
+		mergeMethod?: 'merge' | 'squash' | 'rebase'
+		commitTitle?: string
+	},
+): Promise<{
+	merged: boolean
+	sha?: string
+	message?: string
+	rateLimit: GitHubRateLimit | null
+}> {
+	const result = await githubFetch<{
+		merged: boolean
+		sha?: string
+		message?: string
+	}>(
+		token,
+		`${encodeRepoPath(repo)}/pulls/${pullNumber}/merge`,
+		{
+			method: 'PUT',
+			body: JSON.stringify({
+				merge_method: options?.mergeMethod ?? 'squash',
+				commit_title: options?.commitTitle,
+			}),
+		},
+	)
+
+	return {
+		...result.data,
+		rateLimit: result.rateLimit,
+	}
+}
+
+export async function closePullRequest(
+	token: string,
+	repo: DevStudioRepoRef,
+	pullNumber: number,
+): Promise<{ rateLimit: GitHubRateLimit | null }> {
+	const result = await githubFetch<GitHubPullResponse>(
+		token,
+		`${encodeRepoPath(repo)}/pulls/${pullNumber}`,
+		{
+			method: 'PATCH',
+			body: JSON.stringify({ state: 'closed' }),
+		},
+	)
+
+	return { rateLimit: result.rateLimit }
 }
