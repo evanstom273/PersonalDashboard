@@ -27,7 +27,7 @@ export function DevStudioCreateRepoDialog({
 	onOpenChange,
 }: DevStudioCreateRepoDialogProps) {
 	const { preferences } = usePreferencesContext()
-	const { switchRepository, bumpRepositoriesRevision } = useDevStudio()
+	const { switchRepository, registerRepository, loadRepositories } = useDevStudio()
 	const [name, setName] = useState('')
 	const [description, setDescription] = useState('')
 	const [isPrivate, setIsPrivate] = useState(true)
@@ -60,11 +60,12 @@ export function DevStudioCreateRepoDialog({
 				autoInit,
 			})
 
-			bumpRepositoriesRevision()
+			registerRepository(result.repository)
 			await switchRepository(
 				result.repository.fullName,
 				result.repository.defaultBranch,
 			)
+			await loadRepositories({ retries: 3 })
 
 			setName('')
 			setDescription('')

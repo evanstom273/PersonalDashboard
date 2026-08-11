@@ -1,37 +1,17 @@
 import { ChevronDown, FolderGit2, Loader2 } from 'lucide-react'
-import { useEffect } from 'react'
-import {
-	findRepositoryBranch,
-	useGitHubRepositories,
-} from '@/hooks/useGitHubRepositories'
-import { usePreferencesContext } from '@/providers/ChatProvider'
 import { useDevStudio } from '@/providers/DevStudioProvider'
 import { cn } from '@/utils/cn'
 
 export function DevStudioRepoSwitcher() {
-	const { preferences } = usePreferencesContext()
 	const {
 		isConfigured,
 		repositorySlug,
+		branch,
 		connectionStatus,
 		switchRepository,
-		repositoriesRevision,
+		repositoryOptions,
+		isLoadingRepositories,
 	} = useDevStudio()
-	const githubPat = preferences.githubPat
-	const { repositories, isLoading, hasLoaded, loadRepositories } =
-		useGitHubRepositories(githubPat)
-
-	useEffect(() => {
-		if (isConfigured && githubPat.trim() && !hasLoaded && !isLoading) {
-			void loadRepositories()
-		}
-	}, [githubPat, hasLoaded, isConfigured, isLoading, loadRepositories])
-
-	useEffect(() => {
-		if (repositoriesRevision > 0 && githubPat.trim()) {
-			void loadRepositories()
-		}
-	}, [githubPat, loadRepositories, repositoriesRevision])
 
 	if (!isConfigured) {
 		return (
@@ -55,35 +35,36 @@ export function DevStudioRepoSwitcher() {
 					<select
 						id="dev-studio-repo-switcher"
 						value={repositorySlug}
-						disabled={isSwitching || isLoading || repositories.length === 0}
+						disabled={isSwitching || repositoryOptions.length === 0}
 						onChange={(event) => {
 							const fullName = event.target.value
 							if (!fullName || fullName === repositorySlug) {
 								return
 							}
 
-							const defaultBranch = findRepositoryBranch(repositories, fullName)
-							void switchRepository(fullName, defaultBranch)
+							const selected = repositoryOptions.find(
+								(repo) => repo.fullName === fullName,
+							)
+							void switchRepository(
+								fullName,
+								selected?.defaultBranch ?? branch,
+							)
 						}}
 						className={cn(
 							'w-full max-w-[min(100%,18rem)] appearance-none truncate rounded-lg border border-border/60',
 							'bg-background/60 py-1.5 pr-8 pl-2 text-base font-semibold outline-none',
 							'focus:ring-2 focus:ring-ring',
-							(isSwitching || isLoading) && 'opacity-60',
+							(isSwitching || isLoadingRepositories) && 'opacity-60',
 						)}
 					>
-						{repositories.length === 0 ? (
-							<option value={repositorySlug}>{repositorySlug}</option>
-						) : (
-							repositories.map((repo) => (
-								<option key={repo.fullName} value={repo.fullName}>
-									{repo.fullName}
-									{repo.isPrivate ? ' (private)' : ''}
-								</option>
-							))
-						)}
+						{repositoryOptions.map((repo) => (
+							<option key={repo.fullName} value={repo.fullName}>
+								{repo.fullName}
+								{repo.isPrivate ? ' (private)' : ''}
+							</option>
+						))}
 					</select>
-					{isSwitching || isLoading ? (
+					{isSwitching || isLoadingRepositories ? (
 						<Loader2 className="pointer-events-none absolute top-1/2 right-2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
 					) : (
 						<ChevronDown className="pointer-events-none absolute top-1/2 right-2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

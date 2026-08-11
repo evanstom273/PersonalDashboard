@@ -1014,7 +1014,6 @@ function AppTab({
 					/>
 				</label>
 				<DevStudioRepositorySelect
-					githubPat={githubPat}
 					repository={devStudioRepository}
 					branch={devStudioBranch}
 					onRepositoryChange={onDevStudioRepositoryChange}

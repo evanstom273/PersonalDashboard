@@ -48,7 +48,16 @@ export function DevStudioHeader() {
 						)}
 					</div>
 					{connectionError ? (
-						<p className="mt-2 text-xs text-destructive">{connectionError}</p>
+						<p
+							className={cn(
+								'mt-2 text-xs',
+								connectionStatus === 'connected'
+									? 'text-amber-400'
+									: 'text-destructive',
+							)}
+						>
+							{connectionError}
+						</p>
 					) : null}
 				</div>
 
