@@ -427,11 +427,6 @@ export function ChatInput({
 				return
 			}
 		}
-
-		if (event.key === 'Enter' && !event.shiftKey) {
-			event.preventDefault()
-			handleSubmit()
-		}
 	}
 
 	function handleMicPress(): void {
@@ -666,6 +661,7 @@ export function ChatInput({
 						}
 						disabled={inputDisabled}
 						readOnly={isListening}
+						enterKeyHint="enter"
 						rows={1}
 						className="max-h-32 min-h-[40px] flex-1 resize-none overflow-hidden bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60 md:min-h-[44px] md:px-3"
 					/>
