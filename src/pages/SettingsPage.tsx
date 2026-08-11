@@ -1,6 +1,7 @@
 import {
 	Bell,
 	Brain,
+	Download,
 	ExternalLink,
 	KeyRound,
 	Mic,
@@ -36,6 +37,7 @@ import {
 } from '@/utils/notifications'
 import { isCapacitorNativePlatform } from '@/utils/capacitor'
 import { cn } from '@/utils/cn'
+import { downloadAppReferenceMarkdown } from '@/utils/downloads'
 import {
 	resolveSettingsTabFromParams,
 	type SettingsTab,
@@ -78,6 +80,7 @@ export function SettingsPage() {
 	const [notificationMessage, setNotificationMessage] = useState<string | null>(
 		null,
 	)
+	const [allowCodebaseInspection, setAllowCodebaseInspection] = useState(true)
 
 	useEffect(() => {
 		if (!isLoading) {
@@ -89,6 +92,7 @@ export function SettingsPage() {
 			setMemoryArchiveInterval(preferences.memoryArchiveInterval)
 			setTtsReadAloudMode(preferences.ttsReadAloudMode)
 			setTtsVoiceName(preferences.ttsVoiceName)
+			setAllowCodebaseInspection(preferences.allowCodebaseInspection ?? true)
 		}
 	}, [isLoading, preferences])
 
@@ -153,6 +157,14 @@ export function SettingsPage() {
 		await savePreferences({
 			...preferences,
 			ttsVoiceName: value,
+		})
+	}
+
+	async function handleAllowCodebaseInspectionChange(value: boolean): Promise<void> {
+		setAllowCodebaseInspection(value)
+		await savePreferences({
+			...preferences,
+			allowCodebaseInspection: value,
 		})
 	}
 
@@ -315,7 +327,11 @@ export function SettingsPage() {
 						<AppTab
 							notificationPermission={notificationPermission}
 							notificationMessage={notificationMessage}
+							allowCodebaseInspection={allowCodebaseInspection}
 							onEnableNotifications={() => void handleEnableNotifications()}
+							onAllowCodebaseInspectionChange={(value) =>
+								void handleAllowCodebaseInspectionChange(value)
+							}
 						/>
 					) : null}
 				</div>
@@ -743,11 +759,15 @@ function VoiceTab({
 function AppTab({
 	notificationPermission,
 	notificationMessage,
+	allowCodebaseInspection,
 	onEnableNotifications,
+	onAllowCodebaseInspectionChange,
 }: {
 	notificationPermission: NotificationPermission
 	notificationMessage: string | null
+	allowCodebaseInspection: boolean
 	onEnableNotifications: () => void
+	onAllowCodebaseInspectionChange: (value: boolean) => void
 }) {
 	return (
 		<div className="space-y-5">
@@ -813,6 +833,48 @@ function AppTab({
 					while a reply is in progress. With notifications enabled, Android also
 					shows a system tray alert when the reply is ready.
 				</p>
+			</section>
+
+			<section className="surface-panel space-y-4 rounded-xl p-5">
+				<div className="flex items-center gap-2">
+					<Sparkles className="h-5 w-5 text-primary" />
+					<h3 className="text-sm font-medium">App reference for the AI</h3>
+				</div>
+				<p className="text-sm text-muted-foreground">
+					A comprehensive markdown guide describing how this app works — architecture,
+					storage, tools, pages, and constraints. It is injected into the assistant&apos;s
+					context on every chat message so the AI always knows how itself and the app work.
+				</p>
+				<Button type="button" variant="outline" onClick={downloadAppReferenceMarkdown}>
+					<Download className="h-4 w-4" />
+					Download app reference (.md)
+				</Button>
+			</section>
+
+			<section className="surface-panel space-y-4 rounded-xl p-5">
+				<h3 className="text-sm font-medium">Codebase inspection</h3>
+				<p className="text-sm text-muted-foreground">
+					When enabled, the assistant can use read-only tools to list, read, and search
+					bundled source files when you ask how something is implemented. It cannot
+					modify code — only inspect the version shipped with this app.
+				</p>
+				<label className="flex items-start gap-3 rounded-lg border border-border/60 px-3 py-3 text-sm">
+					<input
+						type="checkbox"
+						checked={allowCodebaseInspection}
+						onChange={(event) =>
+							onAllowCodebaseInspectionChange(event.target.checked)
+						}
+						className="mt-0.5"
+					/>
+					<span>
+						<span className="block font-medium">Allow AI to inspect source code</span>
+						<span className="mt-1 block text-muted-foreground">
+							Ask in chat: &quot;How does document autosave work?&quot; or
+							&quot;Show me the reminder scheduler code.&quot;
+						</span>
+					</span>
+				</label>
 			</section>
 		</div>
 	)
