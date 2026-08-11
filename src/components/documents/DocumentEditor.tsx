@@ -11,7 +11,9 @@ import {
 	AlignLeft,
 	AlignRight,
 	Bold,
+	Clock,
 	Eraser,
+	FileText,
 	Heading,
 	Highlighter,
 	Italic,
@@ -61,6 +63,25 @@ const HIGHLIGHT_COLORS = [
 	{ label: 'Orange', value: '#fed7aa' },
 ]
 
+function countWords(text: string): number {
+	const trimmed = text.trim()
+	if (!trimmed) {
+		return 0
+	}
+	return trimmed.split(/\s+/).filter(Boolean).length
+}
+
+function getReadingTimeText(wordCount: number): string {
+	if (wordCount === 0) {
+		return '0 min read'
+	}
+	if (wordCount < 200) {
+		return '< 1 min read'
+	}
+	const minutes = Math.ceil(wordCount / 200)
+	return `${minutes} min read`
+}
+
 interface DocumentEditorProps {
 	content: string
 	onChange: (html: string) => void
@@ -81,6 +102,7 @@ export function DocumentEditor({
 	preferences,
 }: DocumentEditorProps) {
 	const [hasSelection, setHasSelection] = useState(false)
+	const [wordCount, setWordCount] = useState(0)
 
 	const editor = useEditor({
 		extensions: [
@@ -103,8 +125,12 @@ export function DocumentEditor({
 		],
 		content,
 		editable,
+		onCreate: ({ editor: currentEditor }) => {
+			setWordCount(countWords(currentEditor.getText({ blockSeparator: ' ' })))
+		},
 		onUpdate: ({ editor: currentEditor }) => {
 			onChange(currentEditor.getHTML())
+			setWordCount(countWords(currentEditor.getText({ blockSeparator: ' ' })))
 		},
 		onSelectionUpdate: ({ editor: currentEditor }) => {
 			const { from, to } = currentEditor.state.selection
@@ -133,6 +159,7 @@ export function DocumentEditor({
 		if (content !== current) {
 			editor.commands.setContent(content, { emitUpdate: false })
 		}
+		setWordCount(countWords(editor.getText({ blockSeparator: ' ' })))
 	}, [content, editor])
 
 	if (!editor) {
@@ -143,6 +170,20 @@ export function DocumentEditor({
 
 	return (
 		<div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', className)}>
+			<div className="shrink-0 border-b border-border/40 bg-card/20 px-4 py-2 backdrop-blur-sm md:px-6">
+				<div className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-secondary/50 px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs">
+					<span className="inline-flex items-center gap-1.5">
+						<FileText className="h-3.5 w-3.5 text-muted-foreground/80" />
+						<span>{wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}</span>
+					</span>
+					<span className="h-3 w-px bg-border/60" aria-hidden="true" />
+					<span className="inline-flex items-center gap-1.5">
+						<Clock className="h-3.5 w-3.5 text-muted-foreground/80" />
+						<span>{getReadingTimeText(wordCount)}</span>
+					</span>
+				</div>
+			</div>
+
 			<div className="min-h-0 flex-1 overflow-y-auto">
 				<EditorContent editor={editor} className="h-full" />
 			</div>
