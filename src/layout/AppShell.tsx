@@ -12,6 +12,7 @@ import {
 	usePreferencesContext,
 } from '@/providers/ChatProvider'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
+import { getModelById } from '@/services/gemini/models'
 import { cn } from '@/utils/cn'
 
 function getPageTitle(pathname: string, aiName: string): string {
@@ -56,6 +57,7 @@ export function AppShell() {
 	const navigate = useNavigate()
 	const isMobileNav = useMobileNavLayout()
 	const aiName = getConfiguredAiName(preferences)
+	const selectedModel = getModelById(preferences.defaultModelId)
 	const isChatRoute = location.pathname === '/chat'
 	const pageTitle = getPageTitle(location.pathname, aiName)
 	const { navigateWithFade, contentClassName } = useSwipePageTransition()
@@ -96,7 +98,11 @@ export function AppShell() {
 							<h1 className="truncate text-base font-semibold md:text-lg">
 								{pageTitle}
 							</h1>
-							{isGenerating && !isChatRoute ? (
+							{isChatRoute ? (
+								<p className="truncate text-xs text-muted-foreground">
+									{selectedModel?.name ?? 'Chat model'}
+								</p>
+							) : isGenerating && !isChatRoute ? (
 								<p className="truncate text-xs text-muted-foreground">
 									{aiName} is replying in the background…
 								</p>
