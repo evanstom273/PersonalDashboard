@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.9.2'
+export const APP_VERSION = '2.0.0'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,19 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.0',
+		releasedAt: '2026-08-11',
+		summary: 'Dev Studio v2 — IDE, agent tools, push & PR',
+		changes: [
+			'CodeMirror IDE: open files from the tree, edit, and stage changes.',
+			'Gemini code agent with workspace tools: list, read, search, and stage files.',
+			'Real staged diff review with before/after panels.',
+			'Push staged changes via GitHub Git API: new branch, commit, and open PR.',
+			'IndexedDB persistence for staged changes, file SHAs, and chat per repo.',
+			'Editor tab on mobile and wide layout; Diff tab for review before push.',
+		],
+	},
 	{
 		version: '1.9.2',
 		releasedAt: '2026-08-11',

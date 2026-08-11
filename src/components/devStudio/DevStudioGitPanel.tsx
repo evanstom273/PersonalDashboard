@@ -1,10 +1,16 @@
 import { ExternalLink, GitPullRequest } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { useDevStudio } from '@/providers/DevStudioProvider'
 
 export function DevStudioGitPanel() {
-	const { workspace, connectionStatus, repositorySlug, stagedChanges } =
-		useDevStudio()
+	const {
+		workspace,
+		connectionStatus,
+		repositorySlug,
+		stagedChanges,
+		lastPushResult,
+		setMobileTab,
+		setContextTab,
+	} = useDevStudio()
 
 	if (connectionStatus === 'connecting') {
 		return (
@@ -35,17 +41,41 @@ export function DevStudioGitPanel() {
 					</p>
 					<p className="mt-1 font-mono text-sm">{workspace.repo.branch}</p>
 				</div>
-				<div className="flex flex-wrap gap-2">
-					<Button type="button" size="sm" variant="secondary" disabled>
-						Create branch
-					</Button>
-					<Button type="button" size="sm" variant="outline" disabled>
-						Open PR
-					</Button>
-				</div>
+				{lastPushResult ? (
+					<div className="rounded-xl border border-border/60 bg-background/30 px-3 py-3">
+						<p className="text-xs font-medium text-muted-foreground uppercase">
+							Last push
+						</p>
+						<p className="mt-1 font-mono text-xs">{lastPushResult.branchName}</p>
+						<a
+							href={lastPushResult.pullRequestUrl}
+							target="_blank"
+							rel="noreferrer"
+							className="mt-2 inline-flex items-center gap-1 text-sm text-primary hover:underline"
+						>
+							PR #{lastPushResult.pullRequestNumber}
+							<ExternalLink className="h-3.5 w-3.5" />
+						</a>
+					</div>
+				) : null}
 				<p className="text-xs text-muted-foreground">
 					{stagedChanges.length} staged change
 					{stagedChanges.length === 1 ? '' : 's'} waiting for review
+					{stagedChanges.length > 0 ? (
+						<>
+							{' · '}
+							<button
+								type="button"
+								className="text-primary hover:underline"
+								onClick={() => {
+									setContextTab('changes')
+									setMobileTab('diff')
+								}}
+							>
+								Review
+							</button>
+						</>
+					) : null}
 				</p>
 			</div>
 
