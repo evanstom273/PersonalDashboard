@@ -27,6 +27,10 @@ function getPageTitle(pathname: string, aiName: string): string {
 		return aiName
 	}
 
+	if (pathname === '/dev-studio') {
+		return 'Dev Studio'
+	}
+
 	if (pathname.startsWith('/library/projects/')) {
 		return 'Project'
 	}
@@ -61,6 +65,7 @@ export function AppShell() {
 	const isMobileNav = useMobileNavLayout()
 	const aiName = getConfiguredAiName(preferences)
 	const isChatRoute = location.pathname === '/chat'
+	const isDevStudioRoute = location.pathname === '/dev-studio'
 	const pageTitle = getPageTitle(location.pathname, aiName)
 	const { navigateWithFade, contentClassName } = useSwipePageTransition()
 	const { slot: chatHeaderVoiceSlot } = useChatHeaderSlot()
@@ -68,6 +73,7 @@ export function AppShell() {
 		!location.pathname.startsWith('/library/documents/') &&
 		!location.pathname.startsWith('/library/projects/') &&
 		location.pathname !== '/home' &&
+		location.pathname !== '/dev-studio' &&
 		!(isChatRoute && !isMobileNav)
 
 	useAppSwipeNavigation(navigateWithFade)
@@ -171,8 +177,8 @@ export function AppShell() {
 
 			<BottomNav />
 
-			<ScratchpadFab />
-			<ScratchpadBusyIndicator />
+			{!isDevStudioRoute ? <ScratchpadFab /> : null}
+			{!isDevStudioRoute ? <ScratchpadBusyIndicator /> : null}
 			<ScratchpadPanel />
 		</div>
 	)

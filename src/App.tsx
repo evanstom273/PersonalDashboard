@@ -8,7 +8,9 @@ import { LibraryPage } from '@/pages/LibraryPage'
 import { MemoryPage } from '@/pages/MemoryPage'
 import { ProjectBoardPage } from '@/pages/ProjectBoardPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { DevStudioPage } from '@/pages/DevStudioPage'
 import { ChatProvider } from '@/providers/ChatProvider'
+import { DevStudioProvider } from '@/providers/DevStudioProvider'
 import { ScratchpadProvider } from '@/providers/ScratchpadProvider'
 
 export function App() {
@@ -18,12 +20,14 @@ export function App() {
 		<BrowserRouter basename={routerBasename || undefined}>
 			<ChatProvider>
 				<ScratchpadProvider>
-					<Routes>
-						<Route element={<AppShell />}>
-							<Route index element={<Navigate to="/home" replace />} />
-							<Route path="home" element={<HomePage />} />
-							<Route path="chat" element={<ChatPage />} />
-							<Route path="library" element={<LibraryPage />} />
+					<DevStudioProvider>
+						<Routes>
+							<Route element={<AppShell />}>
+								<Route index element={<Navigate to="/home" replace />} />
+								<Route path="home" element={<HomePage />} />
+								<Route path="chat" element={<ChatPage />} />
+								<Route path="dev-studio" element={<DevStudioPage />} />
+								<Route path="library" element={<LibraryPage />} />
 							<Route path="library/projects/:projectId" element={<ProjectBoardPage />} />
 							<Route path="library/documents/:documentId" element={<DocumentEditorPage />} />
 							<Route path="memory" element={<MemoryPage />} />
@@ -32,7 +36,8 @@ export function App() {
 							<Route path="settings" element={<SettingsPage />} />
 						</Route>
 						<Route path="*" element={<Navigate to="/home" replace />} />
-					</Routes>
+						</Routes>
+					</DevStudioProvider>
 				</ScratchpadProvider>
 			</ChatProvider>
 		</BrowserRouter>

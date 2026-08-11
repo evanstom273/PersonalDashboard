@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.8.0'
+export const APP_VERSION = '1.9.0'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '1.9.0',
+		releasedAt: '2026-08-11',
+		summary: 'Dev Studio scaffold',
+		changes: [
+			'New Dev tab with Cursor-style split layout on wide screens.',
+			'Mobile tabs for Chat, Diff, Files, and Git.',
+			'GitHub PAT and repository settings for workspace hydration.',
+			'Repository file tree and open PR list via GitHub REST API.',
+			'Staged diff review UI scaffold with sample change preview.',
+		],
+	},
 	{
 		version: '1.8.0',
 		releasedAt: '2026-08-11',

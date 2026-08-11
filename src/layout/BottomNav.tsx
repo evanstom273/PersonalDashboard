@@ -1,4 +1,4 @@
-import { Home, Library, MessageSquare, Settings } from 'lucide-react'
+import { Code2, Home, Library, MessageSquare, Settings } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useChatGenerationContext } from '@/providers/ChatProvider'
 import { cn } from '@/utils/cn'
@@ -6,6 +6,7 @@ import { cn } from '@/utils/cn'
 const NAV_ITEMS = [
 	{ to: '/home', label: 'Home', icon: Home, end: true },
 	{ to: '/chat', label: 'Chat', icon: MessageSquare, end: true },
+	{ to: '/dev-studio', label: 'Dev', icon: Code2, end: true },
 	{ to: '/library', label: 'Library', icon: Library, end: false },
 	{ to: '/settings', label: 'Settings', icon: Settings, end: true },
 ] as const

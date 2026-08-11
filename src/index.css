@@ -220,7 +220,7 @@ body {
 	align-items: stretch;
 	justify-content: space-around;
 	gap: 0.125rem;
-	width: min(100%, 24rem);
+	width: min(100%, 30rem);
 	margin-inline: auto;
 	padding: 0.375rem 0.5rem;
 	border: 1px solid rgb(255 255 255 / 5%);
@@ -239,7 +239,7 @@ body {
 
 .bottom-nav-item {
 	display: flex;
-	min-width: 4.25rem;
+	min-width: 3.25rem;
 	flex: 1;
 	flex-direction: column;
 	align-items: center;
@@ -287,10 +287,20 @@ body {
 }
 
 .bottom-nav-label {
-	font-size: 0.6875rem;
+	font-size: 0.625rem;
 	font-weight: 500;
 	line-height: 1;
 	letter-spacing: 0.01em;
+}
+
+.dev-studio-page {
+	background:
+		linear-gradient(180deg, rgb(54 152 255 / 4%) 0%, transparent 22%),
+		transparent;
+}
+
+.dev-studio-composer {
+	padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
 }
 
 .library-section-tabs {

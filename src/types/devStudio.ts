@@ -1,0 +1,66 @@
+export type DevStudioContextTab = 'git' | 'changes' | 'files'
+
+export type DevStudioMobileTab = 'chat' | 'diff' | 'files' | 'git'
+
+export type DevStudioConnectionStatus =
+	| 'disconnected'
+	| 'connecting'
+	| 'connected'
+	| 'error'
+
+export interface DevStudioRepoRef {
+	owner: string
+	repo: string
+	branch: string
+}
+
+export interface DevStudioFileNode {
+	path: string
+	type: 'file' | 'dir'
+	sha?: string
+	children?: DevStudioFileNode[]
+}
+
+export interface DevStudioPullRequest {
+	id: number
+	number: number
+	title: string
+	state: 'open' | 'closed'
+	merged: boolean
+	headRef: string
+	baseRef: string
+	updatedAt: string
+}
+
+export interface DevStudioStagedChange {
+	id: string
+	path: string
+	status: 'added' | 'modified' | 'deleted'
+	oldContent: string
+	newContent: string
+}
+
+export interface DevStudioWorkspaceSnapshot {
+	repo: DevStudioRepoRef
+	tree: DevStudioFileNode[]
+	pullRequests: DevStudioPullRequest[]
+	lastSyncedAt: number
+}
+
+export function parseRepositorySlug(input: string): DevStudioRepoRef | null {
+	const trimmed = input.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/, '')
+	const match = trimmed.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/)
+	if (!match) {
+		return null
+	}
+
+	return {
+		owner: match[1],
+		repo: match[2],
+		branch: 'main',
+	}
+}
+
+export function formatRepositorySlug(ref: DevStudioRepoRef): string {
+	return `${ref.owner}/${ref.repo}`
+}
