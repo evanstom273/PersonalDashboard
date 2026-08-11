@@ -210,6 +210,50 @@ export async function listAccessibleRepositories(
 	return { repositories, rateLimit }
 }
 
+export interface CreateRepositoryInput {
+	name: string
+	description?: string
+	isPrivate?: boolean
+	autoInit?: boolean
+}
+
+export async function createRepository(
+	token: string,
+	input: CreateRepositoryInput,
+): Promise<{
+	repository: GitHubRepositorySummary
+	rateLimit: GitHubRateLimit | null
+}> {
+	const name = input.name.trim()
+	if (!name) {
+		throw new GitHubApiError('Repository name is required.', 400)
+	}
+
+	const { data, rateLimit } = await githubFetch<GitHubRepoListResponse>(
+		token,
+		'/user/repos',
+		{
+			method: 'POST',
+			body: JSON.stringify({
+				name,
+				description: input.description?.trim() || undefined,
+				private: input.isPrivate ?? true,
+				auto_init: input.autoInit ?? true,
+			}),
+		},
+	)
+
+	return {
+		repository: {
+			fullName: data.full_name,
+			defaultBranch: data.default_branch || 'main',
+			isPrivate: data.private,
+			updatedAt: data.updated_at,
+		},
+		rateLimit,
+	}
+}
+
 export async function fetchRepositoryTree(
 	token: string,
 	repo: DevStudioRepoRef,

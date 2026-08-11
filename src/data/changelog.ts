@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.9.0'
+export const APP_VERSION = '1.9.1'
 
 export interface ChangelogEntry {
 	version: string
@@ -9,6 +9,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.9.1',
+		releasedAt: '2026-08-11',
+		summary: 'Dev Studio repo picker & create',
+		changes: [
+			'Repository dropdown in Settings and Dev Studio header.',
+			'Switch repos from the header without opening Settings.',
+			'Create new GitHub repositories from Dev Studio (+ in header).',
+			'GitHub rate limit shows remaining calls and hourly reset time.',
+		],
+	},
+	{
 		version: '1.9.0',
 		releasedAt: '2026-08-11',
 		summary: 'Dev Studio scaffold',
@@ -18,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
 			'GitHub PAT and repository settings for workspace hydration.',
 			'Repository dropdown loads all repos your token can access.',
 			'Switch repos from the Dev Studio header dropdown.',
+			'Create new GitHub repositories from Dev Studio (+ button in header).',
 			'Repository file tree and open PR list via GitHub REST API.',
 			'Staged diff review UI scaffold with sample change preview.',
 		],

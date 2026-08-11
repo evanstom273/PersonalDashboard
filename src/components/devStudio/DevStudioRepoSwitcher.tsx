@@ -15,6 +15,7 @@ export function DevStudioRepoSwitcher() {
 		repositorySlug,
 		connectionStatus,
 		switchRepository,
+		repositoriesRevision,
 	} = useDevStudio()
 	const githubPat = preferences.githubPat
 	const { repositories, isLoading, hasLoaded, loadRepositories } =
@@ -25,6 +26,12 @@ export function DevStudioRepoSwitcher() {
 			void loadRepositories()
 		}
 	}, [githubPat, hasLoaded, isConfigured, isLoading, loadRepositories])
+
+	useEffect(() => {
+		if (repositoriesRevision > 0 && githubPat.trim()) {
+			void loadRepositories()
+		}
+	}, [githubPat, loadRepositories, repositoriesRevision])
 
 	if (!isConfigured) {
 		return (

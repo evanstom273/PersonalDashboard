@@ -44,6 +44,8 @@ interface DevStudioContextValue {
 	connectWorkspace: () => Promise<void>
 	refreshWorkspace: () => Promise<void>
 	switchRepository: (fullName: string, defaultBranch?: string) => Promise<void>
+	bumpRepositoriesRevision: () => void
+	repositoriesRevision: number
 	appendMessage: (message: StoredMessage) => void
 	setComposerSending: (value: boolean) => void
 	discardStagedChange: (id: string) => void
@@ -101,6 +103,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 		},
 	])
 	const [isComposerSending, setComposerSending] = useState(false)
+	const [repositoriesRevision, setRepositoriesRevision] = useState(0)
 
 	const repoRef = useMemo(
 		() =>
@@ -191,6 +194,10 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 		[hydrateWorkspace, preferences, savePreferences],
 	)
 
+	const bumpRepositoriesRevision = useCallback(() => {
+		setRepositoriesRevision((current) => current + 1)
+	}, [])
+
 	const appendMessage = useCallback((message: StoredMessage) => {
 		setMessages((current) => [...current, message])
 	}, [])
@@ -222,12 +229,15 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			connectWorkspace,
 			refreshWorkspace,
 			switchRepository,
+			bumpRepositoriesRevision,
+			repositoriesRevision,
 			appendMessage,
 			setComposerSending,
 			discardStagedChange,
 		}),
 		[
 			appendMessage,
+			bumpRepositoriesRevision,
 			branch,
 			connectWorkspace,
 			connectionError,
@@ -240,6 +250,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			mobileTab,
 			rateLimit,
 			refreshWorkspace,
+			repositoriesRevision,
 			repositorySlug,
 			selectedFilePath,
 			stagedChanges,

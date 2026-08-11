@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { DevStudioCreateRepoButton } from '@/components/devStudio/DevStudioCreateRepoDialog'
 import { DevStudioRepoSwitcher } from '@/components/devStudio/DevStudioRepoSwitcher'
 import { useDevStudio } from '@/providers/DevStudioProvider'
 import { formatRateLimitLabel } from '@/utils/githubRateLimit'
@@ -53,20 +54,23 @@ export function DevStudioHeader() {
 
 				<div className="flex shrink-0 items-center gap-1">
 					{isConfigured ? (
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							onClick={() => void refreshWorkspace()}
-							disabled={connectionStatus === 'connecting'}
-							aria-label="Refresh workspace"
-						>
-							{connectionStatus === 'connecting' ? (
-								<Loader2 className="h-4 w-4 animate-spin" />
-							) : (
-								<RefreshCw className="h-4 w-4" />
-							)}
-						</Button>
+						<>
+							<DevStudioCreateRepoButton />
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								onClick={() => void refreshWorkspace()}
+								disabled={connectionStatus === 'connecting'}
+								aria-label="Refresh workspace"
+							>
+								{connectionStatus === 'connecting' ? (
+									<Loader2 className="h-4 w-4 animate-spin" />
+								) : (
+									<RefreshCw className="h-4 w-4" />
+								)}
+							</Button>
+						</>
 					) : (
 						<Button
 							type="button"
