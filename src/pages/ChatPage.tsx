@@ -19,7 +19,6 @@ import { Link } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { ChatMessages } from '@/components/chat/ChatMessages'
-import { ChatModelSelector } from '@/components/chat/ChatModelSelector'
 
 export function ChatPage() {
 	const { preferences, savePreferences } = usePreferencesContext()
@@ -33,7 +32,6 @@ export function ChatPage() {
 	const {
 		isGenerating,
 		error,
-		lastIntent,
 		streamingAssistant,
 		submitMessage,
 		stopGeneration,
@@ -255,38 +253,24 @@ export function ChatPage() {
 
 	return (
 		<div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-			<header className="shrink-0 flex-wrap items-center justify-between gap-3 app-header-glass px-4 py-3 flex md:px-6">
-				<div className="min-w-0 flex-1">
-					<div className="flex items-center gap-1">
-						<h1 className="text-lg font-semibold truncate">{aiName}</h1>
-						<VoiceModeControls
-							hasApiKey={hasApiKey}
-							isConversationActive={conversationMode.isActive}
-							isLiveActive={liveMode.isActive}
-							isGenerating={isGenerating}
-							onStartConversation={() => void conversationMode.startConversation()}
-							onStartLive={() => void liveMode.startSession()}
-						/>
-						<ChatConversationActions
-							conversation={conversation}
-							isGenerating={isGenerating}
-							onClear={handleClearChat}
-							onImport={handleImportChat}
-						/>
-					</div>
-					<p className="text-xs text-muted-foreground">
-						Try &quot;generate an image of…&quot; or &quot;generate music&quot;
-						{lastIntent ? ` · last: ${lastIntent}` : ''}
-					</p>
-				</div>
-				<div className="flex items-center gap-2 shrink-0">
-					<ChatModelSelector
-						value={preferences.defaultModelId}
-						onChange={(modelId) => {
-							void saveModelPreference({ defaultModelId: modelId })
-						}}
-					/>
-				</div>
+			<header className="flex shrink-0 items-center gap-2 app-header-glass px-4 py-2.5 md:px-6">
+				<h1 className="min-w-0 flex-1 truncate text-base font-semibold md:text-lg">
+					{aiName}
+				</h1>
+				<VoiceModeControls
+					hasApiKey={hasApiKey}
+					isConversationActive={conversationMode.isActive}
+					isLiveActive={liveMode.isActive}
+					isGenerating={isGenerating}
+					onStartConversation={() => void conversationMode.startConversation()}
+					onStartLive={() => void liveMode.startSession()}
+				/>
+				<ChatConversationActions
+					conversation={conversation}
+					isGenerating={isGenerating}
+					onClear={handleClearChat}
+					onImport={handleImportChat}
+				/>
 			</header>
 
 			{!hasApiKey ? (

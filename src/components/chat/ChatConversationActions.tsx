@@ -1,4 +1,4 @@
-import { Download, Trash2, Upload } from 'lucide-react'
+import { Download, Ellipsis, Trash2, Upload } from 'lucide-react'
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -10,6 +10,13 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
 	downloadChatExport,
 	isChatExportZipFileName,
@@ -117,7 +124,7 @@ export function ChatConversationActions({
 	}
 
 	return (
-		<div className="flex flex-col">
+		<>
 			<input
 				ref={importInputRef}
 				type="file"
@@ -126,51 +133,65 @@ export function ChatConversationActions({
 				onChange={handleImportFileChange}
 			/>
 
-			<div className="flex items-center gap-1">
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon"
-					className="h-8 w-8"
-					disabled={!conversation || isGenerating}
-					onClick={() => {
-						if (conversation) {
-							downloadChatExport(conversation)
-						}
-					}}
-					aria-label="Export chat as ZIP"
-					title="Export chat"
-				>
-					<Download className="h-4 w-4" />
-				</Button>
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon"
-					className="h-8 w-8"
-					disabled={isGenerating}
-					onClick={() => importInputRef.current?.click()}
-					aria-label="Import chat ZIP or JSON"
-					title="Import chat"
-				>
-					<Upload className="h-4 w-4" />
-				</Button>
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon"
-					className="h-8 w-8"
-					disabled={messageCount === 0 || isGenerating}
-					onClick={() => setClearDialogOpen(true)}
-					aria-label="Clear chat"
-					title="Clear chat"
-				>
-					<Trash2 className="h-4 w-4" />
-				</Button>
-			</div>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild hideChevron>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="h-8 w-8 shrink-0"
+						disabled={isGenerating}
+						aria-label="Chat options"
+						title="Chat options"
+					>
+						<Ellipsis className="h-4 w-4" />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end">
+					<DropdownMenuItem
+						className="gap-2"
+						disabled={isGenerating}
+						onSelect={() => importInputRef.current?.click()}
+					>
+						<Upload className="h-4 w-4" />
+						Import chat
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						className="gap-2"
+						disabled={!conversation || isGenerating}
+						onSelect={() => {
+							if (conversation) {
+								downloadChatExport(conversation)
+							}
+						}}
+					>
+						<Download className="h-4 w-4" />
+						Export chat
+					</DropdownMenuItem>
+					<DropdownMenuSeparator />
+					<DropdownMenuItem
+						className="gap-2 text-destructive focus:text-destructive"
+						disabled={messageCount === 0 || isGenerating}
+						onSelect={() => setClearDialogOpen(true)}
+					>
+						<Trash2 className="h-4 w-4" />
+						Delete chat
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
 
 			{importError ? (
-				<p className="mt-1 text-xs text-destructive">{importError}</p>
+				<Dialog open onOpenChange={() => setImportError(null)}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Could not import chat</DialogTitle>
+							<DialogDescription>{importError}</DialogDescription>
+						</DialogHeader>
+						<DialogFooter>
+							<Button onClick={() => setImportError(null)}>OK</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 			) : null}
 
 			<Dialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
@@ -236,6 +257,6 @@ export function ChatConversationActions({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-		</div>
+		</>
 	)
 }
