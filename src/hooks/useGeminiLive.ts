@@ -45,11 +45,6 @@ export function useGeminiLive({
 	}, [onTranscriptTurns])
 
 	const startSession = useCallback(async () => {
-		if (!preferences.liveModeEnabled) {
-			setError('Live Mode is disabled in Settings.')
-			return
-		}
-
 		if (!preferences.geminiApiKey.trim()) {
 			setError('Add your Gemini API key in Settings to use Live Mode.')
 			return

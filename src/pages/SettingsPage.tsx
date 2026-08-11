@@ -28,11 +28,9 @@ import { GEMINI_TTS_VOICES } from '@/services/gemini/ttsVoices'
 import { GEMINI_MODELS, MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
 import {
 	MEMORY_ARCHIVE_INTERVAL_OPTIONS,
-	type DefaultVoiceMode,
 	type MemoryArchiveInterval,
 	type TtsReadAloudMode,
 } from '@/storage/types'
-import { DEFAULT_LIVE_MODEL_ID } from '@/services/gemini/liveConstants'
 import {
 	canUseNotifications,
 	getNotificationPermission,
@@ -77,10 +75,6 @@ export function SettingsPage() {
 	const [ttsReadAloudMode, setTtsReadAloudMode] =
 		useState<TtsReadAloudMode>('never')
 	const [ttsVoiceName, setTtsVoiceName] = useState('Kore')
-	const [conversationModeEnabled, setConversationModeEnabled] = useState(true)
-	const [liveModeEnabled, setLiveModeEnabled] = useState(true)
-	const [defaultVoiceMode, setDefaultVoiceMode] =
-		useState<DefaultVoiceMode>('conversation')
 	const [savedApiKey, setSavedApiKey] = useState(false)
 	const [savedIdentity, setSavedIdentity] = useState(false)
 	const [isSavingApiKey, setIsSavingApiKey] = useState(false)
@@ -111,9 +105,6 @@ export function SettingsPage() {
 			setMemoryArchiveInterval(preferences.memoryArchiveInterval)
 			setTtsReadAloudMode(preferences.ttsReadAloudMode)
 			setTtsVoiceName(preferences.ttsVoiceName)
-			setConversationModeEnabled(preferences.conversationModeEnabled)
-			setLiveModeEnabled(preferences.liveModeEnabled)
-			setDefaultVoiceMode(preferences.defaultVoiceMode)
 			setAllowCodebaseInspection(preferences.allowCodebaseInspection ?? true)
 		}
 	}, [isLoading, preferences])
@@ -179,30 +170,6 @@ export function SettingsPage() {
 		await savePreferences({
 			...preferences,
 			ttsVoiceName: value,
-		})
-	}
-
-	async function handleConversationModeEnabledChange(value: boolean): Promise<void> {
-		setConversationModeEnabled(value)
-		await savePreferences({
-			...preferences,
-			conversationModeEnabled: value,
-		})
-	}
-
-	async function handleLiveModeEnabledChange(value: boolean): Promise<void> {
-		setLiveModeEnabled(value)
-		await savePreferences({
-			...preferences,
-			liveModeEnabled: value,
-		})
-	}
-
-	async function handleDefaultVoiceModeChange(value: DefaultVoiceMode): Promise<void> {
-		setDefaultVoiceMode(value)
-		await savePreferences({
-			...preferences,
-			defaultVoiceMode: value,
 		})
 	}
 
@@ -439,24 +406,12 @@ export function SettingsPage() {
 						<VoiceTab
 							ttsReadAloudMode={ttsReadAloudMode}
 							ttsVoiceName={ttsVoiceName}
-							conversationModeEnabled={conversationModeEnabled}
-							liveModeEnabled={liveModeEnabled}
-							defaultVoiceMode={defaultVoiceMode}
 							hasApiKey={preferences.geminiApiKey.trim().length > 0}
 							speechStatus={speechStatus}
 							onReadAloudModeChange={(value) =>
 								void handleTtsReadAloudModeChange(value)
 							}
 							onVoiceChange={(value) => void handleTtsVoiceChange(value)}
-							onConversationModeEnabledChange={(value) =>
-								void handleConversationModeEnabledChange(value)
-							}
-							onLiveModeEnabledChange={(value) =>
-								void handleLiveModeEnabledChange(value)
-							}
-							onDefaultVoiceModeChange={(value) =>
-								void handleDefaultVoiceModeChange(value)
-							}
 							onPreview={() => void previewVoice(ttsVoiceName)}
 						/>
 					) : null}
@@ -838,30 +793,18 @@ function ApiTab({
 function VoiceTab({
 	ttsReadAloudMode,
 	ttsVoiceName,
-	conversationModeEnabled,
-	liveModeEnabled,
-	defaultVoiceMode,
 	hasApiKey,
 	speechStatus,
 	onReadAloudModeChange,
 	onVoiceChange,
-	onConversationModeEnabledChange,
-	onLiveModeEnabledChange,
-	onDefaultVoiceModeChange,
 	onPreview,
 }: {
 	ttsReadAloudMode: TtsReadAloudMode
 	ttsVoiceName: string
-	conversationModeEnabled: boolean
-	liveModeEnabled: boolean
-	defaultVoiceMode: DefaultVoiceMode
 	hasApiKey: boolean
 	speechStatus: string
 	onReadAloudModeChange: (value: TtsReadAloudMode) => void
 	onVoiceChange: (value: string) => void
-	onConversationModeEnabledChange: (value: boolean) => void
-	onLiveModeEnabledChange: (value: boolean) => void
-	onDefaultVoiceModeChange: (value: DefaultVoiceMode) => void
 	onPreview: () => void
 }) {
 	return (
@@ -957,70 +900,16 @@ function VoiceTab({
 				</div>
 			</section>
 
-			<section className="surface-panel space-y-4 rounded-xl p-5">
+			<section className="surface-panel space-y-3 rounded-xl p-5">
 				<div className="flex items-center gap-2">
 					<Mic className="h-5 w-5 text-primary" />
 					<h3 className="text-sm font-medium">Voice conversation</h3>
 				</div>
-
-				<label className="flex items-start gap-3 text-sm">
-					<input
-						type="checkbox"
-						checked={conversationModeEnabled}
-						onChange={(event) =>
-							onConversationModeEnabledChange(event.target.checked)
-						}
-						className="mt-1"
-					/>
-					<span>
-						<span className="font-medium">Conversation Mode</span>
-						<span className="mt-1 block text-muted-foreground">
-							Hands-free turns using speech-to-text, normal chat (with tools and
-							memory), and streaming Gemini TTS. Lower cost than Live Mode.
-						</span>
-					</span>
-				</label>
-
-				<label className="flex items-start gap-3 text-sm">
-					<input
-						type="checkbox"
-						checked={liveModeEnabled}
-						onChange={(event) => onLiveModeEnabledChange(event.target.checked)}
-						className="mt-1"
-					/>
-					<span>
-						<span className="font-medium">Live Mode</span>
-						<span className="mt-1 block text-muted-foreground">
-							Realtime bidirectional voice via{' '}
-							<span className="font-medium text-foreground">
-								{DEFAULT_LIVE_MODEL_ID}
-							</span>
-							. Uses the Live API while a session is active and can consume API
-							usage more quickly.
-						</span>
-					</span>
-				</label>
-
-				<div className="space-y-2">
-					<label htmlFor="default-voice-mode" className="text-sm font-medium">
-						Default voice mode button
-					</label>
-					<select
-						id="default-voice-mode"
-						value={defaultVoiceMode}
-						onChange={(event) => {
-							onDefaultVoiceModeChange(event.target.value as DefaultVoiceMode)
-						}}
-						className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
-					>
-						<option value="conversation">Conversation</option>
-						<option value="live">Live</option>
-					</select>
-					<p className="text-sm text-muted-foreground">
-						The phone button in chat starts this mode. Live sessions never start
-						automatically.
-					</p>
-				</div>
+				<p className="text-sm text-muted-foreground">
+					In chat, tap the phone icon next to your assistant&apos;s name for
+					Conversation Mode, or the headphones icon for Live Mode. Each shows a
+					short explanation before you start.
+				</p>
 			</section>
 		</div>
 	)

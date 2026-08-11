@@ -1,5 +1,5 @@
 import { ArrowUp, Mic, Square, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { ChatAttachMenu } from '@/components/chat/ChatAttachMenu'
 import { DocumentMentionMenu } from '@/components/chat/DocumentMentionMenu'
 import { Button } from '@/components/ui/button'
@@ -42,7 +42,6 @@ interface ChatInputProps {
 	onStop?: () => void
 	editingMessage?: StoredMessage | null
 	onCancelEdit?: () => void
-	voiceModeControls?: ReactNode
 }
 
 export function ChatInput({
@@ -64,7 +63,6 @@ export function ChatInput({
 	onStop,
 	editingMessage = null,
 	onCancelEdit,
-	voiceModeControls,
 }: ChatInputProps) {
 	const [prompt, setPrompt] = useState('')
 	const [cursorPosition, setCursorPosition] = useState(0)
@@ -567,8 +565,6 @@ export function ChatInput({
 							void handleImageUploads(files)
 						}}
 					/>
-
-					{voiceModeControls}
 
 					{isSupported ? (
 						<Button

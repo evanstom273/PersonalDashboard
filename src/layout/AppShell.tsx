@@ -2,7 +2,6 @@ import { Loader2, X } from 'lucide-react'
 import { useCallback } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
-import { useMobileNavLayout } from '@/hooks/useMobileNavLayout'
 import { useAppSwipeNavigation } from '@/hooks/useAppSwipeNavigation'
 import { useSwipePageTransition } from '@/hooks/useSwipePageTransition'
 import { BottomNav } from '@/layout/BottomNav'
@@ -55,7 +54,6 @@ export function AppShell() {
 		useChatGenerationContext()
 	const location = useLocation()
 	const navigate = useNavigate()
-	const isMobileNav = useMobileNavLayout()
 	const aiName = getConfiguredAiName(preferences)
 	const selectedModel = getModelById(preferences.defaultModelId)
 	const isChatRoute = location.pathname === '/chat'
@@ -65,7 +63,7 @@ export function AppShell() {
 		!location.pathname.startsWith('/library/documents/') &&
 		!location.pathname.startsWith('/library/projects/') &&
 		location.pathname !== '/home' &&
-		!(isChatRoute && !isMobileNav)
+		location.pathname !== '/chat'
 
 	useAppSwipeNavigation(navigateWithFade)
 

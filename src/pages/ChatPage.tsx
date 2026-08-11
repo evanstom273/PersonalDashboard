@@ -71,7 +71,6 @@ export function ChatPage() {
 	)
 
 	const conversationMode = useConversationMode({
-		enabled: preferences.conversationModeEnabled,
 		geminiApiKey: preferences.geminiApiKey,
 		transcriptionModelId: preferences.defaultModelId,
 		onSubmit: handleConversationSubmit,
@@ -256,10 +255,18 @@ export function ChatPage() {
 
 	return (
 		<div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-			<header className="hidden shrink-0 flex-wrap items-center justify-between gap-3 app-header-glass px-4 py-3 md:flex md:px-6">
-				<div>
-					<div className="flex items-center gap-2">
-						<h1 className="text-lg font-semibold">{aiName}</h1>
+			<header className="shrink-0 flex-wrap items-center justify-between gap-3 app-header-glass px-4 py-3 flex md:px-6">
+				<div className="min-w-0 flex-1">
+					<div className="flex items-center gap-1">
+						<h1 className="text-lg font-semibold truncate">{aiName}</h1>
+						<VoiceModeControls
+							hasApiKey={hasApiKey}
+							isConversationActive={conversationMode.isActive}
+							isLiveActive={liveMode.isActive}
+							isGenerating={isGenerating}
+							onStartConversation={() => void conversationMode.startConversation()}
+							onStartLive={() => void liveMode.startSession()}
+						/>
 						<ChatConversationActions
 							conversation={conversation}
 							isGenerating={isGenerating}
@@ -272,17 +279,7 @@ export function ChatPage() {
 						{lastIntent ? ` · last: ${lastIntent}` : ''}
 					</p>
 				</div>
-				<div className="flex items-center gap-2">
-					<VoiceModeControls
-						conversationEnabled={preferences.conversationModeEnabled}
-						liveEnabled={preferences.liveModeEnabled}
-						hasApiKey={hasApiKey}
-						isConversationActive={conversationMode.isActive}
-						isLiveActive={liveMode.isActive}
-						isGenerating={isGenerating}
-						onStartConversation={() => void conversationMode.startConversation()}
-						onStartLive={() => void liveMode.startSession()}
-					/>
+				<div className="flex items-center gap-2 shrink-0">
 					<ChatModelSelector
 						value={preferences.defaultModelId}
 						onChange={(modelId) => {
@@ -370,18 +367,6 @@ export function ChatPage() {
 					void handleSubmit(payload)
 				}}
 				onStop={stopGeneration}
-				voiceModeControls={
-					<VoiceModeControls
-						conversationEnabled={preferences.conversationModeEnabled}
-						liveEnabled={preferences.liveModeEnabled}
-						hasApiKey={hasApiKey}
-						isConversationActive={conversationMode.isActive}
-						isLiveActive={liveMode.isActive}
-						isGenerating={isGenerating}
-						onStartConversation={() => void conversationMode.startConversation()}
-						onStartLive={() => void liveMode.startSession()}
-					/>
-				}
 			/>
 
 			{conversationMode.isActive ? (

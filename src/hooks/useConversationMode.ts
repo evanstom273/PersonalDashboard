@@ -19,7 +19,6 @@ export type ConversationModeStatus =
 const SILENCE_MS = 1800
 
 interface UseConversationModeOptions {
-	enabled: boolean
 	geminiApiKey: string
 	transcriptionModelId: string
 	onSubmit: (payload: ChatSubmitPayload) => Promise<void>
@@ -27,7 +26,6 @@ interface UseConversationModeOptions {
 }
 
 export function useConversationMode({
-	enabled,
 	geminiApiKey,
 	transcriptionModelId,
 	onSubmit,
@@ -326,15 +324,11 @@ export function useConversationMode({
 	beginListeningRef.current = beginListening
 
 	const startConversation = useCallback(async () => {
-		if (!enabled) {
-			setError('Conversation Mode is disabled in Settings.')
-			return
-		}
 		setIsActive(true)
 		setIsMuted(false)
 		setError(null)
 		await beginListening()
-	}, [beginListening, enabled])
+	}, [beginListening])
 
 	const endConversation = useCallback(async () => {
 		setIsActive(false)
