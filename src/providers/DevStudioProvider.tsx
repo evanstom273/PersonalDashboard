@@ -441,8 +441,10 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 
 				return [...current, nextChange]
 			})
-			setMobileTab('diff')
-			setContextTab('changes')
+			if (change.source === 'user') {
+				setMobileTab('diff')
+				setContextTab('changes')
+			}
 		},
 		[],
 	)

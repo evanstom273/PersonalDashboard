@@ -16,6 +16,7 @@ export const CHANGELOG: ChangelogEntry[] = [
 			'Git tab Merge button switches to Merged after a successful in-app merge.',
 			'Recently merged PRs stay visible in the Git tab until you switch repositories.',
 			'Last push card shows the same Merge / Merged state for the PR you just opened.',
+			'Agent staging no longer jumps to Diff when a task finishes — stay on chat until you review.',
 		],
 	},
 	{
