@@ -2,6 +2,7 @@ import {
 	createContext,
 	useCallback,
 	useContext,
+	useEffect,
 	useMemo,
 	useState,
 	type ReactNode,
@@ -9,8 +10,11 @@ import {
 import { usePreferencesContext } from '@/providers/ChatProvider'
 import {
 	fetchRepositoryTree,
+	listAccessibleRepositories,
 	listOpenPullRequests,
 	type GitHubRateLimit,
+	type GitHubRepositorySummary,
+	GitHubApiError,
 } from '@/services/github/githubApiService'
 import type { StoredMessage } from '@/storage/types'
 import {
@@ -23,6 +27,10 @@ import {
 	type DevStudioStagedChange,
 	type DevStudioWorkspaceSnapshot,
 } from '@/types/devStudio'
+import {
+	mergeRepositoryOptions,
+	sleep,
+} from '@/utils/devStudioRepositories'
 
 interface DevStudioContextValue {
 	isConfigured: boolean
@@ -32,6 +40,9 @@ interface DevStudioContextValue {
 	connectionError: string | null
 	rateLimit: GitHubRateLimit | null
 	workspace: DevStudioWorkspaceSnapshot | null
+	repositoryOptions: GitHubRepositorySummary[]
+	isLoadingRepositories: boolean
+	repositoryListError: string | null
 	contextTab: DevStudioContextTab
 	mobileTab: DevStudioMobileTab
 	selectedFilePath: string | null
@@ -44,8 +55,8 @@ interface DevStudioContextValue {
 	connectWorkspace: () => Promise<void>
 	refreshWorkspace: () => Promise<void>
 	switchRepository: (fullName: string, defaultBranch?: string) => Promise<void>
-	bumpRepositoriesRevision: () => void
-	repositoriesRevision: number
+	loadRepositories: (options?: { retries?: number }) => Promise<void>
+	registerRepository: (repository: GitHubRepositorySummary) => void
 	appendMessage: (message: StoredMessage) => void
 	setComposerSending: (value: boolean) => void
 	discardStagedChange: (id: string) => void
@@ -88,6 +99,16 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	const [workspace, setWorkspace] = useState<DevStudioWorkspaceSnapshot | null>(
 		null,
 	)
+	const [remoteRepositories, setRemoteRepositories] = useState<
+		GitHubRepositorySummary[]
+	>([])
+	const [pinnedRepositories, setPinnedRepositories] = useState<
+		GitHubRepositorySummary[]
+	>([])
+	const [isLoadingRepositories, setIsLoadingRepositories] = useState(false)
+	const [repositoryListError, setRepositoryListError] = useState<string | null>(
+		null,
+	)
 	const [contextTab, setContextTab] = useState<DevStudioContextTab>('files')
 	const [mobileTab, setMobileTab] = useState<DevStudioMobileTab>('chat')
 	const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
@@ -103,7 +124,6 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 		},
 	])
 	const [isComposerSending, setComposerSending] = useState(false)
-	const [repositoriesRevision, setRepositoriesRevision] = useState(0)
 
 	const repoRef = useMemo(
 		() =>
@@ -115,10 +135,81 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	)
 
 	const isConfigured =
-		preferences.githubPat.trim().length > 0 &&
-		repoRef !== null
+		preferences.githubPat.trim().length > 0 && repoRef !== null
 
 	const repositorySlug = repoRef ? formatRepositorySlug(repoRef) : ''
+	const branch = repoRef?.branch ?? 'main'
+
+	const repositoryOptions = useMemo(
+		() =>
+			mergeRepositoryOptions(
+				remoteRepositories,
+				pinnedRepositories,
+				repositorySlug,
+				branch,
+			),
+		[branch, pinnedRepositories, remoteRepositories, repositorySlug],
+	)
+
+	const loadRepositories = useCallback(
+		async (options?: { retries?: number }) => {
+			const token = preferences.githubPat.trim()
+			if (!token) {
+				setRemoteRepositories([])
+				setRepositoryListError('GitHub token required.')
+				return
+			}
+
+			const attempts = Math.max(1, options?.retries ?? 1)
+			setIsLoadingRepositories(true)
+			setRepositoryListError(null)
+
+			for (let attempt = 0; attempt < attempts; attempt += 1) {
+				try {
+					const result = await listAccessibleRepositories(token)
+					setRemoteRepositories(result.repositories)
+					if (result.repositories.length === 0) {
+						setRepositoryListError('No repositories found for this token.')
+					}
+					setIsLoadingRepositories(false)
+					return
+				} catch (caught) {
+					if (attempt < attempts - 1) {
+						await sleep(1200)
+						continue
+					}
+
+					setRemoteRepositories([])
+					setRepositoryListError(
+						caught instanceof Error
+							? caught.message
+							: 'Could not load repositories.',
+					)
+				}
+			}
+
+			setIsLoadingRepositories(false)
+		},
+		[preferences.githubPat],
+	)
+
+	const registerRepository = useCallback((repository: GitHubRepositorySummary) => {
+		setPinnedRepositories((current) => {
+			if (current.some((repo) => repo.fullName === repository.fullName)) {
+				return current
+			}
+			return [...current, repository]
+		})
+	}, [])
+
+	useEffect(() => {
+		if (preferences.githubPat.trim()) {
+			void loadRepositories()
+		} else {
+			setRemoteRepositories([])
+			setPinnedRepositories([])
+		}
+	}, [loadRepositories, preferences.githubPat])
 
 	const hydrateWorkspace = useCallback(
 		async (repoOverride?: DevStudioRepoRef) => {
@@ -136,19 +227,35 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 
 			try {
 				const token = preferences.githubPat.trim()
-				const [treeResult, pullResult] = await Promise.all([
-					fetchRepositoryTree(token, activeRepo),
-					listOpenPullRequests(token, activeRepo),
-				])
+				let tree: DevStudioWorkspaceSnapshot['tree'] = []
+				let latestRateLimit: GitHubRateLimit | null = null
+				let emptyRepoNotice: string | null = null
 
-				setRateLimit(pullResult.rateLimit ?? treeResult.rateLimit)
+				try {
+					const treeResult = await fetchRepositoryTree(token, activeRepo)
+					tree = treeResult.tree
+					latestRateLimit = treeResult.rateLimit
+				} catch (caught) {
+					if (caught instanceof GitHubApiError && caught.status === 404) {
+						emptyRepoNotice =
+							'Repository is empty or the branch has no commits yet. Enable “Initialize with README” when creating, or push a first commit on GitHub.'
+					} else {
+						throw caught
+					}
+				}
+
+				const pullResult = await listOpenPullRequests(token, activeRepo)
+				latestRateLimit = pullResult.rateLimit ?? latestRateLimit
+
+				setRateLimit(latestRateLimit)
 				setWorkspace({
 					repo: activeRepo,
-					tree: treeResult.tree,
+					tree,
 					pullRequests: pullResult.pullRequests,
 					lastSyncedAt: Date.now(),
 				})
 				setConnectionStatus('connected')
+				setConnectionError(emptyRepoNotice)
 			} catch (caught) {
 				setConnectionStatus('error')
 				setWorkspace(null)
@@ -167,8 +274,8 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	}, [hydrateWorkspace])
 
 	const refreshWorkspace = useCallback(async () => {
-		await hydrateWorkspace()
-	}, [hydrateWorkspace])
+		await Promise.all([loadRepositories(), hydrateWorkspace()])
+	}, [hydrateWorkspace, loadRepositories])
 
 	const switchRepository = useCallback(
 		async (fullName: string, defaultBranch?: string) => {
@@ -178,25 +285,29 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				return
 			}
 
-			const branch = defaultBranch?.trim() || preferences.devStudioBranch || 'main'
+			const branchName =
+				defaultBranch?.trim() || preferences.devStudioBranch || 'main'
 			const nextRepo: DevStudioRepoRef = {
 				...parsed,
-				branch,
+				branch: branchName,
 			}
+
+			registerRepository({
+				fullName,
+				defaultBranch: branchName,
+				isPrivate: true,
+				updatedAt: new Date().toISOString(),
+			})
 
 			await savePreferences({
 				...preferences,
 				devStudioRepository: fullName,
-				devStudioBranch: branch,
+				devStudioBranch: branchName,
 			})
 			await hydrateWorkspace(nextRepo)
 		},
-		[hydrateWorkspace, preferences, savePreferences],
+		[hydrateWorkspace, preferences, registerRepository, savePreferences],
 	)
-
-	const bumpRepositoriesRevision = useCallback(() => {
-		setRepositoriesRevision((current) => current + 1)
-	}, [])
 
 	const appendMessage = useCallback((message: StoredMessage) => {
 		setMessages((current) => [...current, message])
@@ -205,8 +316,6 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	const discardStagedChange = useCallback((id: string) => {
 		setStagedChanges((current) => current.filter((change) => change.id !== id))
 	}, [])
-
-	const branch = repoRef?.branch ?? 'main'
 
 	const value = useMemo(
 		(): DevStudioContextValue => ({
@@ -217,6 +326,9 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			connectionError,
 			rateLimit,
 			workspace,
+			repositoryOptions,
+			isLoadingRepositories,
+			repositoryListError,
 			contextTab,
 			mobileTab,
 			selectedFilePath,
@@ -229,15 +341,14 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			connectWorkspace,
 			refreshWorkspace,
 			switchRepository,
-			bumpRepositoriesRevision,
-			repositoriesRevision,
+			loadRepositories,
+			registerRepository,
 			appendMessage,
 			setComposerSending,
 			discardStagedChange,
 		}),
 		[
 			appendMessage,
-			bumpRepositoriesRevision,
 			branch,
 			connectWorkspace,
 			connectionError,
@@ -246,11 +357,15 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			discardStagedChange,
 			isComposerSending,
 			isConfigured,
+			isLoadingRepositories,
+			loadRepositories,
 			messages,
 			mobileTab,
 			rateLimit,
 			refreshWorkspace,
-			repositoriesRevision,
+			registerRepository,
+			repositoryListError,
+			repositoryOptions,
 			repositorySlug,
 			selectedFilePath,
 			stagedChanges,

@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.9.1'
+export const APP_VERSION = '1.9.2'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '1.9.2',
+		releasedAt: '2026-08-11',
+		summary: 'Dev Studio repo list fixes',
+		changes: [
+			'Newly created repos appear in the header dropdown immediately.',
+			'Repo list retries after create so GitHub indexing lag is handled.',
+			'Empty repos connect with a helpful notice instead of failing silently.',
+			'Refresh reloads both workspace and repository list.',
+		],
+	},
 	{
 		version: '1.9.1',
 		releasedAt: '2026-08-11',

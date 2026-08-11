@@ -43,13 +43,21 @@ async function githubFetch<T>(
 	path: string,
 	init?: RequestInit,
 ): Promise<{ data: T; rateLimit: GitHubRateLimit | null }> {
+	const headers: Record<string, string> = {
+		Accept: 'application/vnd.github+json',
+		Authorization: `Bearer ${token}`,
+		'X-GitHub-Api-Version': '2022-11-28',
+	}
+
+	if (init?.body) {
+		headers['Content-Type'] = 'application/json'
+	}
+
 	const response = await fetch(`${GITHUB_API}${path}`, {
 		...init,
 		headers: {
-			Accept: 'application/vnd.github+json',
-			Authorization: `Bearer ${token}`,
-			'X-GitHub-Api-Version': '2022-11-28',
-			...(init?.headers ?? {}),
+			...headers,
+			...(init?.headers as Record<string, string> | undefined),
 		},
 	})
 

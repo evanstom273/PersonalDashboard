@@ -1,12 +1,8 @@
 import { Loader2, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-	findRepositoryBranch,
-	useGitHubRepositories,
-} from '@/hooks/useGitHubRepositories'
+import { useDevStudio } from '@/providers/DevStudioProvider'
 
 interface DevStudioRepositorySelectProps {
-	githubPat: string
 	repository: string
 	branch: string
 	onRepositoryChange: (value: string) => void
@@ -14,20 +10,23 @@ interface DevStudioRepositorySelectProps {
 }
 
 export function DevStudioRepositorySelect({
-	githubPat,
 	repository,
 	branch,
 	onRepositoryChange,
 	onBranchChange,
 }: DevStudioRepositorySelectProps) {
-	const { repositories, isLoading, error, hasLoaded, loadRepositories } =
-		useGitHubRepositories(githubPat)
+	const {
+		repositoryOptions,
+		isLoadingRepositories,
+		repositoryListError,
+		loadRepositories,
+	} = useDevStudio()
 
 	function handleSelect(fullName: string): void {
 		onRepositoryChange(fullName)
-		const defaultBranch = findRepositoryBranch(repositories, fullName)
-		if (defaultBranch) {
-			onBranchChange(defaultBranch)
+		const selected = repositoryOptions.find((repo) => repo.fullName === fullName)
+		if (selected) {
+			onBranchChange(selected.defaultBranch)
 		}
 	}
 
@@ -39,23 +38,24 @@ export function DevStudioRepositorySelect({
 					variant="outline"
 					size="sm"
 					onClick={() => void loadRepositories()}
-					disabled={isLoading || !githubPat.trim()}
+					disabled={isLoadingRepositories}
 				>
-					{isLoading ? (
+					{isLoadingRepositories ? (
 						<Loader2 className="h-4 w-4 animate-spin" />
 					) : (
 						<RefreshCw className="h-4 w-4" />
 					)}
-					{isLoading ? 'Loading…' : hasLoaded ? 'Refresh repos' : 'Load repositories'}
+					{isLoadingRepositories ? 'Loading…' : 'Load repositories'}
 				</Button>
-				{hasLoaded ? (
+				{repositoryOptions.length > 0 ? (
 					<span className="text-xs text-muted-foreground">
-						{repositories.length} repo{repositories.length === 1 ? '' : 's'} available
+						{repositoryOptions.length} repo
+						{repositoryOptions.length === 1 ? '' : 's'} available
 					</span>
 				) : null}
 			</div>
 
-			{repositories.length > 0 ? (
+			{repositoryOptions.length > 0 ? (
 				<label className="block space-y-2 text-sm">
 					<span className="font-medium">Choose repository</span>
 					<select
@@ -64,7 +64,7 @@ export function DevStudioRepositorySelect({
 						className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
 					>
 						<option value="">Select a repository…</option>
-						{repositories.map((repo) => (
+						{repositoryOptions.map((repo) => (
 							<option key={repo.fullName} value={repo.fullName}>
 								{repo.fullName}
 								{repo.isPrivate ? ' (private)' : ''}
@@ -94,7 +94,9 @@ export function DevStudioRepositorySelect({
 				/>
 			</label>
 
-			{error ? <p className="text-xs text-destructive">{error}</p> : null}
+			{repositoryListError ? (
+				<p className="text-xs text-destructive">{repositoryListError}</p>
+			) : null}
 		</div>
 	)
 }
