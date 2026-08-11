@@ -9,6 +9,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '2.0.2',
+		releasedAt: '2026-08-11',
+		summary: 'Dev Studio chat UX and PR actions',
+		changes: [
+			'Dev Studio chat uses the same scrolling, streaming, and markdown presentation as main chat.',
+			'Agent PR tools: list, push staged changes, merge, and close pull requests.',
+			'Merge button on open PRs in the Git tab.',
+			'Clearer PAT permission errors when push or merge fails.',
+		],
+	},
+	{
+		version: '2.0.1',
+		releasedAt: '2026-08-11',
+		summary: 'Chat input newline on Enter',
+		changes: [
+			'Pressing Enter in chat inserts a new line instead of sending.',
+			'Use the send button to submit messages (physical and mobile keyboards).',
+		],
+	},
+	{
 		version: '2.0.0',
 		releasedAt: '2026-08-11',
 		summary: 'Dev Studio v2 — IDE, agent tools, push & PR',

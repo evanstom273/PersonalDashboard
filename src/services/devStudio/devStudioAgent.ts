@@ -43,6 +43,7 @@ function buildDevStudioSystemInstruction(
 		'Stage file edits with stage_workspace_file for user review in Diff before push.',
 		'Pull request tools: list_pull_requests, push_staged_changes, merge_pull_request, close_pull_request.',
 		'Only call push_staged_changes, merge_pull_request, or close_pull_request when the user explicitly asks.',
+		'When pushing, either write a concise commit_message and pull_request_title describing your staged edits, or omit them to auto-generate from the changed files and current time.',
 		'Prefer small, focused changes. Read files before editing them.',
 		'When proposing code, stage the full updated file content.',
 	].join('\n\n')

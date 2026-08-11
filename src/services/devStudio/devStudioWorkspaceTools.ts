@@ -9,6 +9,7 @@ import type {
 	DevStudioStagedChange,
 } from '@/types/devStudio'
 import { filterFilePaths } from '@/utils/devStudioFileTree'
+import { generateDevStudioPushMetadata } from '@/utils/devStudioPushMetadata'
 
 const MAX_READ_CHARS = 60_000
 const MAX_SEARCH_FILES = 24
@@ -22,8 +23,8 @@ export interface DevStudioToolContext {
 	getStagedChanges: () => DevStudioStagedChange[]
 	stageChange: (change: Omit<DevStudioStagedChange, 'id'>) => Promise<void>
 	pushStagedChanges: (
-		commitMessage: string,
-		pullRequestTitle: string,
+		commitMessage?: string,
+		pullRequestTitle?: string,
 	) => Promise<DevStudioPushResult>
 	mergePullRequest: (
 		pullNumber: number,
@@ -120,14 +121,21 @@ export const DEV_STUDIO_TOOL_DECLARATIONS = [
 	{
 		name: 'push_staged_changes',
 		description:
-			'Push all staged changes to a new branch and open a pull request. Only call when the user explicitly asks to push or open a PR.',
+			'Push all staged changes to a new branch and open a pull request. Only call when the user explicitly asks to push or open a PR. Omit commit_message and pull_request_title to auto-generate from staged files and timestamp, or provide concise summaries of what you changed.',
 		parameters: {
 			type: 'OBJECT',
 			properties: {
-				commit_message: { type: 'STRING', description: 'Git commit message.' },
-				pull_request_title: { type: 'STRING', description: 'Pull request title.' },
+				commit_message: {
+					type: 'STRING',
+					description:
+						'Optional git commit message summarizing the staged edits. Auto-generated if omitted.',
+				},
+				pull_request_title: {
+					type: 'STRING',
+					description:
+						'Optional pull request title. Auto-generated if omitted.',
+				},
 			},
-			required: ['commit_message', 'pull_request_title'],
 		},
 	},
 	{
@@ -292,34 +300,37 @@ async function pushStagedChangesTool(
 	args: Record<string, unknown>,
 	context: DevStudioToolContext,
 ): Promise<DevStudioToolResult> {
-	const commitMessage =
-		typeof args.commit_message === 'string' ? args.commit_message.trim() : ''
-	const pullRequestTitle =
-		typeof args.pull_request_title === 'string'
-			? args.pull_request_title.trim()
-			: ''
-
-	if (!commitMessage || !pullRequestTitle) {
-		return {
-			name: 'push_staged_changes',
-			response: { error: 'commit_message and pull_request_title are required.' },
-		}
-	}
-
-	if (context.getStagedChanges().length === 0) {
+	const staged = context.getStagedChanges()
+	if (staged.length === 0) {
 		return {
 			name: 'push_staged_changes',
 			response: { error: 'No staged changes to push.' },
 		}
 	}
 
+	const commitMessage =
+		typeof args.commit_message === 'string' ? args.commit_message.trim() : undefined
+	const pullRequestTitle =
+		typeof args.pull_request_title === 'string'
+			? args.pull_request_title.trim()
+			: undefined
+
 	try {
-		const result = await context.pushStagedChanges(commitMessage, pullRequestTitle)
+		const metadata = generateDevStudioPushMetadata(staged, {
+			commitMessage,
+			pullRequestTitle,
+		})
+		const result = await context.pushStagedChanges(
+			metadata.commitMessage,
+			metadata.pullRequestTitle,
+		)
 		await context.refreshWorkspace()
 		return {
 			name: 'push_staged_changes',
 			response: {
 				pushed: true,
+				commit_message: metadata.commitMessage,
+				pull_request_title: metadata.pullRequestTitle,
 				branch_name: result.branchName,
 				pull_request_number: result.pullRequestNumber,
 				pull_request_url: result.pullRequestUrl,

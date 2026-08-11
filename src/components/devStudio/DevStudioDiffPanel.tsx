@@ -1,7 +1,8 @@
-import { ExternalLink, GitCommitHorizontal, Loader2, Trash2 } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { ExternalLink, GitCommitHorizontal, Loader2, RefreshCw, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useDevStudio } from '@/providers/DevStudioProvider'
+import { generateDevStudioPushMetadata } from '@/utils/devStudioPushMetadata'
 import { cn } from '@/utils/cn'
 
 export function DevStudioDiffPanel({ className }: { className?: string }) {
@@ -16,6 +17,22 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 	const [commitMessage, setCommitMessage] = useState('')
 	const [pullRequestTitle, setPullRequestTitle] = useState('')
 	const [pushError, setPushError] = useState<string | null>(null)
+
+	const applySuggestedMetadata = useCallback(() => {
+		if (stagedChanges.length === 0) {
+			setCommitMessage('')
+			setPullRequestTitle('')
+			return
+		}
+
+		const metadata = generateDevStudioPushMetadata(stagedChanges)
+		setCommitMessage(metadata.commitMessage)
+		setPullRequestTitle(metadata.pullRequestTitle)
+	}, [stagedChanges])
+
+	useEffect(() => {
+		applySuggestedMetadata()
+	}, [applySuggestedMetadata])
 
 	const handlePush = useCallback(async () => {
 		setPushError(null)
@@ -62,9 +79,6 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 		)
 	}
 
-	const canPush =
-		commitMessage.trim().length > 0 && pullRequestTitle.trim().length > 0
-
 	return (
 		<div className={cn('flex h-full min-h-0 flex-col', className)}>
 			<div className="flex shrink-0 flex-col gap-3 border-b border-border/60 px-4 py-3">
@@ -72,7 +86,7 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 					<div>
 						<p className="text-sm font-medium">Staged changes</p>
 						<p className="text-xs text-muted-foreground">
-							Review before pushing branch and PR
+							Commit message and PR title are suggested from your edits
 						</p>
 					</div>
 					<div className="flex gap-2">
@@ -89,12 +103,12 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 				</div>
 
 				<div className="grid gap-2">
-					<input
-						type="text"
+					<textarea
 						value={commitMessage}
 						onChange={(event) => setCommitMessage(event.target.value)}
 						placeholder="Commit message"
-						className="rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-sm outline-none focus:border-primary/50"
+						rows={3}
+						className="resize-none rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-sm outline-none focus:border-primary/50"
 					/>
 					<input
 						type="text"
@@ -103,19 +117,31 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 						placeholder="Pull request title"
 						className="rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-sm outline-none focus:border-primary/50"
 					/>
-					<Button
-						type="button"
-						size="sm"
-						onClick={() => void handlePush()}
-						disabled={!canPush || isPushing}
-					>
-						{isPushing ? (
-							<Loader2 className="h-4 w-4 animate-spin" />
-						) : (
-							<GitCommitHorizontal className="h-4 w-4" />
-						)}
-						Push branch & open PR
-					</Button>
+					<div className="flex flex-wrap gap-2">
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onClick={applySuggestedMetadata}
+							disabled={isPushing}
+						>
+							<RefreshCw className="h-4 w-4" />
+							Regenerate
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							onClick={() => void handlePush()}
+							disabled={isPushing}
+						>
+							{isPushing ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<GitCommitHorizontal className="h-4 w-4" />
+							)}
+							Push branch & open PR
+						</Button>
+					</div>
 					{pushError ? (
 						<div className="space-y-1">
 							<p className="text-xs text-destructive">{pushError}</p>

@@ -40,6 +40,7 @@ import {
 	type DevStudioWorkspaceSnapshot,
 } from '@/types/devStudio'
 import { flattenFilePaths } from '@/utils/devStudioFileTree'
+import { generateDevStudioPushMetadata } from '@/utils/devStudioPushMetadata'
 import {
 	mergeRepositoryOptions,
 	sleep,
@@ -81,8 +82,8 @@ interface DevStudioContextValue {
 	discardStagedChange: (id: string) => void
 	discardAllStagedChanges: () => void
 	pushStagedChanges: (
-		commitMessage: string,
-		pullRequestTitle: string,
+		commitMessage?: string,
+		pullRequestTitle?: string,
 	) => Promise<DevStudioPushResult>
 	mergePullRequestByNumber: (
 		pullNumber: number,
@@ -541,13 +542,18 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	}, [])
 
 	const pushStagedChanges = useCallback(
-		async (commitMessage: string, pullRequestTitle: string) => {
+		async (commitMessage?: string, pullRequestTitle?: string) => {
 			if (!repoRef || !preferences.githubPat.trim()) {
 				throw new Error('Connect a repository first.')
 			}
 			if (stagedRef.current.length === 0) {
 				throw new Error('No staged changes to push.')
 			}
+
+			const metadata = generateDevStudioPushMetadata(stagedRef.current, {
+				commitMessage,
+				pullRequestTitle,
+			})
 
 			setIsPushing(true)
 			try {
@@ -558,9 +564,9 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 					{
 						baseBranch: repoRef.branch,
 						branchName,
-						commitMessage: commitMessage.trim(),
-						pullRequestTitle: pullRequestTitle.trim(),
-						pullRequestBody: commitMessage.trim(),
+						commitMessage: metadata.commitMessage,
+						pullRequestTitle: metadata.pullRequestTitle,
+						pullRequestBody: metadata.pullRequestBody,
 						changes: stagedRef.current.map((change) => ({
 							path: change.path,
 							status: change.status,
