@@ -3,7 +3,10 @@ import {
 	executeDevStudioToolCall,
 	type DevStudioToolContext,
 } from '@/services/devStudio/devStudioWorkspaceTools'
-import { resolveDevStudioModelId } from '@/services/devStudio/devStudioModels'
+import {
+	getMaxIterationsForModel,
+	resolveDevStudioModelId,
+} from '@/services/devStudio/devStudioModels'
 import { applySafetySettingsToRequestBody } from '@/services/gemini/safetySettings'
 import {
 	buildSystemInstruction,
@@ -30,8 +33,6 @@ interface GeminiContent {
 	role?: string
 	parts: GeminiPart[]
 }
-
-const MAX_TOOL_ITERATIONS = 20
 
 function buildDevStudioGenerationConfig(modelId: string): Record<string, unknown> {
 	if (modelId.startsWith('gemini-2.5')) {
@@ -99,7 +100,9 @@ export async function generateDevStudioChat(
 		parts: [{ text: message.content }],
 	}))
 
-	for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
+	const maxIterations = getMaxIterationsForModel(modelId)
+
+	for (let iteration = 0; iteration < maxIterations; iteration += 1) {
 		if (options?.signal?.aborted) {
 			throw new DOMException('Generation aborted', 'AbortError')
 		}
