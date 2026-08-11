@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.7.0'
+export const APP_VERSION = '1.8.0'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '1.8.0',
+		releasedAt: '2026-08-11',
+		summary: 'Scratchpad & document templates',
+		changes: [
+			'Global scratchpad for quick capture from any tab, with auto-save.',
+			'Scratchpad actions: organise into document, convert to project tasks, save draft, clear with undo.',
+			'Document template picker when creating new documents in Library.',
+			'Built-in templates for GDD, planning, daily check-in, research, and meeting notes.',
+			'Save any document as a reusable custom template.',
+		],
+	},
 	{
 		version: '1.7.0',
 		releasedAt: '2026-08-11',

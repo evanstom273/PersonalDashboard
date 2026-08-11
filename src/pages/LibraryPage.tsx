@@ -12,6 +12,8 @@ import {
 	Search,
 	Trash2,
 } from 'lucide-react'
+import { DocumentTemplatePicker } from '@/components/documents/DocumentTemplatePicker'
+import type { DocumentTemplate } from '@/data/documentTemplates'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -177,12 +179,13 @@ function DocumentsSection({ query }: { query: string }) {
 		documents,
 		isLoading,
 		refreshDocuments,
-		createBlankDocument,
+		createDocumentFromTemplate,
 		removeDocument,
 		copyDocument,
 	} = useDocuments()
 	const [renamingId, setRenamingId] = useState<string | null>(null)
 	const [renameValue, setRenameValue] = useState('')
+	const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
 
 	const filteredDocuments = useMemo(() => {
 		const normalized = query.trim().toLowerCase()
@@ -195,7 +198,12 @@ function DocumentsSection({ query }: { query: string }) {
 	}, [documents, query])
 
 	async function handleCreate(): Promise<void> {
-		const document = await createBlankDocument()
+		setTemplatePickerOpen(true)
+	}
+
+	async function handleTemplateSelect(template: DocumentTemplate | null): Promise<void> {
+		setTemplatePickerOpen(false)
+		const document = await createDocumentFromTemplate(template)
 		navigate(`/library/documents/${document.id}`)
 	}
 
@@ -213,6 +221,12 @@ function DocumentsSection({ query }: { query: string }) {
 
 	return (
 		<div className="space-y-4">
+			<DocumentTemplatePicker
+				open={templatePickerOpen}
+				onOpenChange={setTemplatePickerOpen}
+				onSelect={(template) => void handleTemplateSelect(template)}
+			/>
+
 			<div className="flex justify-end">
 				<Button onClick={() => void handleCreate()}>
 					<FilePlus2 className="h-4 w-4" />

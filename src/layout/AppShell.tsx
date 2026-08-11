@@ -6,6 +6,8 @@ import { useMobileNavLayout } from '@/hooks/useMobileNavLayout'
 import { useAppSwipeNavigation } from '@/hooks/useAppSwipeNavigation'
 import { useSwipePageTransition } from '@/hooks/useSwipePageTransition'
 import { BottomNav } from '@/layout/BottomNav'
+import { ScratchpadBusyIndicator, ScratchpadFab } from '@/components/scratchpad/ScratchpadFab'
+import { ScratchpadPanel } from '@/components/scratchpad/ScratchpadPanel'
 import {
 	useChatGenerationContext,
 	useChatHeaderSlot,
@@ -168,6 +170,10 @@ export function AppShell() {
 			</main>
 
 			<BottomNav />
+
+			<ScratchpadFab />
+			<ScratchpadBusyIndicator />
+			<ScratchpadPanel />
 		</div>
 	)
 }
