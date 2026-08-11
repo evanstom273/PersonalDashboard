@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useDevStudio } from '@/providers/DevStudioProvider'
 import { cn } from '@/utils/cn'
 
-export function DevStudioDiffPanel() {
+export function DevStudioDiffPanel({ className }: { className?: string }) {
 	const {
 		stagedChanges,
 		discardStagedChange,
@@ -66,7 +66,7 @@ export function DevStudioDiffPanel() {
 		commitMessage.trim().length > 0 && pullRequestTitle.trim().length > 0
 
 	return (
-		<div className="flex h-full min-h-0 flex-col">
+		<div className={cn('flex h-full min-h-0 flex-col', className)}>
 			<div className="flex shrink-0 flex-col gap-3 border-b border-border/60 px-4 py-3">
 				<div className="flex items-center justify-between gap-3">
 					<div>
@@ -117,7 +117,15 @@ export function DevStudioDiffPanel() {
 						Push branch & open PR
 					</Button>
 					{pushError ? (
-						<p className="text-xs text-destructive">{pushError}</p>
+						<div className="space-y-1">
+							<p className="text-xs text-destructive">{pushError}</p>
+							{pushError.includes('personal access token') ? (
+								<p className="text-xs text-muted-foreground">
+									Settings → App → GitHub token needs Contents (R/W) and Pull
+									requests (R/W) for this repo.
+								</p>
+							) : null}
+						</div>
 					) : null}
 				</div>
 			</div>

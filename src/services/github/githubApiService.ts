@@ -70,6 +70,12 @@ async function githubFetch<T>(
 			if (body.message) {
 				message = body.message
 			}
+			if (
+				response.status === 403 &&
+				body.message?.includes('Resource not accessible by personal access token')
+			) {
+				message = `${message} Update your fine-grained PAT: grant access to this repository with Contents (Read and write) and Pull requests (Read and write).`
+			}
 		} catch {
 			// Ignore JSON parse failures.
 		}
@@ -512,4 +518,57 @@ export async function pushStagedChangesAndOpenPullRequest(
 		},
 		rateLimit,
 	}
+}
+
+export async function mergePullRequest(
+	token: string,
+	repo: DevStudioRepoRef,
+	pullNumber: number,
+	options?: {
+		mergeMethod?: 'merge' | 'squash' | 'rebase'
+		commitTitle?: string
+	},
+): Promise<{
+	merged: boolean
+	sha?: string
+	message?: string
+	rateLimit: GitHubRateLimit | null
+}> {
+	const result = await githubFetch<{
+		merged: boolean
+		sha?: string
+		message?: string
+	}>(
+		token,
+		`${encodeRepoPath(repo)}/pulls/${pullNumber}/merge`,
+		{
+			method: 'PUT',
+			body: JSON.stringify({
+				merge_method: options?.mergeMethod ?? 'squash',
+				commit_title: options?.commitTitle,
+			}),
+		},
+	)
+
+	return {
+		...result.data,
+		rateLimit: result.rateLimit,
+	}
+}
+
+export async function closePullRequest(
+	token: string,
+	repo: DevStudioRepoRef,
+	pullNumber: number,
+): Promise<{ rateLimit: GitHubRateLimit | null }> {
+	const result = await githubFetch<GitHubPullResponse>(
+		token,
+		`${encodeRepoPath(repo)}/pulls/${pullNumber}`,
+		{
+			method: 'PATCH',
+			body: JSON.stringify({ state: 'closed' }),
+		},
+	)
+
+	return { rateLimit: result.rateLimit }
 }

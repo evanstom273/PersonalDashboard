@@ -4,7 +4,7 @@ import { useDevStudio } from '@/providers/DevStudioProvider'
 import type { DevStudioFileNode } from '@/types/devStudio'
 import { cn } from '@/utils/cn'
 
-export function DevStudioFilesPanel() {
+export function DevStudioFilesPanel({ className }: { className?: string }) {
 	const {
 		workspace,
 		connectionStatus,
@@ -33,7 +33,7 @@ export function DevStudioFilesPanel() {
 	}
 
 	return (
-		<div className="flex h-full min-h-0 flex-col">
+		<div className={cn('flex h-full min-h-0 flex-col', className)}>
 			<div className="shrink-0 border-b border-border/60 px-4 py-2">
 				<p className="text-xs text-muted-foreground">
 					{workspace.tree.length} top-level entries · synced{' '}

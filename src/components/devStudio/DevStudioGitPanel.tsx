@@ -1,20 +1,44 @@
-import { ExternalLink, GitPullRequest } from 'lucide-react'
+import { ExternalLink, GitMerge, GitPullRequest, Loader2 } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { useDevStudio } from '@/providers/DevStudioProvider'
+import { cn } from '@/utils/cn'
 
-export function DevStudioGitPanel() {
+export function DevStudioGitPanel({ className }: { className?: string }) {
 	const {
 		workspace,
 		connectionStatus,
 		repositorySlug,
 		stagedChanges,
 		lastPushResult,
+		mergePullRequestByNumber,
 		setMobileTab,
 		setContextTab,
 	} = useDevStudio()
+	const [mergingNumber, setMergingNumber] = useState<number | null>(null)
+	const [mergeError, setMergeError] = useState<string | null>(null)
+
+	const handleMerge = useCallback(
+		async (pullNumber: number) => {
+			setMergeError(null)
+			setMergingNumber(pullNumber)
+			try {
+				await mergePullRequestByNumber(pullNumber, 'squash')
+			} catch (caught) {
+				setMergeError(
+					caught instanceof Error ? caught.message : 'Could not merge pull request.',
+				)
+			} finally {
+				setMergingNumber(null)
+			}
+		},
+		[mergePullRequestByNumber],
+	)
 
 	if (connectionStatus === 'connecting') {
 		return (
 			<PanelPlaceholder
+				className={className}
 				title="Loading pull requests…"
 				description="Fetching open PRs from GitHub."
 			/>
@@ -24,6 +48,7 @@ export function DevStudioGitPanel() {
 	if (!workspace) {
 		return (
 			<PanelPlaceholder
+				className={className}
 				title="No git context"
 				description="Connect a repository to review branches and pull requests."
 			/>
@@ -33,7 +58,7 @@ export function DevStudioGitPanel() {
 	const [owner, repo] = repositorySlug.split('/')
 
 	return (
-		<div className="flex h-full min-h-0 flex-col">
+		<div className={cn('flex h-full min-h-0 flex-col', className)}>
 			<div className="shrink-0 space-y-3 border-b border-border/60 px-4 py-3">
 				<div>
 					<p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -77,6 +102,9 @@ export function DevStudioGitPanel() {
 						</>
 					) : null}
 				</p>
+				{mergeError ? (
+					<p className="text-xs text-destructive">{mergeError}</p>
+				) : null}
 			</div>
 
 			<div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
@@ -88,12 +116,9 @@ export function DevStudioGitPanel() {
 				) : (
 					<div className="mt-3 space-y-2">
 						{workspace.pullRequests.map((pull) => (
-							<a
+							<article
 								key={pull.id}
-								href={`https://github.com/${owner}/${repo}/pull/${pull.number}`}
-								target="_blank"
-								rel="noreferrer"
-								className="block rounded-xl border border-border/60 bg-background/30 px-3 py-3 transition-colors hover:bg-accent"
+								className="rounded-xl border border-border/60 bg-background/30 px-3 py-3"
 							>
 								<div className="flex items-start justify-between gap-3">
 									<div className="min-w-0">
@@ -102,9 +127,32 @@ export function DevStudioGitPanel() {
 											#{pull.number} · {pull.headRef} → {pull.baseRef}
 										</p>
 									</div>
-									<ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
+									<a
+										href={`https://github.com/${owner}/${repo}/pull/${pull.number}`}
+										target="_blank"
+										rel="noreferrer"
+										className="shrink-0 text-muted-foreground hover:text-primary"
+										aria-label={`Open PR #${pull.number} on GitHub`}
+									>
+										<ExternalLink className="h-4 w-4" />
+									</a>
 								</div>
-							</a>
+								<div className="mt-3 flex flex-wrap gap-2">
+									<Button
+										type="button"
+										size="sm"
+										onClick={() => void handleMerge(pull.number)}
+										disabled={mergingNumber !== null}
+									>
+										{mergingNumber === pull.number ? (
+											<Loader2 className="h-4 w-4 animate-spin" />
+										) : (
+											<GitMerge className="h-4 w-4" />
+										)}
+										Merge
+									</Button>
+								</div>
+							</article>
 						))}
 					</div>
 				)}
@@ -116,12 +164,19 @@ export function DevStudioGitPanel() {
 function PanelPlaceholder({
 	title,
 	description,
+	className,
 }: {
 	title: string
 	description: string
+	className?: string
 }) {
 	return (
-		<div className="flex h-full items-center justify-center px-6 py-10 text-center">
+		<div
+			className={cn(
+				'flex h-full items-center justify-center px-6 py-10 text-center',
+				className,
+			)}
+		>
 			<div>
 				<GitPullRequest className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
 				<p className="text-sm font-medium">{title}</p>

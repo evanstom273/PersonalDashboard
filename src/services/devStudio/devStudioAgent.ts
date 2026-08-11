@@ -29,7 +29,7 @@ interface GeminiContent {
 	parts: GeminiPart[]
 }
 
-const MAX_TOOL_ITERATIONS = 10
+const MAX_TOOL_ITERATIONS = 12
 
 function buildDevStudioSystemInstruction(
 	preferences: UserPreferences,
@@ -40,7 +40,9 @@ function buildDevStudioSystemInstruction(
 		`${getConfiguredAiName(preferences)} Dev Studio code agent mode.`,
 		`Connected repository: ${formatRepositorySlug(repo)} on branch ${repo.branch}.`,
 		'Use workspace tools to inspect and edit files in this repository only.',
-		'Never claim you pushed to GitHub directly — stage edits with stage_workspace_file for user review in Diff.',
+		'Stage file edits with stage_workspace_file for user review in Diff before push.',
+		'Pull request tools: list_pull_requests, push_staged_changes, merge_pull_request, close_pull_request.',
+		'Only call push_staged_changes, merge_pull_request, or close_pull_request when the user explicitly asks.',
 		'Prefer small, focused changes. Read files before editing them.',
 		'When proposing code, stage the full updated file content.',
 	].join('\n\n')
@@ -56,7 +58,7 @@ export async function generateDevStudioChat(
 	options?: {
 		signal?: AbortSignal
 		onTextDelta?: (delta: string) => void
-		onToolActivity?: () => void
+		onToolActivity?: (label: string) => void
 	},
 ): Promise<string> {
 	const contents: GeminiContent[] = messages.map((message) => ({
@@ -94,7 +96,10 @@ export async function generateDevStudioChat(
 		const functionCallParts = parts.filter((part) => part.functionCall?.name)
 
 		if (functionCallParts.length > 0) {
-			options?.onToolActivity?.()
+			for (const part of functionCallParts) {
+				options?.onToolActivity?.(part.functionCall!.name)
+			}
+
 			contents.push({
 				role: streamed.role ?? 'model',
 				parts,

@@ -15,10 +15,12 @@ import {
 	savePersistedWorkspace,
 } from '@/services/devStudio/devStudioWorkspaceStore'
 import {
+	closePullRequest,
 	fetchFileContent,
 	fetchRepositoryTree,
 	listAccessibleRepositories,
 	listOpenPullRequests,
+	mergePullRequest,
 	pushStagedChangesAndOpenPullRequest,
 	type GitHubRateLimit,
 	type GitHubRepositorySummary,
@@ -63,7 +65,7 @@ interface DevStudioContextValue {
 	isComposerSending: boolean
 	isPushing: boolean
 	lastPushResult: DevStudioPushResult | null
-	streamingAssistant: string
+	streamingAssistant: { id: string; content: string } | null
 	setContextTab: (tab: DevStudioContextTab) => void
 	setMobileTab: (tab: DevStudioMobileTab) => void
 	connectWorkspace: () => Promise<void>
@@ -78,11 +80,18 @@ interface DevStudioContextValue {
 	stageChange: (change: Omit<DevStudioStagedChange, 'id'>) => Promise<void>
 	discardStagedChange: (id: string) => void
 	discardAllStagedChanges: () => void
-	pushStagedChanges: (commitMessage: string, pullRequestTitle: string) => Promise<void>
+	pushStagedChanges: (
+		commitMessage: string,
+		pullRequestTitle: string,
+	) => Promise<DevStudioPushResult>
+	mergePullRequestByNumber: (
+		pullNumber: number,
+		mergeMethod?: 'merge' | 'squash' | 'rebase',
+	) => Promise<void>
+	closePullRequestByNumber: (pullNumber: number) => Promise<void>
 	appendMessage: (message: StoredMessage) => void
-	updateMessage: (messageId: string, content: string) => void
 	setComposerSending: (value: boolean) => void
-	setStreamingAssistant: (content: string) => void
+	setStreamingAssistant: (value: { id: string; content: string } | null) => void
 	buildToolContext: () => DevStudioToolContext | null
 }
 
@@ -146,7 +155,10 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	const [lastPushResult, setLastPushResult] = useState<DevStudioPushResult | null>(
 		null,
 	)
-	const [streamingAssistant, setStreamingAssistant] = useState('')
+	const [streamingAssistant, setStreamingAssistant] = useState<{
+		id: string
+		content: string
+	} | null>(null)
 
 	const fileShaRef = useRef(fileShaByPath)
 	const stagedRef = useRef(stagedChanges)
@@ -564,6 +576,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				await hydrateWorkspace()
 				setContextTab('git')
 				setMobileTab('git')
+				return pushResult.result
 			} finally {
 				setIsPushing(false)
 			}
@@ -571,16 +584,49 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 		[hydrateWorkspace, preferences.githubPat, repoRef],
 	)
 
+	const mergePullRequestByNumber = useCallback(
+		async (
+			pullNumber: number,
+			mergeMethod?: 'merge' | 'squash' | 'rebase',
+		) => {
+			if (!repoRef || !preferences.githubPat.trim()) {
+				throw new Error('Connect a repository first.')
+			}
+
+			const result = await mergePullRequest(
+				preferences.githubPat.trim(),
+				repoRef,
+				pullNumber,
+				{ mergeMethod },
+			)
+			setRateLimit((current) => result.rateLimit ?? current)
+			if (!result.merged) {
+				throw new Error(result.message ?? 'Pull request could not be merged.')
+			}
+			await hydrateWorkspace()
+		},
+		[hydrateWorkspace, preferences.githubPat, repoRef],
+	)
+
+	const closePullRequestByNumber = useCallback(
+		async (pullNumber: number) => {
+			if (!repoRef || !preferences.githubPat.trim()) {
+				throw new Error('Connect a repository first.')
+			}
+
+			const result = await closePullRequest(
+				preferences.githubPat.trim(),
+				repoRef,
+				pullNumber,
+			)
+			setRateLimit((current) => result.rateLimit ?? current)
+			await hydrateWorkspace()
+		},
+		[hydrateWorkspace, preferences.githubPat, repoRef],
+	)
+
 	const appendMessage = useCallback((message: StoredMessage) => {
 		setMessages((current) => [...current, message])
-	}, [])
-
-	const updateMessage = useCallback((messageId: string, content: string) => {
-		setMessages((current) =>
-			current.map((message) =>
-				message.id === messageId ? { ...message, content } : message,
-			),
-		)
 	}, [])
 
 	const buildToolContext = useCallback((): DevStudioToolContext | null => {
@@ -592,7 +638,36 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			token: preferences.githubPat.trim(),
 			repo: repoRef,
 			filePaths,
+			pullRequests: workspace?.pullRequests ?? [],
+			getStagedChanges: () => stagedRef.current,
 			stageChange,
+			pushStagedChanges,
+			mergePullRequest: async (pullNumber, mergeMethod) => {
+				const result = await mergePullRequest(
+					preferences.githubPat.trim(),
+					repoRef,
+					pullNumber,
+					{ mergeMethod },
+				)
+				if (result.rateLimit) {
+					setRateLimit(result.rateLimit)
+				}
+				if (!result.merged) {
+					throw new Error(result.message ?? 'Pull request could not be merged.')
+				}
+				return result
+			},
+			closePullRequest: async (pullNumber) => {
+				const result = await closePullRequest(
+					preferences.githubPat.trim(),
+					repoRef,
+					pullNumber,
+				)
+				if (result.rateLimit) {
+					setRateLimit(result.rateLimit)
+				}
+			},
+			refreshWorkspace: hydrateWorkspace,
 			getCachedSha: (path) => fileShaRef.current[path],
 			setCachedSha: (path, sha) => {
 				setFileShaByPath((current) => ({ ...current, [path]: sha }))
@@ -603,7 +678,15 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				}
 			},
 		}
-	}, [filePaths, preferences.githubPat, repoRef, stageChange])
+	}, [
+		filePaths,
+		hydrateWorkspace,
+		preferences.githubPat,
+		pushStagedChanges,
+		repoRef,
+		stageChange,
+		workspace?.pullRequests,
+	])
 
 	const value = useMemo(
 		(): DevStudioContextValue => ({
@@ -642,8 +725,9 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			discardStagedChange,
 			discardAllStagedChanges,
 			pushStagedChanges,
+			mergePullRequestByNumber,
+			closePullRequestByNumber,
 			appendMessage,
-			updateMessage,
 			setComposerSending,
 			setStreamingAssistant,
 			buildToolContext,
@@ -653,6 +737,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			branch,
 			buildToolContext,
 			closeOpenFile,
+			closePullRequestByNumber,
 			connectWorkspace,
 			connectionError,
 			connectionStatus,
@@ -666,6 +751,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			isPushing,
 			lastPushResult,
 			loadRepositories,
+			mergePullRequestByNumber,
 			messages,
 			mobileTab,
 			openFile,
@@ -682,7 +768,6 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			stagedChanges,
 			streamingAssistant,
 			switchRepository,
-			updateMessage,
 			updateOpenFileContent,
 			workspace,
 		],
