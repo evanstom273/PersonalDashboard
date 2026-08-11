@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { generateChatWithTools } from '@/services/gemini/chatWithTools'
 import type { GenerationIntent } from '@/services/gemini/constants'
+import { enrichImagePromptWithUserContext } from '@/services/gemini/imagePromptContext'
 import { getIntentLabel, resolvePromptIntent } from '@/services/gemini/intent'
 import { getGenerationModelPreferences } from '@/services/gemini/modelPreferences'
 import { getModelById } from '@/services/gemini/models'
@@ -237,10 +238,19 @@ export function useChatGeneration({
 							: undefined
 					pendingDeleteConfirmation = chatResult.pendingDeleteConfirmation
 				} else {
+					const generationPrompt =
+						resolved.intent === 'image'
+							? await enrichImagePromptWithUserContext(
+									resolved.prompt,
+									preferences,
+									recentMessages,
+								)
+							: resolved.prompt
+
 					const result = await runModelGeneration(
 						preferences.geminiApiKey,
 						resolved.modelId,
-						resolved.prompt,
+						generationPrompt,
 						history,
 						preferences.allowMatureContent ?? true,
 					)
