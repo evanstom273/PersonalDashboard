@@ -211,6 +211,95 @@ export async function archiveConversationIfNeeded(
 	return nextConversation
 }
 
+export interface ManualMemoryArchiveResult {
+	batchesProcessed: number
+	messagesArchived: number
+	memoriesAdded: number
+	remainingUnarchived: number
+}
+
+export async function runManualMemoryArchive(
+	apiKey: string,
+	modelId: string,
+	conversation: ConversationRecord,
+	preferences: UserPreferences,
+): Promise<{
+	conversation: ConversationRecord
+	result: ManualMemoryArchiveResult
+}> {
+	if (archiveInProgress) {
+		throw new Error('Memory archival is already in progress.')
+	}
+
+	if (!apiKey.trim()) {
+		throw new Error('Add a Gemini API key in Settings → API to archive memory.')
+	}
+
+	archiveInProgress = true
+	let nextConversation = conversation
+	let batchesProcessed = 0
+	let messagesArchived = 0
+	let memoriesAdded = 0
+
+	try {
+		const interval = Math.max(1, preferences.memoryArchiveInterval)
+
+		while (true) {
+			const cursor = nextConversation.memoryArchiveCursor ?? 0
+			const unarchived = nextConversation.messages.slice(cursor)
+
+			if (unarchived.length === 0) {
+				break
+			}
+
+			const batchSize =
+				unarchived.length >= interval ? interval : unarchived.length
+			const batch = unarchived.slice(0, batchSize)
+			const extracted = await extractMemoryFromBatch(
+				apiKey,
+				modelId,
+				batch,
+				preferences,
+			)
+
+			if (extracted.length > 0) {
+				const added = await addMemoryEntries(
+					extracted.map((item) => ({
+						content: item.content,
+						category: item.category,
+						archivedFromMessageCount: cursor + batch.length,
+					})),
+				)
+				memoriesAdded += added.length
+			}
+
+			messagesArchived += batch.length
+			batchesProcessed += 1
+			nextConversation = {
+				...nextConversation,
+				memoryArchiveCursor: cursor + batch.length,
+				updatedAt: Date.now(),
+			}
+		}
+	} finally {
+		archiveInProgress = false
+	}
+
+	const remainingUnarchived =
+		nextConversation.messages.length -
+		(nextConversation.memoryArchiveCursor ?? 0)
+
+	return {
+		conversation: nextConversation,
+		result: {
+			batchesProcessed,
+			messagesArchived,
+			memoriesAdded,
+			remainingUnarchived,
+		},
+	}
+}
+
 export function queueMemoryArchive(
 	apiKey: string,
 	modelId: string,
