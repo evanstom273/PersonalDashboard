@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.4'
+export const APP_VERSION = '2.0.5'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.5',
+		releasedAt: '2026-08-11',
+		summary: 'Dev Studio merge feedback',
+		changes: [
+			'Git tab Merge button switches to Merged after a successful in-app merge.',
+			'Recently merged PRs stay visible in the Git tab until you switch repositories.',
+			'Last push card shows the same Merge / Merged state for the PR you just opened.',
+		],
+	},
 	{
 		version: '2.0.3',
 		releasedAt: '2026-08-11',

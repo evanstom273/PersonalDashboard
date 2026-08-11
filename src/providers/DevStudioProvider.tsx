@@ -33,6 +33,7 @@ import {
 	type DevStudioConnectionStatus,
 	type DevStudioContextTab,
 	type DevStudioMobileTab,
+	type DevStudioMergedPullRequest,
 	type DevStudioOpenFile,
 	type DevStudioPushResult,
 	type DevStudioRepoRef,
@@ -66,6 +67,7 @@ interface DevStudioContextValue {
 	isComposerSending: boolean
 	isPushing: boolean
 	lastPushResult: DevStudioPushResult | null
+	recentlyMergedPullRequests: DevStudioMergedPullRequest[]
 	streamingAssistant: { id: string; content: string } | null
 	setContextTab: (tab: DevStudioContextTab) => void
 	setMobileTab: (tab: DevStudioMobileTab) => void
@@ -156,6 +158,9 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	const [lastPushResult, setLastPushResult] = useState<DevStudioPushResult | null>(
 		null,
 	)
+	const [recentlyMergedPullRequests, setRecentlyMergedPullRequests] = useState<
+		DevStudioMergedPullRequest[]
+	>([])
 	const [streamingAssistant, setStreamingAssistant] = useState<{
 		id: string
 		content: string
@@ -404,6 +409,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				devStudioBranch: branchName,
 			})
 			setLastPushResult(null)
+			setRecentlyMergedPullRequests([])
 			await hydrateWorkspace(nextRepo)
 		},
 		[hydrateWorkspace, preferences, registerRepository, savePreferences],
@@ -599,6 +605,10 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				throw new Error('Connect a repository first.')
 			}
 
+			const pull = workspace?.pullRequests.find(
+				(candidate) => candidate.number === pullNumber,
+			)
+
 			const result = await mergePullRequest(
 				preferences.githubPat.trim(),
 				repoRef,
@@ -609,9 +619,32 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			if (!result.merged) {
 				throw new Error(result.message ?? 'Pull request could not be merged.')
 			}
+
+			setRecentlyMergedPullRequests((current) => {
+				const mergedEntry: DevStudioMergedPullRequest = pull
+					? {
+							number: pull.number,
+							title: pull.title,
+							headRef: pull.headRef,
+							baseRef: pull.baseRef,
+							mergedAt: Date.now(),
+						}
+					: {
+							number: pullNumber,
+							title: `PR #${pullNumber}`,
+							headRef: 'unknown',
+							baseRef: repoRef.branch,
+							mergedAt: Date.now(),
+						}
+
+				return [
+					mergedEntry,
+					...current.filter((entry) => entry.number !== pullNumber),
+				]
+			})
 			await hydrateWorkspace()
 		},
-		[hydrateWorkspace, preferences.githubPat, repoRef],
+		[hydrateWorkspace, preferences.githubPat, repoRef, workspace?.pullRequests],
 	)
 
 	const closePullRequestByNumber = useCallback(
@@ -715,6 +748,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			isComposerSending,
 			isPushing,
 			lastPushResult,
+			recentlyMergedPullRequests,
 			streamingAssistant,
 			setContextTab,
 			setMobileTab,
@@ -756,6 +790,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			isLoadingRepositories,
 			isPushing,
 			lastPushResult,
+			recentlyMergedPullRequests,
 			loadRepositories,
 			mergePullRequestByNumber,
 			messages,
