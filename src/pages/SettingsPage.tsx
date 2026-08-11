@@ -17,6 +17,7 @@ import {
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { DevStudioPatPermissionsHelp } from '@/components/devStudio/DevStudioPatPermissionsHelp'
 import { DevStudioRepositorySelect } from '@/components/devStudio/DevStudioRepositorySelect'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { usePreferencesContext, useTextToSpeechContext, useMainConversationContext } from '@/providers/ChatProvider'
@@ -1019,6 +1020,7 @@ function AppTab({
 					onRepositoryChange={onDevStudioRepositoryChange}
 					onBranchChange={onDevStudioBranchChange}
 				/>
+				<DevStudioPatPermissionsHelp />
 				<div className="flex items-center gap-3">
 					<Button type="button" onClick={onSaveDevStudio} disabled={isSavingDevStudio}>
 						<Save className="h-4 w-4" />

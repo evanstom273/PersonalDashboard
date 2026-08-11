@@ -1,6 +1,7 @@
 import { ExternalLink, GitCommitHorizontal, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { GitHubApiError } from '@/services/github/githubApiService'
 import { useDevStudio } from '@/providers/DevStudioProvider'
 import { generateDevStudioPushMetadata } from '@/utils/devStudioPushMetadata'
 import { cn } from '@/utils/cn'
@@ -42,7 +43,11 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 			setPullRequestTitle('')
 		} catch (caught) {
 			setPushError(
-				caught instanceof Error ? caught.message : 'Could not push changes.',
+				caught instanceof GitHubApiError
+					? caught.formatWithPatHint()
+					: caught instanceof Error
+						? caught.message
+						: 'Could not push changes.',
 			)
 		}
 	}, [commitMessage, pullRequestTitle, pushStagedChanges])
@@ -144,13 +149,9 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 					</div>
 					{pushError ? (
 						<div className="space-y-1">
-							<p className="text-xs text-destructive">{pushError}</p>
-							{pushError.includes('personal access token') ? (
-								<p className="text-xs text-muted-foreground">
-									Settings → App → GitHub token needs Contents (R/W) and Pull
-									requests (R/W) for this repo.
-								</p>
-							) : null}
+							<pre className="whitespace-pre-wrap font-sans text-xs text-destructive">
+								{pushError}
+							</pre>
 						</div>
 					) : null}
 				</div>
