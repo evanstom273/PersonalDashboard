@@ -6,8 +6,10 @@ import {
 	KeyRound,
 	Mic,
 	PlugZap,
+	RefreshCw,
 	Save,
 	Sparkles,
+	Trash2,
 	UserRound,
 	Volume2,
 } from 'lucide-react'
@@ -15,7 +17,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { usePreferencesContext, useTextToSpeechContext } from '@/providers/ChatProvider'
+import { usePreferencesContext, useTextToSpeechContext, useMainConversationContext } from '@/providers/ChatProvider'
 import { validateApiKey } from '@/services/gemini/validate'
 import {
 	requestBackgroundReminderNotificationPermission,
@@ -38,6 +40,11 @@ import {
 import { isCapacitorNativePlatform } from '@/utils/capacitor'
 import { cn } from '@/utils/cn'
 import { downloadAppReferenceMarkdown } from '@/utils/downloads'
+import { clearAllMemory } from '@/services/memory/memoryService'
+import {
+	getUnarchivedMessages,
+	runManualMemoryArchive,
+} from '@/services/memory/memoryArchive'
 import {
 	resolveSettingsTabFromParams,
 	type SettingsTab,
@@ -56,6 +63,7 @@ export function SettingsPage() {
 	const activeTab = resolveSettingsTabFromParams(searchParams)
 
 	const { preferences, savePreferences, isLoading } = usePreferencesContext()
+	const { conversation, saveConversation } = useMainConversationContext()
 	const { previewVoice, status: speechStatus } = useTextToSpeechContext()
 	const [apiKey, setApiKey] = useState('')
 	const [userName, setUserName] = useState('')
@@ -81,6 +89,11 @@ export function SettingsPage() {
 		null,
 	)
 	const [allowCodebaseInspection, setAllowCodebaseInspection] = useState(true)
+	const [memoryActionMessage, setMemoryActionMessage] = useState<string | null>(
+		null,
+	)
+	const [isClearingMemory, setIsClearingMemory] = useState(false)
+	const [isArchivingMemory, setIsArchivingMemory] = useState(false)
 
 	useEffect(() => {
 		if (!isLoading) {
@@ -166,6 +179,77 @@ export function SettingsPage() {
 			...preferences,
 			allowCodebaseInspection: value,
 		})
+	}
+
+	async function handleClearMemory(): Promise<void> {
+		if (
+			!window.confirm(
+				'Clear all archived memory? This cannot be undone. Chat messages are not deleted.',
+			)
+		) {
+			return
+		}
+
+		setIsClearingMemory(true)
+		setMemoryActionMessage(null)
+		try {
+			await clearAllMemory()
+			setMemoryActionMessage('All memory entries cleared.')
+		} catch (error) {
+			setMemoryActionMessage(
+				error instanceof Error ? error.message : 'Could not clear memory.',
+			)
+		} finally {
+			setIsClearingMemory(false)
+		}
+	}
+
+	async function handleManualMemoryArchive(): Promise<void> {
+		if (!conversation) {
+			setMemoryActionMessage('No chat history to archive yet.')
+			return
+		}
+
+		const unarchivedCount = getUnarchivedMessages(conversation).length
+		if (unarchivedCount === 0) {
+			setMemoryActionMessage('No unarchived chat messages left to process.')
+			return
+		}
+
+		setIsArchivingMemory(true)
+		setMemoryActionMessage(null)
+		try {
+			const { conversation: updated, result } = await runManualMemoryArchive(
+				preferences.geminiApiKey,
+				preferences.defaultModelId,
+				conversation,
+				preferences,
+			)
+
+			if (
+				updated.memoryArchiveCursor !== (conversation.memoryArchiveCursor ?? 0)
+			) {
+				await saveConversation(updated)
+			}
+
+			if (result.messagesArchived === 0) {
+				setMemoryActionMessage('No chat messages were archived.')
+			} else if (result.memoriesAdded === 0) {
+				setMemoryActionMessage(
+					`Processed ${result.messagesArchived} message${result.messagesArchived === 1 ? '' : 's'} — nothing new worth saving.`,
+				)
+			} else {
+				setMemoryActionMessage(
+					`Archived ${result.memoriesAdded} fact${result.memoriesAdded === 1 ? '' : 's'} from ${result.messagesArchived} message${result.messagesArchived === 1 ? '' : 's'}.`,
+				)
+			}
+		} catch (error) {
+			setMemoryActionMessage(
+				error instanceof Error ? error.message : 'Memory archive failed.',
+			)
+		} finally {
+			setIsArchivingMemory(false)
+		}
 	}
 
 	async function handleEnableNotifications(): Promise<void> {
@@ -286,7 +370,16 @@ export function SettingsPage() {
 					{activeTab === 'memory' ? (
 						<MemoryTab
 							memoryArchiveInterval={memoryArchiveInterval}
+							unarchivedMessageCount={
+								conversation ? getUnarchivedMessages(conversation).length : 0
+							}
+							hasApiKey={preferences.geminiApiKey.trim().length > 0}
+							isClearingMemory={isClearingMemory}
+							isArchivingMemory={isArchivingMemory}
+							actionMessage={memoryActionMessage}
 							onIntervalChange={(value) => void handleMemoryIntervalChange(value)}
+							onClearMemory={() => void handleClearMemory()}
+							onManualArchive={() => void handleManualMemoryArchive()}
 						/>
 					) : null}
 
@@ -448,10 +541,24 @@ function ProfileTab({
 
 function MemoryTab({
 	memoryArchiveInterval,
+	unarchivedMessageCount,
+	hasApiKey,
+	isClearingMemory,
+	isArchivingMemory,
+	actionMessage,
 	onIntervalChange,
+	onClearMemory,
+	onManualArchive,
 }: {
 	memoryArchiveInterval: MemoryArchiveInterval
+	unarchivedMessageCount: number
+	hasApiKey: boolean
+	isClearingMemory: boolean
+	isArchivingMemory: boolean
+	actionMessage: string | null
 	onIntervalChange: (value: number) => void
+	onClearMemory: () => void
+	onManualArchive: () => void
 }) {
 	return (
 		<div className="space-y-5">
@@ -494,6 +601,46 @@ function MemoryTab({
 						))}
 					</div>
 				</div>
+			</section>
+
+			<section className="surface-panel space-y-4 rounded-xl p-5">
+				<h3 className="text-sm font-medium">Manual actions</h3>
+				<p className="text-sm text-muted-foreground">
+					{unarchivedMessageCount > 0
+						? `${unarchivedMessageCount} chat message${unarchivedMessageCount === 1 ? '' : 's'} not yet scanned for memory.`
+						: 'All chat messages have already been scanned.'}
+				</p>
+				<div className="flex flex-wrap gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={onManualArchive}
+						disabled={isArchivingMemory || !hasApiKey || unarchivedMessageCount === 0}
+					>
+						<RefreshCw
+							className={cn('h-4 w-4', isArchivingMemory && 'animate-spin')}
+						/>
+						{isArchivingMemory ? 'Archiving…' : 'Archive now'}
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						className="text-destructive hover:text-destructive"
+						onClick={onClearMemory}
+						disabled={isClearingMemory}
+					>
+						<Trash2 className="h-4 w-4" />
+						{isClearingMemory ? 'Clearing…' : 'Clear memory'}
+					</Button>
+				</div>
+				{!hasApiKey ? (
+					<p className="text-xs text-muted-foreground">
+						Add a Gemini API key in the API tab to run manual archive.
+					</p>
+				) : null}
+				{actionMessage ? (
+					<p className="text-sm text-muted-foreground">{actionMessage}</p>
+				) : null}
 			</section>
 
 			<section className="surface-panel rounded-xl p-5">
