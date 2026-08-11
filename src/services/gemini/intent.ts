@@ -69,6 +69,16 @@ const INTENT_PATTERNS: IntentPattern[] = [
 		regex:
 			/^(?:create|make|compose)\s+(?:me\s+)?(?:an?\s+)?(?:music|song|track)(?:[:\s,-]+([\s\S]*))?$/i,
 	},
+	{
+		intent: 'music',
+		regex:
+			/^generate\s+the\s+(?:music|song|track|sample)(?:[:\s,.-]+([\s\S]*))?$/i,
+	},
+	{
+		intent: 'music',
+		regex:
+			/^(?:let'?s|lets)\s+(?:do|make|create)\s+(?:an?\s+)?(?:instrumental|acoustic)(?:[:\s,-]+([\s\S]*))?$/i,
+	},
 ]
 
 const CONVERSATIONAL_INTENT_PATTERNS: IntentPattern[] = [
@@ -96,6 +106,15 @@ const CONVERSATIONAL_INTENT_PATTERNS: IntentPattern[] = [
 		intent: 'music',
 		regex:
 			/\b(?:also|now)\s+(?:some\s+)?(?:music|a song|a track|an instrumental)\b/i,
+	},
+	{
+		intent: 'music',
+		regex:
+			/\b(?:let'?s|lets)\s+(?:do|make|create)\s+[\s\S]*\b(?:instrumental|acoustic)\b[\s\S]*\b(?:song|track|music|sample)\b/i,
+	},
+	{
+		intent: 'music',
+		regex: /\b\d+\s*(?:s|sec(?:onds?)?)\s*sample\b/i,
 	},
 	{
 		intent: 'image',
@@ -143,7 +162,12 @@ const LOOSE_INTENT_PATTERNS: IntentPattern[] = [
 	{
 		intent: 'music',
 		regex:
-			/\b(?:generate|create|make|compose)\s+(?:me\s+)?(?:an?\s+)?(?:music|song|track|beat|jingle)\b/i,
+			/\b(?:generate|create|make|compose)\s+(?:(?:me|the|a|an|that|this)\s+)*(?:music|song|track|beat|jingle|sample)\b/i,
+	},
+	{
+		intent: 'music',
+		regex:
+			/\b(?:go ahead|make that|make the)\b[\s\S]{0,40}\b(?:track|song|music|sample|instrumental)\b/i,
 	},
 ]
 
@@ -160,6 +184,8 @@ const CONTEXTUAL_FOLLOW_UP_PATTERNS: RegExp[] = [
 	/\b(?:also|now)\s+(?:some\s+)?(?:music|an?\s+(?:image|picture|photo|track|song|instrumental))\b/i,
 	/\b(?:image|picture|photo|illustration)\s+of\s+(?:it|that|this|them)\b/i,
 	/\b(?:same|that)\s+(?:style|vibe|look|aesthetic)\b/i,
+	/\bgenerate\s+(?:the\s+)?(?:music|song|track|sample)\b/i,
+	/\b(?:go ahead|make that|make the)\b[\s\S]{0,40}\b(?:track|song|music|sample)\b/i,
 ]
 
 function resolveGenerationPrompt(
@@ -172,6 +198,16 @@ function resolveGenerationPrompt(
 
 function needsConversationContext(trimmed: string): boolean {
 	return CONTEXTUAL_FOLLOW_UP_PATTERNS.some((pattern) => pattern.test(trimmed))
+}
+
+function shouldEnrichMusicPrompt(trimmed: string): boolean {
+	if (needsConversationContext(trimmed)) {
+		return true
+	}
+
+	return /\b(?:sample|that track|that song|the music|the track|the song|instrumental)\b/i.test(
+		trimmed,
+	)
 }
 
 function formatMediaSummary(
@@ -273,7 +309,13 @@ export function resolvePromptIntent(
 		return {
 			intent: conversationalIntent,
 			modelId: getModelIdForIntent(conversationalIntent, models),
-			prompt: finalizeGenerationPrompt(trimmed, recentMessages, true),
+			prompt: finalizeGenerationPrompt(
+				trimmed,
+				recentMessages,
+				conversationalIntent === 'music'
+					? shouldEnrichMusicPrompt(trimmed)
+					: true,
+			),
 		}
 	}
 
@@ -285,7 +327,9 @@ export function resolvePromptIntent(
 			prompt: finalizeGenerationPrompt(
 				trimmed,
 				recentMessages,
-				needsConversationContext(trimmed),
+				looseIntent === 'music'
+					? shouldEnrichMusicPrompt(trimmed)
+					: needsConversationContext(trimmed),
 			),
 		}
 	}
