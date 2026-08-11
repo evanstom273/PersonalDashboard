@@ -16,6 +16,7 @@ import { DocumentMentionMenu } from '@/components/chat/DocumentMentionMenu'
 import { useDocumentMentionPicker } from '@/hooks/useDocumentMentionPicker'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { runDevStudioAgentWithContinue } from '@/services/devStudio/runDevStudioAgentWithContinue'
+import { DEV_STUDIO_TIMEOUT_MESSAGE } from '@/services/devStudio/devStudioAgentTypes'
 import { resolveDevStudioModelId } from '@/services/devStudio/devStudioModels'
 import { createDocument } from '@/services/documents/documentService'
 import { ingestUploadedDocumentContent } from '@/utils/documentContent'
@@ -38,6 +39,7 @@ import {
 	buildDevStudioResumeUserMessage,
 	hasAgentStagedChanges,
 } from '@/utils/devStudioTaskStatus'
+import { startDevStudioAgentWallClockGuard } from '@/utils/devStudioAgentWallClock'
 import { cn } from '@/utils/cn'
 
 function createStreamingState(id: string): DevStudioStreamingState {
@@ -471,6 +473,16 @@ export function DevStudioComposer() {
 			const abortController = new AbortController()
 			abortRef.current = abortController
 
+			const wallClockGuard = startDevStudioAgentWallClockGuard({
+				abortController,
+				onWarning: () => {
+					updateStreaming((current) => ({
+						...current,
+						showLongRunWarning: true,
+					}))
+				},
+			})
+
 			const setPhase = (phase: DevStudioAgentPhase) => {
 				updateStreaming((current) => ({ ...current, phase }))
 			}
@@ -526,19 +538,23 @@ export function DevStudioComposer() {
 			} catch (caught) {
 				const isAbort =
 					caught instanceof DOMException && caught.name === 'AbortError'
+				const timedOut = wallClockGuard.didTimeout()
 				appendMessage({
 					id: assistantMessageId,
 					role: 'assistant',
-					content: isAbort
-						? 'Generation stopped.'
-						: caught instanceof Error
-							? caught.message
-							: 'Generation failed.',
+					content: timedOut
+						? DEV_STUDIO_TIMEOUT_MESSAGE
+						: isAbort
+							? 'Generation stopped.'
+							: caught instanceof Error
+								? caught.message
+								: 'Generation failed.',
 					createdAt: Date.now(),
 				})
-				setAgentTaskStatus(isAbort ? 'stopped' : 'error')
+				setAgentTaskStatus(timedOut || isAbort ? 'stopped' : 'error')
 				setStreamingAssistant(null)
 			} finally {
+				wallClockGuard.clear()
 				setComposerSending(false)
 				abortRef.current = null
 			}

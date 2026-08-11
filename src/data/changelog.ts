@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.9'
+export const APP_VERSION = '2.0.10'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.10',
+		releasedAt: '2026-08-11',
+		summary: 'Dev Studio wall-clock safety',
+		changes: [
+			'Long agent runs show a warning after 5 minutes.',
+			'Runs auto-stop after 15 minutes; staged changes are kept and Resume is available.',
+		],
+	},
 	{
 		version: '2.0.9',
 		releasedAt: '2026-08-11',

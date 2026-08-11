@@ -68,6 +68,7 @@ export interface DevStudioStreamingState {
 	phase: DevStudioAgentPhase
 	startedAt: number
 	activities: DevStudioAgentActivity[]
+	showLongRunWarning?: boolean
 }
 
 export interface DevStudioStagedChange {

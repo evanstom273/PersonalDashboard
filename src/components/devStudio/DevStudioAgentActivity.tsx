@@ -4,6 +4,7 @@ import type {
 	DevStudioAgentPhase,
 	DevStudioStreamingState,
 } from '@/types/devStudio'
+import { DEV_STUDIO_AGENT_TIMEOUT_MS } from '@/services/devStudio/devStudioAgentTypes'
 import { cn } from '@/utils/cn'
 
 function formatElapsed(ms: number): string {
@@ -54,8 +55,16 @@ export function DevStudioAgentActivity({
 		.reverse()
 		.find((activity) => activity.status === 'running')
 
+	const timeoutMinutes = Math.floor(DEV_STUDIO_AGENT_TIMEOUT_MS / 60_000)
+
 	return (
 		<div className={cn('space-y-2.5', className)}>
+			{streaming.showLongRunWarning ? (
+				<div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-100">
+					Still working — this run is taking longer than usual. It will stop
+					automatically at {timeoutMinutes} minutes.
+				</div>
+			) : null}
 			<div className="flex items-center justify-between gap-3">
 				<div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
 					<Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
