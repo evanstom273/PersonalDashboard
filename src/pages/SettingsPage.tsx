@@ -907,8 +907,7 @@ function VoiceTab({
 				</div>
 				<p className="text-sm text-muted-foreground">
 					In chat, tap the phone icon next to your assistant&apos;s name for
-					Conversation Mode, or the headphones icon for Live Mode. Each shows a
-					short explanation before you start.
+					Conversation Mode. A short explanation appears before you start.
 				</p>
 			</section>
 		</div>

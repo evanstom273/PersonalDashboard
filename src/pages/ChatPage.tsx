@@ -239,7 +239,6 @@ export function ChatPage() {
 			<ChatVoiceSession
 				preferences={preferences}
 				conversationMessages={conversation?.messages ?? []}
-				webSearchEnabled={webSearchEnabled}
 				isGenerating={isGenerating}
 				hasApiKey={hasApiKey}
 				aiName={aiName}
@@ -247,7 +246,6 @@ export function ChatPage() {
 				onSubmit={handleVoiceSubmit}
 				onStopSpeech={stopSpeech}
 				onSpeakAssistantMessage={speakAssistantMessage}
-				onAppendMessages={appendMessages}
 			/>
 
 			<ChatInput

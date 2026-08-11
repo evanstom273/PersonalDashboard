@@ -11,7 +11,6 @@ import {
 	type TtsReadAloudMode,
 	type UserPreferences,
 } from '@/storage/types'
-import { DEFAULT_LIVE_MODEL_ID } from '@/services/gemini/liveConstants'
 import { normalizeTtsVoiceName } from '@/services/gemini/ttsVoices'
 
 const PREFERENCES_KEY = 'user'
@@ -86,10 +85,6 @@ export function usePreferences() {
 					),
 					ttsReadAloudMode: normalizeTtsReadAloudMode(stored?.ttsReadAloudMode),
 					ttsVoiceName: normalizeTtsVoiceName(stored?.ttsVoiceName),
-					liveModelId:
-						typeof stored?.liveModelId === 'string' && stored.liveModelId.trim()
-							? stored.liveModelId.trim()
-							: DEFAULT_LIVE_MODEL_ID,
 				})
 				setIsLoading(false)
 			}

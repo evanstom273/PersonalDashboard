@@ -126,7 +126,6 @@ export interface UserPreferences {
 	memoryArchiveInterval: MemoryArchiveInterval
 	ttsReadAloudMode: TtsReadAloudMode
 	ttsVoiceName: string
-	liveModelId: string
 	allowCodebaseInspection: boolean
 }
 
@@ -142,7 +141,6 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	memoryArchiveInterval: 20,
 	ttsReadAloudMode: 'never',
 	ttsVoiceName: 'Kore',
-	liveModelId: 'gemini-3.1-flash-live-preview',
 	allowCodebaseInspection: true,
 }
 

@@ -1,8 +1,6 @@
 import { ConversationModeOverlay } from '@/components/chat/ConversationModeOverlay'
-import { LiveModeOverlay } from '@/components/chat/LiveModeOverlay'
 import { VoiceModeControls } from '@/components/chat/VoiceModeControls'
 import { useConversationMode } from '@/hooks/useConversationMode'
-import { useGeminiLive } from '@/hooks/useGeminiLive'
 import { useChatHeaderSlot, useVoiceSessionContext } from '@/providers/ChatProvider'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
 import type { ChatSubmitPayload } from '@/types/chat'
@@ -11,7 +9,6 @@ import { useCallback, useEffect, useRef } from 'react'
 interface ChatVoiceSessionProps {
 	preferences: UserPreferences
 	conversationMessages: StoredMessage[]
-	webSearchEnabled: boolean
 	isGenerating: boolean
 	hasApiKey: boolean
 	aiName: string
@@ -25,13 +22,11 @@ interface ChatVoiceSessionProps {
 		onEnded?: () => void
 		onError?: () => void
 	}) => void
-	onAppendMessages: (messages: StoredMessage[]) => Promise<unknown>
 }
 
 export function ChatVoiceSession({
 	preferences,
 	conversationMessages,
-	webSearchEnabled,
 	isGenerating,
 	hasApiKey,
 	aiName,
@@ -39,7 +34,6 @@ export function ChatVoiceSession({
 	onSubmit,
 	onStopSpeech,
 	onSpeakAssistantMessage,
-	onAppendMessages,
 }: ChatVoiceSessionProps) {
 	const { setSlot } = useChatHeaderSlot()
 	const { conversationModeActiveRef } = useVoiceSessionContext()
@@ -62,50 +56,13 @@ export function ChatVoiceSession({
 		onStopSpeaking: onStopSpeech,
 	})
 
-	const persistLiveTranscript = useCallback(
-		async (turns: Array<{ role: 'user' | 'assistant'; content: string }>) => {
-			const messages = turns
-				.filter((turn) => turn.content.trim().length > 0)
-				.map((turn) => ({
-					id: crypto.randomUUID(),
-					role: turn.role,
-					content: turn.content.trim(),
-					createdAt: Date.now(),
-				}))
-			if (messages.length > 0) {
-				await onAppendMessages(messages as StoredMessage[])
-			}
-		},
-		[onAppendMessages],
-	)
-
-	const liveMode = useGeminiLive({
-		preferences,
-		recentMessages: conversationMessages,
-		useWebSearch: webSearchEnabled,
-		onTranscriptTurns: persistLiveTranscript,
-		onPendingDelete: async (confirmation) => {
-			await onAppendMessages([
-				{
-					id: crypto.randomUUID(),
-					role: 'assistant',
-					content: `Please confirm deletion of "${confirmation.documentTitle}" in the chat.`,
-					pendingDeleteConfirmation: confirmation,
-					createdAt: Date.now(),
-				},
-			])
-		},
-	})
-
 	useEffect(() => {
 		setSlot(
 			<VoiceModeControls
 				hasApiKey={hasApiKey}
 				isConversationActive={conversationMode.isActive}
-				isLiveActive={liveMode.isActive}
 				isGenerating={isGenerating}
 				onStartConversation={() => void conversationMode.startConversation()}
-				onStartLive={() => void liveMode.startSession()}
 			/>,
 		)
 		return () => setSlot(null)
@@ -113,10 +70,8 @@ export function ChatVoiceSession({
 		setSlot,
 		hasApiKey,
 		conversationMode.isActive,
-		liveMode.isActive,
 		isGenerating,
 		conversationMode.startConversation,
-		liveMode.startSession,
 	])
 
 	useEffect(() => {
@@ -163,32 +118,17 @@ export function ChatVoiceSession({
 		onSpeakAssistantMessage,
 	])
 
-	return (
-		<>
-			{conversationMode.isActive ? (
-				<ConversationModeOverlay
-					aiName={aiName}
-					status={conversationMode.status}
-					liveTranscript={conversationMode.liveTranscript}
-					isMuted={conversationMode.isMuted}
-					error={conversationMode.error}
-					onEnd={() => void conversationMode.endConversation()}
-					onToggleMute={conversationMode.toggleMute}
-					onInterrupt={conversationMode.interruptSpeaking}
-					isSpeaking={speechStatus === 'playing'}
-				/>
-			) : null}
-
-			{liveMode.isActive ? (
-				<LiveModeOverlay
-					aiName={aiName}
-					status={liveMode.status}
-					inputTranscript={liveMode.inputTranscript}
-					outputTranscript={liveMode.outputTranscript}
-					error={liveMode.error}
-					onEnd={() => void liveMode.endSession()}
-				/>
-			) : null}
-		</>
-	)
+	return conversationMode.isActive ? (
+		<ConversationModeOverlay
+			aiName={aiName}
+			status={conversationMode.status}
+			liveTranscript={conversationMode.liveTranscript}
+			isMuted={conversationMode.isMuted}
+			error={conversationMode.error}
+			onEnd={() => void conversationMode.endConversation()}
+			onToggleMute={conversationMode.toggleMute}
+			onInterrupt={conversationMode.interruptSpeaking}
+			isSpeaking={speechStatus === 'playing'}
+		/>
+	) : null
 }
