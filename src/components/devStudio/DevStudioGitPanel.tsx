@@ -1,5 +1,11 @@
-import { ExternalLink, GitMerge, GitPullRequest, Loader2 } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import {
+	Check,
+	ExternalLink,
+	GitMerge,
+	GitPullRequest,
+	Loader2,
+} from 'lucide-react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { useDevStudio } from '@/providers/DevStudioProvider'
 import { cn } from '@/utils/cn'
@@ -11,12 +17,18 @@ export function DevStudioGitPanel({ className }: { className?: string }) {
 		repositorySlug,
 		stagedChanges,
 		lastPushResult,
+		recentlyMergedPullRequests,
 		mergePullRequestByNumber,
 		setMobileTab,
 		setContextTab,
 	} = useDevStudio()
 	const [mergingNumber, setMergingNumber] = useState<number | null>(null)
 	const [mergeError, setMergeError] = useState<string | null>(null)
+
+	const mergedNumbers = useMemo(
+		() => new Set(recentlyMergedPullRequests.map((pull) => pull.number)),
+		[recentlyMergedPullRequests],
+	)
 
 	const handleMerge = useCallback(
 		async (pullNumber: number) => {
@@ -81,6 +93,18 @@ export function DevStudioGitPanel({ className }: { className?: string }) {
 							PR #{lastPushResult.pullRequestNumber}
 							<ExternalLink className="h-3.5 w-3.5" />
 						</a>
+						<div className="mt-3">
+							<MergeActionButton
+								pullNumber={lastPushResult.pullRequestNumber}
+								isMerged={mergedNumbers.has(lastPushResult.pullRequestNumber)}
+								isMerging={mergingNumber === lastPushResult.pullRequestNumber}
+								isDisabled={
+									mergingNumber !== null &&
+									mergingNumber !== lastPushResult.pullRequestNumber
+								}
+								onMerge={handleMerge}
+							/>
+						</div>
 					</div>
 				) : null}
 				<p className="text-xs text-muted-foreground">
@@ -116,48 +140,139 @@ export function DevStudioGitPanel({ className }: { className?: string }) {
 				) : (
 					<div className="mt-3 space-y-2">
 						{workspace.pullRequests.map((pull) => (
-							<article
+							<PullRequestCard
 								key={pull.id}
-								className="rounded-xl border border-border/60 bg-background/30 px-3 py-3"
-							>
-								<div className="flex items-start justify-between gap-3">
-									<div className="min-w-0">
-										<p className="truncate text-sm font-medium">{pull.title}</p>
-										<p className="mt-1 text-xs text-muted-foreground">
-											#{pull.number} · {pull.headRef} → {pull.baseRef}
-										</p>
-									</div>
-									<a
-										href={`https://github.com/${owner}/${repo}/pull/${pull.number}`}
-										target="_blank"
-										rel="noreferrer"
-										className="shrink-0 text-muted-foreground hover:text-primary"
-										aria-label={`Open PR #${pull.number} on GitHub`}
-									>
-										<ExternalLink className="h-4 w-4" />
-									</a>
-								</div>
-								<div className="mt-3 flex flex-wrap gap-2">
-									<Button
-										type="button"
-										size="sm"
-										onClick={() => void handleMerge(pull.number)}
-										disabled={mergingNumber !== null}
-									>
-										{mergingNumber === pull.number ? (
-											<Loader2 className="h-4 w-4 animate-spin" />
-										) : (
-											<GitMerge className="h-4 w-4" />
-										)}
-										Merge
-									</Button>
-								</div>
-							</article>
+								owner={owner}
+								repo={repo}
+								number={pull.number}
+								title={pull.title}
+								headRef={pull.headRef}
+								baseRef={pull.baseRef}
+								mergeAction={
+									<MergeActionButton
+										pullNumber={pull.number}
+										isMerged={mergedNumbers.has(pull.number)}
+										isMerging={mergingNumber === pull.number}
+										isDisabled={mergingNumber !== null && mergingNumber !== pull.number}
+										onMerge={handleMerge}
+									/>
+								}
+							/>
 						))}
 					</div>
 				)}
+
+				{recentlyMergedPullRequests.length > 0 ? (
+					<div className="mt-6">
+						<p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+							Recently merged
+						</p>
+						<div className="mt-3 space-y-2">
+							{recentlyMergedPullRequests.map((pull) => (
+								<PullRequestCard
+									key={`merged-${pull.number}`}
+									owner={owner}
+									repo={repo}
+									number={pull.number}
+									title={pull.title}
+									headRef={pull.headRef}
+									baseRef={pull.baseRef}
+									mergeAction={
+										<MergeActionButton
+											pullNumber={pull.number}
+											isMerged
+											isMerging={false}
+											isDisabled
+											onMerge={handleMerge}
+										/>
+									}
+								/>
+							))}
+						</div>
+					</div>
+				) : null}
 			</div>
 		</div>
+	)
+}
+
+function PullRequestCard({
+	owner,
+	repo,
+	number,
+	title,
+	headRef,
+	baseRef,
+	mergeAction,
+}: {
+	owner: string
+	repo: string
+	number: number
+	title: string
+	headRef: string
+	baseRef: string
+	mergeAction: ReactNode
+}) {
+	return (
+		<article className="rounded-xl border border-border/60 bg-background/30 px-3 py-3">
+			<div className="flex items-start justify-between gap-3">
+				<div className="min-w-0">
+					<p className="truncate text-sm font-medium">{title}</p>
+					<p className="mt-1 text-xs text-muted-foreground">
+						#{number} · {headRef} → {baseRef}
+					</p>
+				</div>
+				<a
+					href={`https://github.com/${owner}/${repo}/pull/${number}`}
+					target="_blank"
+					rel="noreferrer"
+					className="shrink-0 text-muted-foreground hover:text-primary"
+					aria-label={`Open PR #${number} on GitHub`}
+				>
+					<ExternalLink className="h-4 w-4" />
+				</a>
+			</div>
+			<div className="mt-3 flex flex-wrap gap-2">{mergeAction}</div>
+		</article>
+	)
+}
+
+function MergeActionButton({
+	pullNumber,
+	isMerged,
+	isMerging,
+	isDisabled,
+	onMerge,
+}: {
+	pullNumber: number
+	isMerged: boolean
+	isMerging: boolean
+	isDisabled: boolean
+	onMerge: (pullNumber: number) => void
+}) {
+	if (isMerged) {
+		return (
+			<Button type="button" size="sm" variant="secondary" disabled>
+				<Check className="h-4 w-4" />
+				Merged
+			</Button>
+		)
+	}
+
+	return (
+		<Button
+			type="button"
+			size="sm"
+			onClick={() => void onMerge(pullNumber)}
+			disabled={isDisabled || isMerging}
+		>
+			{isMerging ? (
+				<Loader2 className="h-4 w-4 animate-spin" />
+			) : (
+				<GitMerge className="h-4 w-4" />
+			)}
+			{isMerging ? 'Merging…' : 'Merge'}
+		</Button>
 	)
 }
 

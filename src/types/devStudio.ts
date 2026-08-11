@@ -32,6 +32,14 @@ export interface DevStudioPullRequest {
 	updatedAt: string
 }
 
+export interface DevStudioMergedPullRequest {
+	number: number
+	title: string
+	headRef: string
+	baseRef: string
+	mergedAt: number
+}
+
 export interface DevStudioStagedChange {
 	id: string
 	path: string
