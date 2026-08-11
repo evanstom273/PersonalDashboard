@@ -1,12 +1,14 @@
 import { Loader2, X } from 'lucide-react'
 import { useCallback } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
 import { useMobileNavLayout } from '@/hooks/useMobileNavLayout'
 import { useAppSwipeNavigation } from '@/hooks/useAppSwipeNavigation'
 import { useSwipePageTransition } from '@/hooks/useSwipePageTransition'
 import { BottomNav } from '@/layout/BottomNav'
 import {
 	useChatGenerationContext,
+	useMainConversationContext,
 	usePreferencesContext,
 } from '@/providers/ChatProvider'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
@@ -46,7 +48,9 @@ function getPageTitle(pathname: string, aiName: string): string {
 
 export function AppShell() {
 	const { preferences } = usePreferencesContext()
-	const { isGenerating, completionNotice, clearCompletionNotice } =
+	const { conversation, clearConversation, replaceConversation } =
+		useMainConversationContext()
+	const { isGenerating, completionNotice, clearCompletionNotice, stopGeneration } =
 		useChatGenerationContext()
 	const location = useLocation()
 	const navigate = useNavigate()
@@ -62,6 +66,18 @@ export function AppShell() {
 		!(isChatRoute && !isMobileNav)
 
 	useAppSwipeNavigation(navigateWithFade)
+
+	const handleClearChat = useCallback(async () => {
+		stopGeneration()
+		await clearConversation()
+	}, [clearConversation, stopGeneration])
+
+	const handleImportChat = useCallback(
+		async (imported: Parameters<typeof replaceConversation>[0]) => {
+			await replaceConversation(imported)
+		},
+		[replaceConversation],
+	)
 
 	const goToChat = useCallback(() => {
 		clearCompletionNotice()
@@ -86,6 +102,16 @@ export function AppShell() {
 								</p>
 							) : null}
 						</div>
+						{isChatRoute ? (
+							<div className="shrink-0">
+								<ChatConversationActions
+									conversation={conversation}
+									isGenerating={isGenerating}
+									onClear={handleClearChat}
+									onImport={handleImportChat}
+								/>
+							</div>
+						) : null}
 					</div>
 				</header>
 			) : null}

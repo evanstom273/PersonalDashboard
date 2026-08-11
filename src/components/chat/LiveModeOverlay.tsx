@@ -32,13 +32,12 @@ export function LiveModeOverlay({
 }: LiveModeOverlayProps) {
 	return (
 		<VoiceSessionOverlay label="Live Mode" onDismiss={onEnd}>
-			<div className="flex flex-col items-center gap-6">
+			<div className="flex flex-col items-center gap-4">
 				<div className="text-center">
-					<p className="text-sm text-muted-foreground">Live Mode</p>
-					<h2 className="text-2xl font-semibold">{aiName}</h2>
+					<p className="text-sm text-muted-foreground">{aiName}</p>
 					<p
 						className={cn(
-							'mt-2 text-sm font-medium',
+							'mt-1 text-sm font-medium',
 							status === 'listening' && 'text-primary',
 							status === 'speaking' && 'text-emerald-500',
 							status === 'connecting' && 'text-amber-500',
@@ -51,7 +50,7 @@ export function LiveModeOverlay({
 
 				<div
 					className={cn(
-						'flex h-24 w-24 items-center justify-center rounded-full border-2',
+						'flex h-16 w-16 items-center justify-center rounded-full border-2',
 						status === 'listening' && 'border-primary bg-primary/10',
 						status === 'speaking' && 'border-emerald-500 bg-emerald-500/10',
 						status === 'connecting' && 'border-amber-500 bg-amber-500/10',
@@ -59,7 +58,7 @@ export function LiveModeOverlay({
 				>
 					<Radio
 						className={cn(
-							'h-10 w-10',
+							'h-8 w-8',
 							(status === 'listening' || status === 'connecting') &&
 								'text-primary animate-pulse',
 							status === 'speaking' && 'text-emerald-500',
@@ -91,7 +90,7 @@ export function LiveModeOverlay({
 					<p className="text-center text-sm text-destructive">{error}</p>
 				) : null}
 
-				<Button type="button" variant="destructive" onClick={onEnd}>
+				<Button type="button" variant="destructive" size="sm" onClick={onEnd}>
 					<PhoneOff className="h-4 w-4" />
 					End Live session
 				</Button>
