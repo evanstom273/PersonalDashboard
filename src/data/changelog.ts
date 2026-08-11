@@ -9,6 +9,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.7.0',
+		releasedAt: '2026-08-11',
+		summary: 'Home dashboard & conversation pauses',
+		changes: [
+			'Home tab: todos, upcoming reminders, ongoing projects, and recent documents.',
+			'Home todo list with daily review reminder linked to Schedule.',
+			'AI tools to list, add, update, and replace home todos from chat.',
+			'Conversation Mode waits longer for natural pauses before sending.',
+			'Fixed @ document mention menu being clipped in chat input.',
+		],
+	},
+	{
 		version: '1.6.6',
 		releasedAt: '2026-08-11',
 		summary: 'Conversation Mode only',
