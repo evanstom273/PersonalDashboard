@@ -41,8 +41,10 @@ import {
 	type DevStudioRepoRef,
 	type DevStudioStagedChange,
 	type DevStudioStreamingState,
+	type DevStudioAgentTaskStatus,
 	type DevStudioWorkspaceSnapshot,
 } from '@/types/devStudio'
+import { getDevStudioPushSafety } from '@/utils/devStudioTaskStatus'
 import { flattenFilePaths } from '@/utils/devStudioFileTree'
 import { generateDevStudioPushMetadata } from '@/utils/devStudioPushMetadata'
 import {
@@ -71,6 +73,7 @@ interface DevStudioContextValue {
 	isPushing: boolean
 	lastPushResult: DevStudioPushResult | null
 	recentlyMergedPullRequests: DevStudioMergedPullRequest[]
+	agentTaskStatus: DevStudioAgentTaskStatus
 	streamingAssistant: DevStudioStreamingState | null
 	setContextTab: (tab: DevStudioContextTab) => void
 	setMobileTab: (tab: DevStudioMobileTab) => void
@@ -97,6 +100,7 @@ interface DevStudioContextValue {
 	closePullRequestByNumber: (pullNumber: number) => Promise<void>
 	appendMessage: (message: StoredMessage) => void
 	setComposerSending: (value: boolean) => void
+	setAgentTaskStatus: (status: DevStudioAgentTaskStatus) => void
 	setStreamingAssistant: Dispatch<SetStateAction<DevStudioStreamingState | null>>
 	buildToolContext: () => DevStudioToolContext | null
 }
@@ -164,6 +168,8 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	const [recentlyMergedPullRequests, setRecentlyMergedPullRequests] = useState<
 		DevStudioMergedPullRequest[]
 	>([])
+	const [agentTaskStatus, setAgentTaskStatus] =
+		useState<DevStudioAgentTaskStatus>('idle')
 	const [streamingAssistant, setStreamingAssistant] =
 		useState<DevStudioStreamingState | null>(null)
 
@@ -411,6 +417,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			})
 			setLastPushResult(null)
 			setRecentlyMergedPullRequests([])
+			setAgentTaskStatus('idle')
 			await hydrateWorkspace(nextRepo)
 		},
 		[hydrateWorkspace, preferences, registerRepository, savePreferences],
@@ -543,11 +550,18 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	}, [])
 
 	const discardStagedChange = useCallback((id: string) => {
-		setStagedChanges((current) => current.filter((change) => change.id !== id))
+		setStagedChanges((current) => {
+			const next = current.filter((change) => change.id !== id)
+			if (next.length === 0) {
+				setAgentTaskStatus('idle')
+			}
+			return next
+		})
 	}, [])
 
 	const discardAllStagedChanges = useCallback(() => {
 		setStagedChanges([])
+		setAgentTaskStatus('idle')
 	}, [])
 
 	const pushStagedChanges = useCallback(
@@ -557,6 +571,14 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			}
 			if (stagedRef.current.length === 0) {
 				throw new Error('No staged changes to push.')
+			}
+
+			const pushSafety = getDevStudioPushSafety(
+				agentTaskStatus,
+				stagedRef.current,
+			)
+			if (!pushSafety.allowed) {
+				throw new Error(pushSafety.reason ?? 'Cannot push staged changes yet.')
 			}
 
 			const metadata = generateDevStudioPushMetadata(stagedRef.current, {
@@ -587,6 +609,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				setRateLimit((current) => pushResult.rateLimit ?? current)
 				setLastPushResult(pushResult.result)
 				setStagedChanges([])
+				setAgentTaskStatus('idle')
 				setOpenFile(null)
 				await hydrateWorkspace()
 				setContextTab('git')
@@ -596,7 +619,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				setIsPushing(false)
 			}
 		},
-		[hydrateWorkspace, preferences.githubPat, repoRef],
+		[agentTaskStatus, hydrateWorkspace, preferences.githubPat, repoRef],
 	)
 
 	const mergePullRequestByNumber = useCallback(
@@ -752,6 +775,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			isPushing,
 			lastPushResult,
 			recentlyMergedPullRequests,
+			agentTaskStatus,
 			streamingAssistant,
 			setContextTab,
 			setMobileTab,
@@ -772,10 +796,12 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			closePullRequestByNumber,
 			appendMessage,
 			setComposerSending,
+			setAgentTaskStatus,
 			setStreamingAssistant,
 			buildToolContext,
 		}),
 		[
+			agentTaskStatus,
 			appendMessage,
 			branch,
 			buildToolContext,

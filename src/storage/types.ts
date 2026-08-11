@@ -132,6 +132,7 @@ export interface UserPreferences {
 	devStudioRepository: string
 	devStudioBranch: string
 	devStudioModelId: string
+	devStudioAutoContinue: boolean
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -152,6 +153,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	devStudioRepository: '',
 	devStudioBranch: 'main',
 	devStudioModelId: 'gemini-3.6-flash',
+	devStudioAutoContinue: false,
 }
 
 export interface DocumentRecord {

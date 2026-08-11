@@ -1,4 +1,4 @@
-import { Check, Loader2 } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Loader2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type {
 	DevStudioAgentPhase,
@@ -32,6 +32,7 @@ export function DevStudioAgentActivity({
 	className?: string
 }) {
 	const [elapsedMs, setElapsedMs] = useState(() => Date.now() - streaming.startedAt)
+	const [reasoningOpen, setReasoningOpen] = useState(true)
 	const activityListRef = useRef<HTMLUListElement>(null)
 
 	useEffect(() => {
@@ -72,12 +73,23 @@ export function DevStudioAgentActivity({
 
 			{streaming.thoughts.trim() ? (
 				<div className="rounded-lg border border-border/50 bg-secondary/30 px-2.5 py-2">
-					<p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+					<button
+						type="button"
+						className="flex w-full items-center gap-1 text-left text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
+						onClick={() => setReasoningOpen((open) => !open)}
+					>
+						{reasoningOpen ? (
+							<ChevronDown className="h-3 w-3" />
+						) : (
+							<ChevronRight className="h-3 w-3" />
+						)}
 						Reasoning
-					</p>
-					<p className="mt-1 max-h-20 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
-						{streaming.thoughts.trim()}
-					</p>
+					</button>
+					{reasoningOpen ? (
+						<p className="mt-1 max-h-20 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+							{streaming.thoughts.trim()}
+						</p>
+					) : null}
 				</div>
 			) : null}
 
@@ -94,6 +106,8 @@ export function DevStudioAgentActivity({
 							<span className="mt-0.5 shrink-0">
 								{activity.status === 'running' ? (
 									<Loader2 className="h-3 w-3 animate-spin text-primary" />
+								) : activity.status === 'failed' ? (
+									<X className="h-3 w-3 text-destructive" />
 								) : (
 									<Check className="h-3 w-3 text-emerald-400" />
 								)}

@@ -100,6 +100,7 @@ export function SettingsPage() {
 	const [githubPat, setGithubPat] = useState('')
 	const [devStudioRepository, setDevStudioRepository] = useState('')
 	const [devStudioBranch, setDevStudioBranch] = useState('main')
+	const [devStudioAutoContinue, setDevStudioAutoContinue] = useState(false)
 	const [savedDevStudio, setSavedDevStudio] = useState(false)
 	const [isSavingDevStudio, setIsSavingDevStudio] = useState(false)
 	const [memoryActionMessage, setMemoryActionMessage] = useState<string | null>(
@@ -122,6 +123,7 @@ export function SettingsPage() {
 			setGithubPat(preferences.githubPat)
 			setDevStudioRepository(preferences.devStudioRepository)
 			setDevStudioBranch(preferences.devStudioBranch || 'main')
+			setDevStudioAutoContinue(preferences.devStudioAutoContinue ?? false)
 		}
 	}, [isLoading, preferences])
 
@@ -206,6 +208,7 @@ export function SettingsPage() {
 				githubPat: githubPat.trim(),
 				devStudioRepository: devStudioRepository.trim(),
 				devStudioBranch: devStudioBranch.trim() || 'main',
+				devStudioAutoContinue,
 			})
 			setSavedDevStudio(true)
 			window.setTimeout(() => setSavedDevStudio(false), 2000)
@@ -457,11 +460,13 @@ export function SettingsPage() {
 							githubPat={githubPat}
 							devStudioRepository={devStudioRepository}
 							devStudioBranch={devStudioBranch}
+							devStudioAutoContinue={devStudioAutoContinue}
 							savedDevStudio={savedDevStudio}
 							isSavingDevStudio={isSavingDevStudio}
 							onGithubPatChange={setGithubPat}
 							onDevStudioRepositoryChange={setDevStudioRepository}
 							onDevStudioBranchChange={setDevStudioBranch}
+							onDevStudioAutoContinueChange={setDevStudioAutoContinue}
 							onSaveDevStudio={() => void handleSaveDevStudio()}
 							onEnableNotifications={() => void handleEnableNotifications()}
 							onAllowCodebaseInspectionChange={(value) =>
@@ -963,11 +968,13 @@ function AppTab({
 	githubPat,
 	devStudioRepository,
 	devStudioBranch,
+	devStudioAutoContinue,
 	savedDevStudio,
 	isSavingDevStudio,
 	onGithubPatChange,
 	onDevStudioRepositoryChange,
 	onDevStudioBranchChange,
+	onDevStudioAutoContinueChange,
 	onSaveDevStudio,
 	onEnableNotifications,
 	onAllowCodebaseInspectionChange,
@@ -978,11 +985,13 @@ function AppTab({
 	githubPat: string
 	devStudioRepository: string
 	devStudioBranch: string
+	devStudioAutoContinue: boolean
 	savedDevStudio: boolean
 	isSavingDevStudio: boolean
 	onGithubPatChange: (value: string) => void
 	onDevStudioRepositoryChange: (value: string) => void
 	onDevStudioBranchChange: (value: string) => void
+	onDevStudioAutoContinueChange: (value: boolean) => void
 	onSaveDevStudio: () => void
 	onEnableNotifications: () => void
 	onAllowCodebaseInspectionChange: (value: boolean) => void
@@ -1021,6 +1030,21 @@ function AppTab({
 					onBranchChange={onDevStudioBranchChange}
 				/>
 				<DevStudioPatPermissionsHelp />
+				<label className="flex items-start gap-3 text-sm">
+					<input
+						type="checkbox"
+						checked={devStudioAutoContinue}
+						onChange={(event) => onDevStudioAutoContinueChange(event.target.checked)}
+						className="mt-1"
+					/>
+					<span>
+						<span className="font-medium">Auto-continue long agent runs</span>
+						<span className="mt-1 block text-muted-foreground">
+							When the code agent hits its tool step limit, automatically resume
+							up to three times before asking you to continue manually.
+						</span>
+					</span>
+				</label>
 				<div className="flex items-center gap-3">
 					<Button type="button" onClick={onSaveDevStudio} disabled={isSavingDevStudio}>
 						<Save className="h-4 w-4" />

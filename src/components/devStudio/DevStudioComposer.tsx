@@ -11,10 +11,11 @@ import {
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { DevStudioAttachMenu } from '@/components/devStudio/DevStudioModelSelector'
+import { DevStudioResumeBanner } from '@/components/devStudio/DevStudioTaskStatus'
 import { DocumentMentionMenu } from '@/components/chat/DocumentMentionMenu'
 import { useDocumentMentionPicker } from '@/hooks/useDocumentMentionPicker'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
-import { generateDevStudioChat } from '@/services/devStudio/devStudioAgent'
+import { runDevStudioAgentWithContinue } from '@/services/devStudio/runDevStudioAgentWithContinue'
 import { resolveDevStudioModelId } from '@/services/devStudio/devStudioModels'
 import { createDocument } from '@/services/documents/documentService'
 import { ingestUploadedDocumentContent } from '@/utils/documentContent'
@@ -33,6 +34,10 @@ import type { DevStudioAgentPhase, DevStudioStreamingState } from '@/types/devSt
 import { parseRepositorySlug } from '@/types/devStudio'
 import type { MessageMedia, StoredMessage } from '@/storage/types'
 import { formatDevStudioToolLabel } from '@/utils/devStudioToolLabels'
+import {
+	buildDevStudioResumeUserMessage,
+	hasAgentStagedChanges,
+} from '@/utils/devStudioTaskStatus'
 import { cn } from '@/utils/cn'
 
 function createStreamingState(id: string): DevStudioStreamingState {
@@ -94,6 +99,9 @@ export function DevStudioComposer() {
 		setComposerSending,
 		isConfigured,
 		messages,
+		stagedChanges,
+		agentTaskStatus,
+		setAgentTaskStatus,
 		buildToolContext,
 		setStreamingAssistant,
 		repositorySlug,
@@ -438,6 +446,141 @@ export function DevStudioComposer() {
 		}
 	}
 
+	const runAgentConversation = useCallback(
+		async (conversationMessages: StoredMessage[]) => {
+			const apiKey = preferences.geminiApiKey.trim()
+			const repo = parseRepositorySlug(repositorySlug)
+			if (!repo) {
+				return
+			}
+			repo.branch = branch
+
+			const toolContext = buildToolContext()
+			if (!toolContext) {
+				return
+			}
+
+			setComposerSending(true)
+			setAgentTaskStatus('running')
+			streamingRef.current = ''
+			thoughtsRef.current = ''
+
+			const assistantMessageId = crypto.randomUUID()
+			setStreamingAssistant(createStreamingState(assistantMessageId))
+
+			const abortController = new AbortController()
+			abortRef.current = abortController
+
+			const setPhase = (phase: DevStudioAgentPhase) => {
+				updateStreaming((current) => ({ ...current, phase }))
+			}
+
+			try {
+				const modelId = resolveDevStudioModelId(preferences.devStudioModelId)
+				const result = await runDevStudioAgentWithContinue(
+					apiKey,
+					modelId,
+					conversationMessages,
+					preferences,
+					repo,
+					toolContext,
+					{
+						signal: abortController.signal,
+						onThoughtDelta: (delta) => {
+							thoughtsRef.current += delta
+							updateStreaming((current) => ({
+								...current,
+								thoughts: thoughtsRef.current,
+								phase: 'thinking',
+							}))
+						},
+						onTextDelta: (delta) => {
+							streamingRef.current += delta
+							updateStreaming((current) => ({
+								...current,
+								content: streamingRef.current,
+								phase: 'writing',
+							}))
+						},
+						onPhaseChange: setPhase,
+						onToolStart: (toolName, args) => {
+							updateStreaming((current) => appendActivity(current, toolName, args))
+						},
+						onToolComplete: () => {
+							updateStreaming((current) => completeLatestActivity(current))
+						},
+					},
+					{
+						autoContinue: preferences.devStudioAutoContinue,
+					},
+				)
+
+				appendMessage({
+					id: assistantMessageId,
+					role: 'assistant',
+					content: result.text,
+					createdAt: Date.now(),
+				})
+				setAgentTaskStatus(result.status)
+				setStreamingAssistant(null)
+			} catch (caught) {
+				const isAbort =
+					caught instanceof DOMException && caught.name === 'AbortError'
+				appendMessage({
+					id: assistantMessageId,
+					role: 'assistant',
+					content: isAbort
+						? 'Generation stopped.'
+						: caught instanceof Error
+							? caught.message
+							: 'Generation failed.',
+					createdAt: Date.now(),
+				})
+				setAgentTaskStatus(isAbort ? 'stopped' : 'error')
+				setStreamingAssistant(null)
+			} finally {
+				setComposerSending(false)
+				abortRef.current = null
+			}
+		},
+		[
+			appendMessage,
+			branch,
+			buildToolContext,
+			preferences,
+			repositorySlug,
+			setAgentTaskStatus,
+			setComposerSending,
+			setStreamingAssistant,
+			updateStreaming,
+		],
+	)
+
+	const handleResume = useCallback(async () => {
+		if (isComposerSending || !isConfigured) {
+			return
+		}
+
+		const modelId = resolveDevStudioModelId(preferences.devStudioModelId)
+		const resumeMessage: StoredMessage = {
+			id: crypto.randomUUID(),
+			role: 'user',
+			content: buildDevStudioResumeUserMessage(stagedChanges, modelId),
+			createdAt: Date.now(),
+		}
+
+		appendMessage(resumeMessage)
+		await runAgentConversation([...messages, resumeMessage])
+	}, [
+		appendMessage,
+		isComposerSending,
+		isConfigured,
+		messages,
+		preferences.devStudioModelId,
+		runAgentConversation,
+		stagedChanges,
+	])
+
 	const handleSubmit = useCallback(async () => {
 		const trimmed = draft.trim()
 		if ((!trimmed && attachments.length === 0) || isComposerSending || isListening) {
@@ -471,17 +614,6 @@ export function DevStudioComposer() {
 			setDraft('')
 			setAttachments([])
 			setAttachError(null)
-			return
-		}
-
-		const repo = parseRepositorySlug(repositorySlug)
-		if (!repo) {
-			return
-		}
-		repo.branch = branch
-
-		const toolContext = buildToolContext()
-		if (!toolContext) {
 			return
 		}
 
@@ -525,97 +657,18 @@ export function DevStudioComposer() {
 		setAttachError(null)
 		setInputMethod('typed')
 		resetSpeechState()
-		setComposerSending(true)
-		streamingRef.current = ''
-		thoughtsRef.current = ''
-
-		const assistantMessageId = crypto.randomUUID()
-		setStreamingAssistant(createStreamingState(assistantMessageId))
-
-		const abortController = new AbortController()
-		abortRef.current = abortController
-
-		const setPhase = (phase: DevStudioAgentPhase) => {
-			updateStreaming((current) => ({ ...current, phase }))
-		}
-
-		try {
-			const modelId = resolveDevStudioModelId(preferences.devStudioModelId)
-			const reply = await generateDevStudioChat(
-				apiKey,
-				modelId,
-				nextMessages,
-				preferences,
-				repo,
-				toolContext,
-				{
-					signal: abortController.signal,
-					onThoughtDelta: (delta) => {
-						thoughtsRef.current += delta
-						updateStreaming((current) => ({
-							...current,
-							thoughts: thoughtsRef.current,
-							phase: 'thinking',
-						}))
-					},
-					onTextDelta: (delta) => {
-						streamingRef.current += delta
-						updateStreaming((current) => ({
-							...current,
-							content: streamingRef.current,
-							phase: 'writing',
-						}))
-					},
-					onPhaseChange: setPhase,
-					onToolStart: (toolName, args) => {
-						updateStreaming((current) => appendActivity(current, toolName, args))
-					},
-					onToolComplete: () => {
-						updateStreaming((current) => completeLatestActivity(current))
-					},
-				},
-			)
-
-			appendMessage({
-				id: assistantMessageId,
-				role: 'assistant',
-				content: reply,
-				createdAt: Date.now(),
-			})
-			setStreamingAssistant(null)
-		} catch (caught) {
-			appendMessage({
-				id: assistantMessageId,
-				role: 'assistant',
-				content:
-					caught instanceof DOMException && caught.name === 'AbortError'
-						? 'Generation stopped.'
-						: caught instanceof Error
-							? caught.message
-							: 'Generation failed.',
-				createdAt: Date.now(),
-			})
-			setStreamingAssistant(null)
-		} finally {
-			setComposerSending(false)
-			abortRef.current = null
-		}
+		await runAgentConversation(nextMessages)
 	}, [
 		appendMessage,
 		attachments,
-		branch,
-		buildToolContext,
 		draft,
 		isComposerSending,
 		isConfigured,
 		isListening,
 		messages,
 		preferences,
-		repositorySlug,
 		resetSpeechState,
-		setComposerSending,
-		setStreamingAssistant,
-		updateStreaming,
+		runAgentConversation,
 	])
 
 	return (
@@ -652,6 +705,14 @@ export function DevStudioComposer() {
 				<div className="mx-auto mb-2 max-w-3xl text-xs text-destructive">
 					{attachError}
 				</div>
+			) : null}
+
+			{hasAgentStagedChanges(stagedChanges) ? (
+				<DevStudioResumeBanner
+					status={agentTaskStatus}
+					disabled={isComposerSending}
+					onResume={() => void handleResume()}
+				/>
 			) : null}
 
 			{attachments.length > 0 ? (
