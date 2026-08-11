@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.6'
+export const APP_VERSION = '2.0.7'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.7',
+		releasedAt: '2026-08-11',
+		summary: 'Dev Studio inline agent activity',
+		changes: [
+			'Agent reasoning and tool steps show inline in the chat stream instead of covering the composer.',
+			'Capped scroll heights on reasoning and tool lists during long runs.',
+		],
+	},
 	{
 		version: '2.0.6',
 		releasedAt: '2026-08-11',

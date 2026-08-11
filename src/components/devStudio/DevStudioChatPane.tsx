@@ -23,14 +23,16 @@ export function DevStudioChatPane({ className }: { className?: string }) {
 							}
 						: null
 				}
+				streamingSlot={
+					streamingAssistant && isComposerSending ? (
+						<DevStudioAgentActivity streaming={streamingAssistant} />
+					) : null
+				}
 				isGenerating={isComposerSending}
 				aiName={aiName}
 				onConfirmDelete={() => {}}
 				onCancelDelete={() => {}}
 			/>
-			{streamingAssistant && isComposerSending ? (
-				<DevStudioAgentActivity streaming={streamingAssistant} />
-			) : null}
 			<DevStudioComposer />
 		</section>
 	)
