@@ -18,6 +18,7 @@ export const CHANGELOG: ChangelogEntry[] = [
 			'AI tools to list, add, update, and replace home todos from chat.',
 			'Conversation Mode waits longer for natural pauses before sending.',
 			'Fixed @ document mention menu being clipped in chat input.',
+			'Conversation Mode: Done speaking button to send without waiting for silence.',
 		],
 	},
 	{

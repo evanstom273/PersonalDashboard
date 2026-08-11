@@ -1,4 +1,4 @@
-import { Mic, MicOff, PhoneOff, Radio, Square } from 'lucide-react'
+import { ArrowUp, Mic, MicOff, PhoneOff, Radio, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { VoiceSessionOverlay } from '@/components/chat/VoiceSessionOverlay'
 import type { ConversationModeStatus } from '@/hooks/useConversationMode'
@@ -12,6 +12,7 @@ interface ConversationModeOverlayProps {
 	error: string | null
 	onEnd: () => void
 	onToggleMute: () => void
+	onFinishSpeaking: () => void
 	onInterrupt: () => void
 	isSpeaking: boolean
 }
@@ -32,6 +33,7 @@ export function ConversationModeOverlay({
 	error,
 	onEnd,
 	onToggleMute,
+	onFinishSpeaking,
 	onInterrupt,
 	isSpeaking,
 }: ConversationModeOverlayProps) {
@@ -77,8 +79,8 @@ export function ConversationModeOverlay({
 					</p>
 				) : (
 					<p className="text-center text-sm text-muted-foreground">
-						Speak naturally — pauses up to a few seconds are fine. The mic resumes
-						after each reply.
+						Speak naturally — pauses up to a few seconds are fine, or tap Done
+						speaking when you are ready.
 					</p>
 				)}
 
@@ -87,6 +89,17 @@ export function ConversationModeOverlay({
 				) : null}
 
 				<div className="flex flex-wrap items-center justify-center gap-2">
+					{status === 'listening' && !isMuted ? (
+						<Button
+							type="button"
+							variant="default"
+							size="sm"
+							onClick={onFinishSpeaking}
+						>
+							<ArrowUp className="h-4 w-4" />
+							Done speaking
+						</Button>
+					) : null}
 					<Button type="button" variant="outline" size="sm" onClick={onToggleMute}>
 						{isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
 						{isMuted ? 'Unmute' : 'Mute'}

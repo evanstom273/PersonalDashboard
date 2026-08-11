@@ -380,6 +380,18 @@ export function useConversationMode({
 		await beginListening()
 	}, [beginListening, setConversationStatus])
 
+	const finishSpeaking = useCallback(() => {
+		if (
+			!isActiveRef.current ||
+			isMutedRef.current ||
+			statusRef.current !== 'listening'
+		) {
+			return
+		}
+
+		void submitTranscript()
+	}, [submitTranscript])
+
 	const interruptSpeaking = useCallback(() => {
 		onStopSpeaking()
 		void resumeListening()
@@ -409,6 +421,7 @@ export function useConversationMode({
 		error,
 		startConversation,
 		endConversation,
+		finishSpeaking,
 		interruptSpeaking,
 		toggleMute,
 		resumeListening,
