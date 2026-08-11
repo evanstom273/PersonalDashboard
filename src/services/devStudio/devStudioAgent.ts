@@ -3,6 +3,7 @@ import {
 	executeDevStudioToolCall,
 	type DevStudioToolContext,
 } from '@/services/devStudio/devStudioWorkspaceTools'
+import { resolveDevStudioModelId } from '@/services/devStudio/devStudioModels'
 import { applySafetySettingsToRequestBody } from '@/services/gemini/safetySettings'
 import {
 	buildSystemInstruction,
@@ -10,6 +11,7 @@ import {
 } from '@/services/gemini/systemInstruction'
 import { geminiStreamGenerateContent } from '@/services/gemini/stream'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
+import type { DevStudioAgentPhase } from '@/types/devStudio'
 import { formatRepositorySlug, type DevStudioRepoRef } from '@/types/devStudio'
 
 interface GeminiPart {
@@ -29,7 +31,33 @@ interface GeminiContent {
 	parts: GeminiPart[]
 }
 
-const MAX_TOOL_ITERATIONS = 12
+const MAX_TOOL_ITERATIONS = 20
+
+function buildDevStudioGenerationConfig(modelId: string): Record<string, unknown> {
+	if (modelId.startsWith('gemini-2.5')) {
+		return {
+			thinkingConfig: {
+				includeThoughts: true,
+				thinkingBudget: 4096,
+			},
+		}
+	}
+
+	const resolvedId = resolveDevStudioModelId(modelId)
+	const thinkingLevel =
+		resolvedId === 'gemini-3.1-pro-preview'
+			? 'high'
+			: resolvedId === 'gemini-3.6-flash'
+				? 'medium'
+				: 'low'
+
+	return {
+		thinkingConfig: {
+			includeThoughts: true,
+			thinkingLevel,
+		},
+	}
+}
 
 function buildDevStudioSystemInstruction(
 	preferences: UserPreferences,
@@ -40,12 +68,13 @@ function buildDevStudioSystemInstruction(
 		`${getConfiguredAiName(preferences)} Dev Studio code agent mode.`,
 		`Connected repository: ${formatRepositorySlug(repo)} on branch ${repo.branch}.`,
 		'Use workspace tools to inspect and edit files in this repository only.',
+		'Think step by step before editing. Read files before changing them.',
 		'Stage file edits with stage_workspace_file for user review in Diff before push.',
 		'Pull request tools: list_pull_requests, push_staged_changes, merge_pull_request, close_pull_request.',
 		'Only call push_staged_changes, merge_pull_request, or close_pull_request when the user explicitly asks.',
 		'When pushing, either write a concise commit_message and pull_request_title describing your staged edits, or omit them to auto-generate from the changed files and current time.',
-		'Prefer small, focused changes. Read files before editing them.',
-		'When proposing code, stage the full updated file content.',
+		'Prefer small, focused changes. When proposing code, stage the full updated file content.',
+		'For multi-file work: list or search first, read each file, then stage edits one file at a time.',
 	].join('\n\n')
 }
 
@@ -59,7 +88,10 @@ export async function generateDevStudioChat(
 	options?: {
 		signal?: AbortSignal
 		onTextDelta?: (delta: string) => void
-		onToolActivity?: (label: string) => void
+		onThoughtDelta?: (delta: string) => void
+		onPhaseChange?: (phase: DevStudioAgentPhase) => void
+		onToolStart?: (toolName: string, args: Record<string, unknown>) => void
+		onToolComplete?: (toolName: string) => void
 	},
 ): Promise<string> {
 	const contents: GeminiContent[] = messages.map((message) => ({
@@ -72,11 +104,14 @@ export async function generateDevStudioChat(
 			throw new DOMException('Generation aborted', 'AbortError')
 		}
 
+		options?.onPhaseChange?.('thinking')
+
 		const requestBody = applySafetySettingsToRequestBody(
 			{
 				systemInstruction: {
 					parts: [{ text: buildDevStudioSystemInstruction(preferences, repo) }],
 				},
+				generationConfig: buildDevStudioGenerationConfig(modelId),
 				tools: [{ functionDeclarations: [...DEV_STUDIO_TOOL_DECLARATIONS] }],
 				contents,
 			},
@@ -89,7 +124,11 @@ export async function generateDevStudioChat(
 			requestBody,
 			{
 				signal: options?.signal,
-				onTextDelta: options?.onTextDelta,
+				onThoughtDelta: options?.onThoughtDelta,
+				onTextDelta: (delta) => {
+					options?.onPhaseChange?.('writing')
+					options?.onTextDelta?.(delta)
+				},
 			},
 		)
 
@@ -97,9 +136,7 @@ export async function generateDevStudioChat(
 		const functionCallParts = parts.filter((part) => part.functionCall?.name)
 
 		if (functionCallParts.length > 0) {
-			for (const part of functionCallParts) {
-				options?.onToolActivity?.(part.functionCall!.name)
-			}
+			options?.onPhaseChange?.('tool')
 
 			contents.push({
 				role: streamed.role ?? 'model',
@@ -109,11 +146,18 @@ export async function generateDevStudioChat(
 			const functionResponseParts: GeminiPart[] = []
 			for (const part of functionCallParts) {
 				const functionCall = part.functionCall!
+				options?.onToolStart?.(
+					functionCall.name,
+					functionCall.args ?? {},
+				)
+
 				const toolResult = await executeDevStudioToolCall(
 					functionCall.name,
 					functionCall.args ?? {},
 					toolContext,
 				)
+				options?.onToolComplete?.(functionCall.name)
+
 				functionResponseParts.push({
 					functionResponse: {
 						name: toolResult.name,

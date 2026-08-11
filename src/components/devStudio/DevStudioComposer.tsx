@@ -1,11 +1,64 @@
-import { ArrowUp, Loader2 } from 'lucide-react'
+import { ArrowUp, Square } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { generateDevStudioChat } from '@/services/devStudio/devStudioAgent'
-import { getGenerationModelPreferences } from '@/services/gemini/modelPreferences'
+import { resolveDevStudioModelId } from '@/services/devStudio/devStudioModels'
 import { usePreferencesContext } from '@/providers/ChatProvider'
 import { useDevStudio } from '@/providers/DevStudioProvider'
+import type { DevStudioAgentPhase, DevStudioStreamingState } from '@/types/devStudio'
 import { parseRepositorySlug } from '@/types/devStudio'
+import { formatDevStudioToolLabel } from '@/utils/devStudioToolLabels'
+
+function createStreamingState(id: string): DevStudioStreamingState {
+	return {
+		id,
+		content: '',
+		thoughts: '',
+		phase: 'thinking',
+		startedAt: Date.now(),
+		activities: [],
+	}
+}
+
+function appendActivity(
+	state: DevStudioStreamingState,
+	toolName: string,
+	args: Record<string, unknown>,
+): DevStudioStreamingState {
+	return {
+		...state,
+		phase: 'tool',
+		activities: [
+			...state.activities,
+			{
+				id: crypto.randomUUID(),
+				label: formatDevStudioToolLabel(toolName, args),
+				status: 'running',
+				startedAt: Date.now(),
+			},
+		],
+	}
+}
+
+function completeLatestActivity(
+	state: DevStudioStreamingState,
+): DevStudioStreamingState {
+	const reverseIndex = [...state.activities]
+		.reverse()
+		.findIndex((activity) => activity.status === 'running')
+	if (reverseIndex < 0) {
+		return state
+	}
+
+	const index = state.activities.length - 1 - reverseIndex
+	const activities = [...state.activities]
+	activities[index] = {
+		...activities[index],
+		status: 'done',
+		endedAt: Date.now(),
+	}
+	return { ...state, activities }
+}
 
 export function DevStudioComposer() {
 	const { preferences } = usePreferencesContext()
@@ -22,7 +75,24 @@ export function DevStudioComposer() {
 	} = useDevStudio()
 	const [draft, setDraft] = useState('')
 	const streamingRef = useRef('')
+	const thoughtsRef = useRef('')
 	const abortRef = useRef<AbortController | null>(null)
+
+	const updateStreaming = useCallback(
+		(updater: (current: DevStudioStreamingState) => DevStudioStreamingState) => {
+			setStreamingAssistant((current) => {
+				if (!current) {
+					return current
+				}
+				return updater(current)
+			})
+		},
+		[setStreamingAssistant],
+	)
+
+	const handleStop = useCallback(() => {
+		abortRef.current?.abort()
+	}, [])
 
 	const handleSubmit = useCallback(async () => {
 		const trimmed = draft.trim()
@@ -81,15 +151,20 @@ export function DevStudioComposer() {
 		setDraft('')
 		setComposerSending(true)
 		streamingRef.current = ''
+		thoughtsRef.current = ''
 
 		const assistantMessageId = crypto.randomUUID()
-		setStreamingAssistant({ id: assistantMessageId, content: '' })
+		setStreamingAssistant(createStreamingState(assistantMessageId))
 
 		const abortController = new AbortController()
 		abortRef.current = abortController
 
+		const setPhase = (phase: DevStudioAgentPhase) => {
+			updateStreaming((current) => ({ ...current, phase }))
+		}
+
 		try {
-			const modelId = getGenerationModelPreferences(preferences).chatModelId
+			const modelId = resolveDevStudioModelId(preferences.devStudioModelId)
 			const reply = await generateDevStudioChat(
 				apiKey,
 				modelId,
@@ -99,20 +174,28 @@ export function DevStudioComposer() {
 				toolContext,
 				{
 					signal: abortController.signal,
+					onThoughtDelta: (delta) => {
+						thoughtsRef.current += delta
+						updateStreaming((current) => ({
+							...current,
+							thoughts: thoughtsRef.current,
+							phase: 'thinking',
+						}))
+					},
 					onTextDelta: (delta) => {
 						streamingRef.current += delta
-						setStreamingAssistant({
-							id: assistantMessageId,
+						updateStreaming((current) => ({
+							...current,
 							content: streamingRef.current,
-						})
+							phase: 'writing',
+						}))
 					},
-					onToolActivity: () => {
-						if (!streamingRef.current.trim()) {
-							setStreamingAssistant({
-								id: assistantMessageId,
-								content: 'Using workspace tools…',
-							})
-						}
+					onPhaseChange: setPhase,
+					onToolStart: (toolName, args) => {
+						updateStreaming((current) => appendActivity(current, toolName, args))
+					},
+					onToolComplete: () => {
+						updateStreaming((current) => completeLatestActivity(current))
 					},
 				},
 			)
@@ -153,6 +236,7 @@ export function DevStudioComposer() {
 		repositorySlug,
 		setComposerSending,
 		setStreamingAssistant,
+		updateStreaming,
 	])
 
 	return (
@@ -170,19 +254,27 @@ export function DevStudioComposer() {
 					}
 					className="max-h-32 min-h-[2.5rem] flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none"
 				/>
-				<Button
-					type="button"
-					size="icon"
-					onClick={() => void handleSubmit()}
-					disabled={!draft.trim() || isComposerSending}
-					aria-label="Send message"
-				>
-					{isComposerSending ? (
-						<Loader2 className="h-4 w-4 animate-spin" />
-					) : (
+				{isComposerSending ? (
+					<Button
+						type="button"
+						size="icon"
+						variant="secondary"
+						onClick={handleStop}
+						aria-label="Stop generation"
+					>
+						<Square className="h-4 w-4" />
+					</Button>
+				) : (
+					<Button
+						type="button"
+						size="icon"
+						onClick={() => void handleSubmit()}
+						disabled={!draft.trim()}
+						aria-label="Send message"
+					>
 						<ArrowUp className="h-4 w-4" />
-					)}
-				</Button>
+					</Button>
+				)}
 			</div>
 		</div>
 	)

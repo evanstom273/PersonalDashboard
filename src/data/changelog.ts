@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.5'
+export const APP_VERSION = '2.0.6'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.6',
+		releasedAt: '2026-08-11',
+		summary: 'Dev Studio code agent upgrades',
+		changes: [
+			'Model selector in Dev Studio: 2.5 Flash (Haiku), 3.6 Flash default (Sonnet), 3.1 Pro deep (Opus).',
+			'Live activity feed shows reasoning, tool steps, and an elapsed timer while the agent works.',
+			'Stop button to cancel generation mid-task.',
+			'Agent uses thinking mode and up to 20 tool iterations for more reliable multi-file edits.',
+		],
+	},
 	{
 		version: '2.0.5',
 		releasedAt: '2026-08-11',

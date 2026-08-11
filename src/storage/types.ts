@@ -131,6 +131,7 @@ export interface UserPreferences {
 	githubPat: string
 	devStudioRepository: string
 	devStudioBranch: string
+	devStudioModelId: string
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -150,6 +151,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	githubPat: '',
 	devStudioRepository: '',
 	devStudioBranch: 'main',
+	devStudioModelId: 'gemini-3.6-flash',
 }
 
 export interface DocumentRecord {

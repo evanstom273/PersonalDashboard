@@ -6,7 +6,9 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	type Dispatch,
 	type ReactNode,
+	type SetStateAction,
 } from 'react'
 import { usePreferencesContext } from '@/providers/ChatProvider'
 import type { DevStudioToolContext } from '@/services/devStudio/devStudioWorkspaceTools'
@@ -38,6 +40,7 @@ import {
 	type DevStudioPushResult,
 	type DevStudioRepoRef,
 	type DevStudioStagedChange,
+	type DevStudioStreamingState,
 	type DevStudioWorkspaceSnapshot,
 } from '@/types/devStudio'
 import { flattenFilePaths } from '@/utils/devStudioFileTree'
@@ -68,7 +71,7 @@ interface DevStudioContextValue {
 	isPushing: boolean
 	lastPushResult: DevStudioPushResult | null
 	recentlyMergedPullRequests: DevStudioMergedPullRequest[]
-	streamingAssistant: { id: string; content: string } | null
+	streamingAssistant: DevStudioStreamingState | null
 	setContextTab: (tab: DevStudioContextTab) => void
 	setMobileTab: (tab: DevStudioMobileTab) => void
 	connectWorkspace: () => Promise<void>
@@ -94,7 +97,7 @@ interface DevStudioContextValue {
 	closePullRequestByNumber: (pullNumber: number) => Promise<void>
 	appendMessage: (message: StoredMessage) => void
 	setComposerSending: (value: boolean) => void
-	setStreamingAssistant: (value: { id: string; content: string } | null) => void
+	setStreamingAssistant: Dispatch<SetStateAction<DevStudioStreamingState | null>>
 	buildToolContext: () => DevStudioToolContext | null
 }
 
@@ -161,10 +164,8 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	const [recentlyMergedPullRequests, setRecentlyMergedPullRequests] = useState<
 		DevStudioMergedPullRequest[]
 	>([])
-	const [streamingAssistant, setStreamingAssistant] = useState<{
-		id: string
-		content: string
-	} | null>(null)
+	const [streamingAssistant, setStreamingAssistant] =
+		useState<DevStudioStreamingState | null>(null)
 
 	const fileShaRef = useRef(fileShaByPath)
 	const stagedRef = useRef(stagedChanges)
