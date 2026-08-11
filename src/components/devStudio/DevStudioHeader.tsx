@@ -8,15 +8,12 @@ import {
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { DevStudioCreateRepoButton } from '@/components/devStudio/DevStudioCreateRepoDialog'
-import { DevStudioModelSelector } from '@/components/devStudio/DevStudioModelSelector'
 import { DevStudioRepoSwitcher } from '@/components/devStudio/DevStudioRepoSwitcher'
-import { usePreferencesContext } from '@/providers/ChatProvider'
 import { useDevStudio } from '@/providers/DevStudioProvider'
 import { formatRateLimitLabel } from '@/utils/githubRateLimit'
 import { cn } from '@/utils/cn'
 
 export function DevStudioHeader() {
-	const { preferences } = usePreferencesContext()
 	const {
 		isConfigured,
 		branch,
@@ -65,7 +62,6 @@ export function DevStudioHeader() {
 				</div>
 
 				<div className="flex shrink-0 items-center gap-1">
-					{preferences.geminiApiKey.trim() ? <DevStudioModelSelector /> : null}
 					{isConfigured ? (
 						<>
 							<DevStudioCreateRepoButton />

@@ -1,6 +1,7 @@
 import { ArrowUp, Square } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DevStudioModelSelector } from '@/components/devStudio/DevStudioModelSelector'
 import { generateDevStudioChat } from '@/services/devStudio/devStudioAgent'
 import { resolveDevStudioModelId } from '@/services/devStudio/devStudioModels'
 import { usePreferencesContext } from '@/providers/ChatProvider'
@@ -242,9 +243,16 @@ export function DevStudioComposer() {
 	return (
 		<div className="dev-studio-composer shrink-0 border-t border-border/70 px-4 py-3 md:px-5">
 			<div className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-2xl border border-border/60 bg-background/50 p-2">
+				<DevStudioModelSelector disabled={isComposerSending} />
 				<textarea
 					value={draft}
 					onChange={(event) => setDraft(event.target.value)}
+					onKeyDown={(event) => {
+						if (event.key === 'Enter' && !event.shiftKey) {
+							event.preventDefault()
+							void handleSubmit()
+						}
+					}}
 					rows={1}
 					enterKeyHint="enter"
 					placeholder={
