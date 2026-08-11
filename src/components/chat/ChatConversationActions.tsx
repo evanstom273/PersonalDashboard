@@ -133,7 +133,7 @@ export function ChatConversationActions({
 				onChange={handleImportFileChange}
 			/>
 
-			<DropdownMenu>
+			<DropdownMenu modal={false}>
 				<DropdownMenuTrigger asChild hideChevron>
 					<Button
 						type="button"

@@ -1,6 +1,6 @@
 import { Mic, MicOff, PhoneOff, Radio, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { VoiceModeOverlayFrame } from '@/components/chat/VoiceModeOverlayFrame'
+import { VoiceSessionOverlay } from '@/components/chat/VoiceSessionOverlay'
 import type { ConversationModeStatus } from '@/hooks/useConversationMode'
 import { cn } from '@/utils/cn'
 
@@ -36,8 +36,8 @@ export function ConversationModeOverlay({
 	isSpeaking,
 }: ConversationModeOverlayProps) {
 	return (
-		<VoiceModeOverlayFrame label="Conversation Mode">
-			<div className="surface-panel flex w-full max-w-md flex-col items-center gap-6 rounded-2xl p-8 text-foreground shadow-xl">
+		<VoiceSessionOverlay label="Conversation Mode" onDismiss={onEnd}>
+			<div className="flex flex-col items-center gap-6">
 				<div className="text-center">
 					<p className="text-sm text-muted-foreground">Conversation Mode</p>
 					<h2 className="text-2xl font-semibold">{aiName}</h2>
@@ -103,6 +103,6 @@ export function ConversationModeOverlay({
 					</Button>
 				</div>
 			</div>
-		</VoiceModeOverlayFrame>
+		</VoiceSessionOverlay>
 	)
 }

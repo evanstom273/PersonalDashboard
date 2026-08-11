@@ -38,14 +38,13 @@ export function VoiceModeControls({
 	function handleConfirm(): void {
 		const mode = pendingMode
 		setPendingMode(null)
-		// Let the start dialog unmount before opening the full-screen voice overlay.
-		window.requestAnimationFrame(() => {
+		window.setTimeout(() => {
 			if (mode === 'conversation') {
 				onStartConversation()
 			} else if (mode === 'live') {
 				onStartLive()
 			}
-		})
+		}, 0)
 	}
 
 	return (
