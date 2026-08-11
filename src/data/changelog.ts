@@ -1,0 +1,480 @@
+export const APP_VERSION = '1.6.6'
+
+export interface ChangelogEntry {
+	version: string
+	releasedAt: string
+	summary: string
+	changes: string[]
+}
+
+export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '1.6.6',
+		releasedAt: '2026-08-11',
+		summary: 'Conversation Mode only',
+		changes: [
+			'Removed Live Mode (headphones); kept hands-free Conversation Mode (phone icon).',
+		],
+	},
+	{
+		version: '1.6.5',
+		releasedAt: '2026-08-11',
+		summary: 'Voice mode fixes',
+		changes: [
+			'Fixed Conversation Mode staying on Idle after mic permission.',
+			'Fixed Live Mode stuck on Connecting (removed in 1.6.6).',
+		],
+	},
+	{
+		version: '1.6.4',
+		releasedAt: '2026-08-11',
+		summary: 'Chat layout restored',
+		changes: [
+			'Restored call icons without breaking chat layout.',
+			'Reverted chat UI regressions and removed swipe fade opacity.',
+		],
+	},
+	{
+		version: '1.6.3',
+		releasedAt: '2026-08-11',
+		summary: 'Android black screen fixes',
+		changes: [
+			'Fixed chat window going blank on Android PWA after voice mode work.',
+		],
+	},
+	{
+		version: '1.6.2',
+		releasedAt: '2026-08-11',
+		summary: 'Chat header declutter',
+		changes: [
+			'Combined import/export/delete into a dropdown menu.',
+			'Moved model selector to the + attach menu only.',
+		],
+	},
+	{
+		version: '1.6.1',
+		releasedAt: '2026-08-11',
+		summary: 'Voice UX polish',
+		changes: [
+			'Phone and headphones icons in the chat header with start confirmations.',
+		],
+	},
+	{
+		version: '1.6.0',
+		releasedAt: '2026-08-11',
+		summary: 'Voice conversation',
+		changes: [
+			'Added Conversation Mode (STT → chat → TTS loop) and Gemini Live sessions.',
+		],
+	},
+	{
+		version: '1.5.4',
+		releasedAt: '2026-08-11',
+		summary: 'Personalized images',
+		changes: ['Image generation now uses memory and profile context for likeness.'],
+	},
+	{
+		version: '1.5.3',
+		releasedAt: '2026-08-11',
+		summary: 'Music intent routing',
+		changes: ['Fixed natural-language prompts routing to music generation.'],
+	},
+	{
+		version: '1.5.2',
+		releasedAt: '2026-08-11',
+		summary: 'Image generation fix',
+		changes: ['Removed unsupported personGeneration field breaking image API calls.'],
+	},
+	{
+		version: '1.5.1',
+		releasedAt: '2026-08-11',
+		summary: 'Memory tab actions',
+		changes: ['Clear memory and manual archive buttons in Settings → Memory.'],
+	},
+	{
+		version: '1.5.0',
+		releasedAt: '2026-08-11',
+		summary: 'App reference & codebase tools',
+		changes: [
+			'Injected app reference doc into AI context.',
+			'Read-only codebase inspection tools for the assistant.',
+		],
+	},
+	{
+		version: '1.4.2',
+		releasedAt: '2026-08-10',
+		summary: 'Document toolbar',
+		changes: ['Moved document editor toolbar to the bottom above the nav dock.'],
+	},
+	{
+		version: '1.4.1',
+		releasedAt: '2026-08-10',
+		summary: 'Silent autosave',
+		changes: [
+			'Documents and kanban tasks save silently without UI flicker.',
+		],
+	},
+	{
+		version: '1.4.0',
+		releasedAt: '2026-08-10',
+		summary: 'Document editor AI',
+		changes: [
+			'Richer document formatting and inline AI writing assistance in the editor.',
+		],
+	},
+	{
+		version: '1.3.2',
+		releasedAt: '2026-08-10',
+		summary: 'Kanban auto-save',
+		changes: ['Kanban task edits save automatically without a Save button.'],
+	},
+	{
+		version: '1.3.1',
+		releasedAt: '2026-08-10',
+		summary: 'Kanban UX',
+		changes: [
+			'Vertical columns with drag-and-drop.',
+			'Reversed swipe direction and fade transition on page navigation.',
+		],
+	},
+	{
+		version: '1.3.0',
+		releasedAt: '2026-08-10',
+		summary: 'Projects kanban',
+		changes: ['Kanban project boards and swipe navigation between main tabs.'],
+	},
+	{
+		version: '1.2.0',
+		releasedAt: '2026-08-10',
+		summary: 'Android app',
+		changes: [
+			'Capacitor Android build.',
+			'One-shot reminders delete themselves after firing.',
+		],
+	},
+	{
+		version: '1.1.3',
+		releasedAt: '2026-08-10',
+		summary: 'PWA auto-update',
+		changes: ['PWA picks up new deploys immediately via service worker update.'],
+	},
+	{
+		version: '1.1.2',
+		releasedAt: '2026-08-10',
+		summary: 'Chat input polish',
+		changes: [
+			'Auto-expanding message input and simplified placeholder.',
+			'Fixed chat scroll during streaming and position across tabs.',
+			'GitHub Pages deploy fallback.',
+		],
+	},
+	{
+		version: '1.1.1',
+		releasedAt: '2026-08-10',
+		summary: 'Background reminders',
+		changes: ['PWA background reminder notifications via Notification Triggers.'],
+	},
+	{
+		version: '1.1.0',
+		releasedAt: '2026-08-10',
+		summary: 'Reminders & schedule',
+		changes: [
+			'Reminders and schedule in Library with chat tools and notifications.',
+		],
+	},
+	{
+		version: '1.0.0',
+		releasedAt: '2026-08-10',
+		summary: 'UI overhaul',
+		changes: [
+			'Bottom navigation, glass/texture theme, floating nav island.',
+			'Tabbed Settings (Profile, Memory, API, Voice, App).',
+		],
+	},
+	{
+		version: '0.10.2',
+		releasedAt: '2026-08-10',
+		summary: 'TTS playback fix',
+		changes: ['Fixed TTS silently aborting after the API returned audio.'],
+	},
+	{
+		version: '0.10.1',
+		releasedAt: '2026-08-10',
+		summary: 'Gemini TTS',
+		changes: ['Text-to-speech for assistant replies with streaming playback.'],
+	},
+	{
+		version: '0.10.0',
+		releasedAt: '2026-08-10',
+		summary: 'Edit & resend',
+		changes: [
+			'Edit and resend user messages.',
+			'Preserve typed text during voice input.',
+		],
+	},
+	{
+		version: '0.9.1',
+		releasedAt: '2026-08-10',
+		summary: 'ZIP chat export',
+		changes: ['Export chat as ZIP with separate media files instead of inline base64.'],
+	},
+	{
+		version: '0.9.0',
+		releasedAt: '2026-08-10',
+		summary: 'Chat export v2',
+		changes: [
+			'Deduplicated media in chat export format.',
+			'Export filename uses export time, not conversation updatedAt.',
+		],
+	},
+	{
+		version: '0.8.3',
+		releasedAt: '2026-08-10',
+		summary: 'Mobile drawer fixes',
+		changes: [
+			'Drawer overlays header correctly with accurate nav state.',
+			'Prevented chat content overflowing viewport width on mobile.',
+		],
+	},
+	{
+		version: '0.8.2',
+		releasedAt: '2026-08-10',
+		summary: 'Editable uploads',
+		changes: ['Uploaded documents editable by user and AI.'],
+	},
+	{
+		version: '0.8.1',
+		releasedAt: '2026-08-10',
+		summary: 'PDF extraction',
+		changes: ['Preserve PDF structure and fix ligatures in document extraction.'],
+	},
+	{
+		version: '0.8.0',
+		releasedAt: '2026-08-10',
+		summary: 'PDF upload',
+		changes: ['PDF uploads in chat document attach.'],
+	},
+	{
+		version: '0.7.1',
+		releasedAt: '2026-08-10',
+		summary: 'Multi-select uploads',
+		changes: ['Multi-select for image and document uploads in chat.'],
+	},
+	{
+		version: '0.7.0',
+		releasedAt: '2026-08-10',
+		summary: 'Mature content & mobile nav',
+		changes: [
+			'Mature language toggle and relaxed Gemini safety filters.',
+			'Chat button and drawer swipe for mobile navigation.',
+		],
+	},
+	{
+		version: '0.6.5',
+		releasedAt: '2026-08-10',
+		summary: 'Android transcription',
+		changes: [
+			'Gemini transcription for Android voice input.',
+			'Block mic button while transcription is in progress.',
+		],
+	},
+	{
+		version: '0.6.4',
+		releasedAt: '2026-08-10',
+		summary: 'Video removed',
+		changes: ['Removed video generation (Veo) from the app.'],
+	},
+	{
+		version: '0.6.3',
+		releasedAt: '2026-08-10',
+		summary: 'Conversational routing',
+		changes: [
+			'Route conversational follow-ups to generation with context.',
+			'Full-screen library media viewer.',
+		],
+	},
+	{
+		version: '0.6.2',
+		releasedAt: '2026-08-10',
+		summary: 'Background generation',
+		changes: [
+			'Background chat generation with completion notices.',
+			'Android system notifications via service worker.',
+			'Inline media previews in chat.',
+		],
+	},
+	{
+		version: '0.6.1',
+		releasedAt: '2026-08-10',
+		summary: 'Android STT',
+		changes: [
+			'Android speech-to-text reliability improvements.',
+			'Removed duplicate thinking indicator during streaming.',
+		],
+	},
+	{
+		version: '0.6.0',
+		releasedAt: '2026-08-10',
+		summary: 'Streaming chat',
+		changes: ['Stream chat responses and add date/time awareness.'],
+	},
+	{
+		version: '0.5.1',
+		releasedAt: '2026-08-10',
+		summary: 'Memory system',
+		changes: [
+			'Story Engine–style memory archival and Memory index.',
+			'Full document library injected into AI context on every message.',
+		],
+	},
+	{
+		version: '0.5.0',
+		releasedAt: '2026-08-10',
+		summary: 'Markdown documents',
+		changes: [
+			'Read-only uploads, markdown documents, AI markdown output.',
+		],
+	},
+	{
+		version: '0.4.2',
+		releasedAt: '2026-08-10',
+		summary: 'Mobile polish',
+		changes: [
+			'Mobile spacing, chat import/export, document formats.',
+			'PWA menu, speech input, and mobile scale fixes.',
+			'Image request routing and clear chat.',
+		],
+	},
+	{
+		version: '0.4.1',
+		releasedAt: '2026-08-10',
+		summary: 'Android chat bar',
+		changes: ['Keep chat input visible on Android PWA.'],
+	},
+	{
+		version: '0.4.0',
+		releasedAt: '2026-08-10',
+		summary: 'Model pickers',
+		changes: ['Per-category model pickers in the + attach menu.'],
+	},
+	{
+		version: '0.3.1',
+		releasedAt: '2026-08-10',
+		summary: 'Web search',
+		changes: ['Optional Google Search grounding for chat.'],
+	},
+	{
+		version: '0.3.0',
+		releasedAt: '2026-08-10',
+		summary: 'Attach menu & library',
+		changes: [
+			'+ attach menu, generation modes, PWA safe-area input.',
+			'Unified Library for documents, images, music, and videos.',
+		],
+	},
+	{
+		version: '0.2.2',
+		releasedAt: '2026-08-10',
+		summary: 'Markdown chat UI',
+		changes: ['ChatGPT-style markdown chat messages with copy/select.'],
+	},
+	{
+		version: '0.2.1',
+		releasedAt: '2026-08-10',
+		summary: 'Image routing',
+		changes: ['Image generation intent routing and per-message copy.'],
+	},
+	{
+		version: '0.2.0',
+		releasedAt: '2026-08-10',
+		summary: 'Documents & identity',
+		changes: [
+			'Shared documents library, Gemini document tools, identity settings.',
+			'@ document mention picker in chat input.',
+		],
+	},
+	{
+		version: '0.1.1',
+		releasedAt: '2026-08-10',
+		summary: 'Transcript fixes',
+		changes: [
+			'User messages appear in transcript.',
+			'Viewport anchoring improvements.',
+			'Single chat thread, drawer nav, intent-based generation.',
+		],
+	},
+	{
+		version: '0.1.0',
+		releasedAt: '2026-08-10',
+		summary: 'Personal AI launch',
+		changes: [
+			'Gemini BYOK chat dashboard with PWA and IndexedDB storage.',
+		],
+	},
+	{
+		version: '0.0.5',
+		releasedAt: '2026-07-31',
+		summary: 'Dashboard widgets (abandoned)',
+		changes: ['Edit dashboard mode, dense grid layout, and widget identity.'],
+	},
+	{
+		version: '0.0.4',
+		releasedAt: '2026-07-31',
+		summary: 'Dashboard theme (abandoned)',
+		changes: ['Dark #101010 base with gold accents.'],
+	},
+	{
+		version: '0.0.3',
+		releasedAt: '2026-07-31',
+		summary: 'Dashboard PWA (abandoned)',
+		changes: ['PWA manifest and service worker for widget dashboard.'],
+	},
+	{
+		version: '0.0.2',
+		releasedAt: '2026-07-31',
+		summary: 'Dashboard scaffold (abandoned)',
+		changes: ['Modular personal dashboard foundation.'],
+	},
+	{
+		version: '0.0.1',
+		releasedAt: '2026-07-31',
+		summary: 'Initial commit',
+		changes: ['Repository created.'],
+	},
+]
+
+export function formatChangelogDate(isoDate: string): string {
+	const [year, month, day] = isoDate.split('-').map(Number)
+	const date = new Date(year!, month! - 1, day)
+	return date.toLocaleDateString(undefined, {
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric',
+	})
+}
+
+export function formatChangelogMarkdown(): string {
+	const lines = [
+		'# Personal AI Changelog',
+		'',
+		`Current version: **v${APP_VERSION}**`,
+		'',
+	]
+
+	for (const entry of CHANGELOG) {
+		lines.push(`## v${entry.version} — ${formatChangelogDate(entry.releasedAt)}`)
+		lines.push('')
+		lines.push(`*${entry.summary}*`)
+		lines.push('')
+		for (const change of entry.changes) {
+			lines.push(`- ${change}`)
+		}
+		lines.push('')
+	}
+
+	return lines.join('\n').trimEnd() + '\n'
+}
+
+export function formatAppVersionLabel(): string {
+	return `v${APP_VERSION}`
+}
