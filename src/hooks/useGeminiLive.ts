@@ -27,6 +27,11 @@ export function useGeminiLive({
 
 	const sessionRef = useRef<LiveSession | null>(null)
 	const transcriptTurnsRef = useRef<LiveTranscriptTurn[]>([])
+	const onTranscriptTurnsRef = useRef(onTranscriptTurns)
+	const onPendingDeleteRef = useRef(onPendingDelete)
+
+	onTranscriptTurnsRef.current = onTranscriptTurns
+	onPendingDeleteRef.current = onPendingDelete
 
 	const endSession = useCallback(async () => {
 		const session = sessionRef.current
@@ -39,10 +44,11 @@ export function useGeminiLive({
 		setIsActive(false)
 		setInputTranscript('')
 		setOutputTranscript('')
+		setStatus('idle')
 		if (turns.length > 0) {
-			onTranscriptTurns?.(turns)
+			onTranscriptTurnsRef.current?.(turns)
 		}
-	}, [onTranscriptTurns])
+	}, [])
 
 	const startSession = useCallback(async () => {
 		if (!preferences.geminiApiKey.trim()) {
@@ -70,7 +76,9 @@ export function useGeminiLive({
 			onTranscriptTurn: (turn) => {
 				transcriptTurnsRef.current.push(turn)
 			},
-			onPendingDelete,
+			onPendingDelete: (confirmation) => {
+				void onPendingDeleteRef.current?.(confirmation)
+			},
 			onError: (liveError) => {
 				setError(liveError.message)
 			},
@@ -78,19 +86,21 @@ export function useGeminiLive({
 
 		sessionRef.current = session
 		setIsActive(true)
+		setStatus('connecting')
 
 		try {
 			await session.start()
 		} catch (startError) {
 			sessionRef.current = null
 			setIsActive(false)
+			setStatus('idle')
 			setError(
 				startError instanceof Error
 					? startError.message
 					: 'Could not start Live Mode.',
 			)
 		}
-	}, [onPendingDelete, preferences, recentMessages, useWebSearch])
+	}, [preferences, recentMessages, useWebSearch])
 
 	useEffect(() => {
 		const handleVisibility = () => {
@@ -102,8 +112,12 @@ export function useGeminiLive({
 		document.addEventListener('visibilitychange', handleVisibility)
 		return () => {
 			document.removeEventListener('visibilitychange', handleVisibility)
-			void sessionRef.current?.stop()
-			sessionRef.current = null
+		}
+	}, [endSession])
+
+	useEffect(() => {
+		return () => {
+			void endSession()
 		}
 	}, [endSession])
 

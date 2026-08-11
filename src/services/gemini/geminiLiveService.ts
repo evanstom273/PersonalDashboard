@@ -13,6 +13,8 @@ import type { PendingDeleteConfirmation, StoredMessage, UserPreferences } from '
 import { startLiveAudioCapture } from '@/utils/liveAudioCapture'
 import { PcmStreamPlayer } from '@/utils/pcmStreamPlayer'
 
+const CONNECT_TIMEOUT_MS = 25_000
+
 export type LiveSessionStatus =
 	| 'idle'
 	| 'connecting'
@@ -47,6 +49,7 @@ export class GeminiLiveSession {
 	private currentUserTranscript = ''
 	private currentAssistantTranscript = ''
 	private closed = false
+	private connectTimeoutId: ReturnType<typeof setTimeout> | null = null
 
 	constructor(options: GeminiLiveSessionOptions) {
 		this.options = options
@@ -84,51 +87,107 @@ export class GeminiLiveSession {
 		const modelId =
 			this.options.preferences.liveModelId?.trim() || DEFAULT_LIVE_MODEL_ID
 
-		this.session = await ai.live.connect({
-			model: modelId,
-			config: {
-				responseModalities: [Modality.AUDIO],
-				systemInstruction: {
-					parts: [{ text: systemInstruction }],
-				},
-				speechConfig: {
-					voiceConfig: {
-						prebuiltVoiceConfig: {
-							voiceName,
+		let resolveOpen: (() => void) | null = null
+		let rejectOpen: ((error: Error) => void) | null = null
+		let connectSettled = false
+
+		const openPromise = new Promise<void>((resolve, reject) => {
+			resolveOpen = resolve
+			rejectOpen = reject
+		})
+
+		const settleConnect = (error?: Error): void => {
+			if (connectSettled) {
+				return
+			}
+			connectSettled = true
+			if (this.connectTimeoutId) {
+				clearTimeout(this.connectTimeoutId)
+				this.connectTimeoutId = null
+			}
+			if (error) {
+				rejectOpen?.(error)
+				return
+			}
+			resolveOpen?.()
+		}
+
+		this.connectTimeoutId = setTimeout(() => {
+			settleConnect(
+				new Error(
+					'Live connection timed out. Check your network and API key, then try again.',
+				),
+			)
+		}, CONNECT_TIMEOUT_MS)
+
+		try {
+			this.session = await ai.live.connect({
+				model: modelId,
+				config: {
+					responseModalities: [Modality.AUDIO],
+					systemInstruction: {
+						parts: [{ text: systemInstruction }],
+					},
+					speechConfig: {
+						voiceConfig: {
+							prebuiltVoiceConfig: {
+								voiceName,
+							},
 						},
 					},
+					inputAudioTranscription: {},
+					outputAudioTranscription: {},
+					tools: buildChatTools(
+						this.options.useWebSearch ?? false,
+						this.options.preferences.allowCodebaseInspection ?? true,
+					),
 				},
-				inputAudioTranscription: {},
-				outputAudioTranscription: {},
-				tools: buildChatTools(
-					this.options.useWebSearch ?? false,
-					this.options.preferences.allowCodebaseInspection ?? true,
-				),
-			},
-			callbacks: {
-				onopen: () => {
-					if (this.closed) {
-						return
-					}
-					void this.beginMicrophone()
+				callbacks: {
+					onopen: () => {
+						if (this.closed) {
+							return
+						}
+						settleConnect()
+					},
+					onmessage: (message) => {
+						void this.handleServerMessage(message)
+					},
+					onerror: (event) => {
+						const liveError = new Error(event.message || 'Live session error.')
+						if (!connectSettled) {
+							settleConnect(liveError)
+							return
+						}
+						this.options.onError?.(liveError)
+						this.setStatus('error')
+					},
+					onclose: () => {
+						if (!connectSettled) {
+							settleConnect(
+								new Error('Live connection closed before it was ready.'),
+							)
+							return
+						}
+						if (!this.closed) {
+							this.cleanup()
+							this.setStatus('idle')
+						}
+					},
 				},
-				onmessage: (message) => {
-					void this.handleServerMessage(message)
-				},
-				onerror: (event) => {
-					this.options.onError?.(
-						new Error(event.message || 'Live session error.'),
-					)
-					this.setStatus('error')
-				},
-				onclose: () => {
-					if (!this.closed) {
-						this.cleanup()
-						this.setStatus('idle')
-					}
-				},
-			},
-		})
+			})
+
+			await openPromise
+			await this.beginMicrophone()
+		} catch (error) {
+			this.cleanup()
+			this.session?.close()
+			this.session = null
+			const message =
+				error instanceof Error ? error.message : 'Could not start Live Mode.'
+			this.setStatus('error')
+			this.options.onError?.(new Error(message))
+			throw error instanceof Error ? error : new Error(message)
+		}
 	}
 
 	private async beginMicrophone(): Promise<void> {
@@ -136,19 +195,27 @@ export class GeminiLiveSession {
 			return
 		}
 
-		this.setStatus('listening')
-		const capture = await startLiveAudioCapture((base64Pcm) => {
-			if (!this.session || this.closed) {
-				return
-			}
-			this.session.sendRealtimeInput({
-				audio: {
-					data: base64Pcm,
-					mimeType: 'audio/pcm;rate=16000',
-				},
+		try {
+			this.setStatus('listening')
+			const capture = await startLiveAudioCapture((base64Pcm) => {
+				if (!this.session || this.closed) {
+					return
+				}
+				this.session.sendRealtimeInput({
+					audio: {
+						data: base64Pcm,
+						mimeType: 'audio/pcm;rate=16000',
+					},
+				})
 			})
-		})
-		this.captureStop = capture.stop
+			this.captureStop = capture.stop
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : 'Microphone access failed.'
+			this.setStatus('error')
+			this.options.onError?.(new Error(message))
+			throw error instanceof Error ? error : new Error(message)
+		}
 	}
 
 	private async handleServerMessage(message: LiveServerMessage): Promise<void> {
@@ -259,6 +326,10 @@ export class GeminiLiveSession {
 
 	async stop(): Promise<void> {
 		this.closed = true
+		if (this.connectTimeoutId) {
+			clearTimeout(this.connectTimeoutId)
+			this.connectTimeoutId = null
+		}
 		this.cleanup()
 		this.session?.close()
 		this.session = null
