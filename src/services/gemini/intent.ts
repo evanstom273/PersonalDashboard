@@ -210,6 +210,16 @@ function shouldEnrichMusicPrompt(trimmed: string): boolean {
 	)
 }
 
+function shouldEnrichImagePrompt(trimmed: string): boolean {
+	if (needsConversationContext(trimmed)) {
+		return true
+	}
+
+	return /\b(?:female|femme|woman|male|masculine|feminine|version|likeness|portrait|try again|wrong|not (?:right|me)|actually|instead|beard|myself|of me)\b/i.test(
+		trimmed,
+	)
+}
+
 function formatMediaSummary(
 	mediaTypes: IntentMessageContext['mediaTypes'],
 ): string {
@@ -284,7 +294,15 @@ export function resolvePromptIntent(
 		return {
 			intent: forcedIntent,
 			modelId: getModelIdForIntent(forcedIntent, models),
-			prompt: finalizeGenerationPrompt(trimmed, recentMessages, true),
+			prompt: finalizeGenerationPrompt(
+				trimmed,
+				recentMessages,
+				forcedIntent === 'music'
+					? shouldEnrichMusicPrompt(trimmed)
+					: forcedIntent === 'image'
+						? shouldEnrichImagePrompt(trimmed)
+						: true,
+			),
 		}
 	}
 
@@ -298,7 +316,11 @@ export function resolvePromptIntent(
 				prompt: finalizeGenerationPrompt(
 					prompt,
 					recentMessages,
-					needsConversationContext(trimmed),
+					intent === 'music'
+						? shouldEnrichMusicPrompt(trimmed)
+						: intent === 'image'
+							? shouldEnrichImagePrompt(trimmed)
+							: needsConversationContext(trimmed),
 				),
 			}
 		}
@@ -314,7 +336,7 @@ export function resolvePromptIntent(
 				recentMessages,
 				conversationalIntent === 'music'
 					? shouldEnrichMusicPrompt(trimmed)
-					: true,
+					: shouldEnrichImagePrompt(trimmed),
 			),
 		}
 	}
@@ -329,7 +351,7 @@ export function resolvePromptIntent(
 				recentMessages,
 				looseIntent === 'music'
 					? shouldEnrichMusicPrompt(trimmed)
-					: needsConversationContext(trimmed),
+					: shouldEnrichImagePrompt(trimmed),
 			),
 		}
 	}
