@@ -50,9 +50,10 @@ export function useConversationMode({
 	const statusRef = useRef<ConversationModeStatus>('idle')
 	const beginListeningRef = useRef<() => Promise<void>>(async () => {})
 
-	isActiveRef.current = isActive
-	isMutedRef.current = isMuted
-	statusRef.current = status
+	const setConversationStatus = useCallback((next: ConversationModeStatus) => {
+		statusRef.current = next
+		setStatus(next)
+	}, [])
 
 	const clearSilenceTimer = useCallback(() => {
 		if (silenceTimerRef.current !== null) {
@@ -117,7 +118,7 @@ export function useConversationMode({
 
 		clearSilenceTimer()
 		stopRecognition()
-		setStatus('transcribing')
+		setConversationStatus('transcribing')
 
 		let transcript = committedRef.current.trim()
 
@@ -138,7 +139,7 @@ export function useConversationMode({
 							? transcriptionError.message
 							: 'Transcription failed.',
 					)
-					setStatus('listening')
+					setConversationStatus('listening')
 					void beginListeningRef.current()
 					return
 				}
@@ -151,12 +152,12 @@ export function useConversationMode({
 		setLiveTranscript('')
 
 		if (!transcript) {
-			setStatus('listening')
+			setConversationStatus('listening')
 			void beginListeningRef.current()
 			return
 		}
 
-		setStatus('thinking')
+		setConversationStatus('thinking')
 		await onSubmit({
 			text: transcript,
 			attachments: [],
@@ -170,6 +171,7 @@ export function useConversationMode({
 		releaseMicrophone,
 		stopRecognition,
 		stopRecorder,
+		setConversationStatus,
 		transcriptionModelId,
 		useRecorder,
 	])
@@ -208,6 +210,7 @@ export function useConversationMode({
 			audioChunksRef.current = []
 
 			const audioContext = new AudioContext()
+			await audioContext.resume()
 			const source = audioContext.createMediaStreamSource(microphone.stream)
 			const analyser = audioContext.createAnalyser()
 			analyser.fftSize = 2048
@@ -231,7 +234,7 @@ export function useConversationMode({
 			committedRef.current = ''
 			setLiveTranscript('')
 			setError(null)
-			setStatus('listening')
+			setConversationStatus('listening')
 			lastSpeechAtRef.current = Date.now()
 			recorder.start(250)
 
@@ -282,7 +285,7 @@ export function useConversationMode({
 		committedRef.current = ''
 		setLiveTranscript('')
 		setError(null)
-		setStatus('listening')
+		setConversationStatus('listening')
 		lastSpeechAtRef.current = Date.now()
 
 		const recognition = new SpeechRecognitionCtor()
@@ -317,6 +320,7 @@ export function useConversationMode({
 		releaseMicrophone,
 		scheduleSilenceSubmit,
 		stopRecognition,
+		setConversationStatus,
 		submitTranscript,
 		useRecorder,
 	])
@@ -324,32 +328,43 @@ export function useConversationMode({
 	beginListeningRef.current = beginListening
 
 	const startConversation = useCallback(async () => {
+		isActiveRef.current = true
+		isMutedRef.current = false
 		setIsActive(true)
 		setIsMuted(false)
 		setError(null)
+		setConversationStatus('listening')
 		await beginListening()
-	}, [beginListening])
+	}, [beginListening, setConversationStatus])
 
 	const endConversation = useCallback(async () => {
+		isActiveRef.current = false
+		isMutedRef.current = false
 		setIsActive(false)
-		setIsMuted(false)
 		clearSilenceTimer()
 		stopRecognition()
 		await stopRecorder()
 		releaseMicrophone()
 		onStopSpeaking()
-		setStatus('idle')
+		setConversationStatus('idle')
 		setLiveTranscript('')
 		committedRef.current = ''
-	}, [clearSilenceTimer, onStopSpeaking, releaseMicrophone, stopRecognition, stopRecorder])
+	}, [
+		clearSilenceTimer,
+		onStopSpeaking,
+		releaseMicrophone,
+		setConversationStatus,
+		stopRecognition,
+		stopRecorder,
+	])
 
 	const resumeListening = useCallback(async () => {
 		if (!isActiveRef.current) {
 			return
 		}
-		setStatus('listening')
+		setConversationStatus('listening')
 		await beginListening()
-	}, [beginListening])
+	}, [beginListening, setConversationStatus])
 
 	const interruptSpeaking = useCallback(() => {
 		onStopSpeaking()
@@ -359,6 +374,7 @@ export function useConversationMode({
 	const toggleMute = useCallback(() => {
 		setIsMuted((current) => {
 			const next = !current
+			isMutedRef.current = next
 			if (next) {
 				clearSilenceTimer()
 				stopRecognition()
@@ -382,7 +398,7 @@ export function useConversationMode({
 		interruptSpeaking,
 		toggleMute,
 		resumeListening,
-		setStatus,
+		setStatus: setConversationStatus,
 		clearError: () => setError(null),
 	}
 }
