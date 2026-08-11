@@ -8,6 +8,7 @@ import { useSwipePageTransition } from '@/hooks/useSwipePageTransition'
 import { BottomNav } from '@/layout/BottomNav'
 import {
 	useChatGenerationContext,
+	useChatHeaderSlot,
 	useMainConversationContext,
 	usePreferencesContext,
 } from '@/providers/ChatProvider'
@@ -61,6 +62,7 @@ export function AppShell() {
 	const isChatRoute = location.pathname === '/chat'
 	const pageTitle = getPageTitle(location.pathname, aiName)
 	const { navigateWithFade, contentClassName } = useSwipePageTransition()
+	const { slot: chatHeaderVoiceSlot } = useChatHeaderSlot()
 	const showAppHeader =
 		!location.pathname.startsWith('/library/documents/') &&
 		!location.pathname.startsWith('/library/projects/') &&
@@ -109,7 +111,8 @@ export function AppShell() {
 							) : null}
 						</div>
 						{isChatRoute ? (
-							<div className="shrink-0">
+							<div className="flex shrink-0 items-center gap-0.5">
+								{chatHeaderVoiceSlot}
 								<ChatConversationActions
 									conversation={conversation}
 									isGenerating={isGenerating}
