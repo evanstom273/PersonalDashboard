@@ -1,6 +1,7 @@
 import {
 	Bell,
 	Brain,
+	Code2,
 	Download,
 	ExternalLink,
 	KeyRound,
@@ -94,6 +95,11 @@ export function SettingsPage() {
 		null,
 	)
 	const [allowCodebaseInspection, setAllowCodebaseInspection] = useState(true)
+	const [githubPat, setGithubPat] = useState('')
+	const [devStudioRepository, setDevStudioRepository] = useState('')
+	const [devStudioBranch, setDevStudioBranch] = useState('main')
+	const [savedDevStudio, setSavedDevStudio] = useState(false)
+	const [isSavingDevStudio, setIsSavingDevStudio] = useState(false)
 	const [memoryActionMessage, setMemoryActionMessage] = useState<string | null>(
 		null,
 	)
@@ -111,6 +117,9 @@ export function SettingsPage() {
 			setTtsReadAloudMode(preferences.ttsReadAloudMode)
 			setTtsVoiceName(preferences.ttsVoiceName)
 			setAllowCodebaseInspection(preferences.allowCodebaseInspection ?? true)
+			setGithubPat(preferences.githubPat)
+			setDevStudioRepository(preferences.devStudioRepository)
+			setDevStudioBranch(preferences.devStudioBranch || 'main')
 		}
 	}, [isLoading, preferences])
 
@@ -184,6 +193,23 @@ export function SettingsPage() {
 			...preferences,
 			allowCodebaseInspection: value,
 		})
+	}
+
+	async function handleSaveDevStudio(): Promise<void> {
+		setIsSavingDevStudio(true)
+		setSavedDevStudio(false)
+		try {
+			await savePreferences({
+				...preferences,
+				githubPat: githubPat.trim(),
+				devStudioRepository: devStudioRepository.trim(),
+				devStudioBranch: devStudioBranch.trim() || 'main',
+			})
+			setSavedDevStudio(true)
+			window.setTimeout(() => setSavedDevStudio(false), 2000)
+		} finally {
+			setIsSavingDevStudio(false)
+		}
 	}
 
 	async function handleClearMemory(): Promise<void> {
@@ -426,6 +452,15 @@ export function SettingsPage() {
 							notificationPermission={notificationPermission}
 							notificationMessage={notificationMessage}
 							allowCodebaseInspection={allowCodebaseInspection}
+							githubPat={githubPat}
+							devStudioRepository={devStudioRepository}
+							devStudioBranch={devStudioBranch}
+							savedDevStudio={savedDevStudio}
+							isSavingDevStudio={isSavingDevStudio}
+							onGithubPatChange={setGithubPat}
+							onDevStudioRepositoryChange={setDevStudioRepository}
+							onDevStudioBranchChange={setDevStudioBranch}
+							onSaveDevStudio={() => void handleSaveDevStudio()}
 							onEnableNotifications={() => void handleEnableNotifications()}
 							onAllowCodebaseInspectionChange={(value) =>
 								void handleAllowCodebaseInspectionChange(value)
@@ -923,12 +958,30 @@ function AppTab({
 	notificationPermission,
 	notificationMessage,
 	allowCodebaseInspection,
+	githubPat,
+	devStudioRepository,
+	devStudioBranch,
+	savedDevStudio,
+	isSavingDevStudio,
+	onGithubPatChange,
+	onDevStudioRepositoryChange,
+	onDevStudioBranchChange,
+	onSaveDevStudio,
 	onEnableNotifications,
 	onAllowCodebaseInspectionChange,
 }: {
 	notificationPermission: NotificationPermission
 	notificationMessage: string | null
 	allowCodebaseInspection: boolean
+	githubPat: string
+	devStudioRepository: string
+	devStudioBranch: string
+	savedDevStudio: boolean
+	isSavingDevStudio: boolean
+	onGithubPatChange: (value: string) => void
+	onDevStudioRepositoryChange: (value: string) => void
+	onDevStudioBranchChange: (value: string) => void
+	onSaveDevStudio: () => void
 	onEnableNotifications: () => void
 	onAllowCodebaseInspectionChange: (value: boolean) => void
 }) {
@@ -936,8 +989,57 @@ function AppTab({
 		<div className="space-y-5">
 			<TabIntro
 				title="App behaviour"
-				description="Notifications and how chat behaves when you leave the screen."
+				description="Notifications, Dev Studio, and how chat behaves when you leave the screen."
 			/>
+
+			<section className="surface-panel space-y-4 rounded-xl p-5">
+				<div className="flex items-center gap-2">
+					<Code2 className="h-5 w-5 text-primary" />
+					<h3 className="text-sm font-medium">Dev Studio (GitHub)</h3>
+				</div>
+				<p className="text-sm text-muted-foreground">
+					Connect any repository for the mobile code agent. Your fine-grained
+					Personal Access Token stays on this device in IndexedDB.
+				</p>
+				<label className="block space-y-2 text-sm">
+					<span className="font-medium">GitHub token</span>
+					<input
+						type="password"
+						value={githubPat}
+						onChange={(event) => onGithubPatChange(event.target.value)}
+						placeholder="github_pat_…"
+						className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
+						autoComplete="off"
+					/>
+				</label>
+				<label className="block space-y-2 text-sm">
+					<span className="font-medium">Repository</span>
+					<input
+						value={devStudioRepository}
+						onChange={(event) => onDevStudioRepositoryChange(event.target.value)}
+						placeholder="owner/repo"
+						className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
+					/>
+				</label>
+				<label className="block space-y-2 text-sm">
+					<span className="font-medium">Default branch</span>
+					<input
+						value={devStudioBranch}
+						onChange={(event) => onDevStudioBranchChange(event.target.value)}
+						placeholder="main"
+						className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
+					/>
+				</label>
+				<div className="flex items-center gap-3">
+					<Button type="button" onClick={onSaveDevStudio} disabled={isSavingDevStudio}>
+						<Save className="h-4 w-4" />
+						{isSavingDevStudio ? 'Saving…' : 'Save Dev Studio settings'}
+					</Button>
+					{savedDevStudio ? (
+						<span className="text-sm text-primary">Saved</span>
+					) : null}
+				</div>
+			</section>
 
 			<section className="surface-panel space-y-4 rounded-xl p-5">
 				<div className="flex items-center gap-2">

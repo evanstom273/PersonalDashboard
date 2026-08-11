@@ -128,6 +128,9 @@ export interface UserPreferences {
 	ttsVoiceName: string
 	allowCodebaseInspection: boolean
 	scratchpadContent: string
+	githubPat: string
+	devStudioRepository: string
+	devStudioBranch: string
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -144,6 +147,9 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	ttsVoiceName: 'Kore',
 	allowCodebaseInspection: true,
 	scratchpadContent: '',
+	githubPat: '',
+	devStudioRepository: '',
+	devStudioBranch: 'main',
 }
 
 export interface DocumentRecord {
