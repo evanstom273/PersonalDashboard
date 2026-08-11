@@ -159,6 +159,21 @@ export type DocumentSource = 'upload' | 'user' | 'assistant'
 
 export type DocumentContentFormat = 'markdown' | 'html'
 
+export interface HomeTodoItem {
+	id: string
+	text: string
+	checked: boolean
+	position: number
+	createdAt: number
+	updatedAt: number
+}
+
+export interface HomeTodoListState {
+	items: HomeTodoItem[]
+	dailyReviewReminderId?: string
+	updatedAt: number
+}
+
 export interface ConversationRecord {
 	id: string
 	title: string

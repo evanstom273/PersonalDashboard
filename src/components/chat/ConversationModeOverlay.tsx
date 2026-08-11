@@ -77,7 +77,8 @@ export function ConversationModeOverlay({
 					</p>
 				) : (
 					<p className="text-center text-sm text-muted-foreground">
-						Speak naturally. The mic resumes after each reply.
+						Speak naturally — pauses up to a few seconds are fine. The mic resumes
+						after each reply.
 					</p>
 				)}
 

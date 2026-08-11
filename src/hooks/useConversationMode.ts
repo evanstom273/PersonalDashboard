@@ -16,7 +16,8 @@ export type ConversationModeStatus =
 	| 'thinking'
 	| 'speaking'
 
-const SILENCE_MS = 1800
+const SILENCE_MS = 5500
+const SPEECH_RMS_THRESHOLD = 0.018
 
 interface UseConversationModeOptions {
 	geminiApiKey: string
@@ -43,6 +44,8 @@ export function useConversationMode({
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null)
 	const audioChunksRef = useRef<Blob[]>([])
 	const committedRef = useRef('')
+	const interimRef = useRef('')
+	const hasSpeechRef = useRef(false)
 	const lastSpeechAtRef = useRef(0)
 	const silenceTimerRef = useRef<number | null>(null)
 	const isActiveRef = useRef(false)
@@ -120,7 +123,7 @@ export function useConversationMode({
 		stopRecognition()
 		setConversationStatus('transcribing')
 
-		let transcript = committedRef.current.trim()
+		let transcript = `${committedRef.current} ${interimRef.current}`.trim()
 
 		if (useRecorder) {
 			const audioBlob = await stopRecorder()
@@ -149,6 +152,7 @@ export function useConversationMode({
 		}
 
 		committedRef.current = ''
+		interimRef.current = ''
 		setLiveTranscript('')
 
 		if (!transcript) {
@@ -232,6 +236,8 @@ export function useConversationMode({
 			}
 			mediaRecorderRef.current = recorder
 			committedRef.current = ''
+			interimRef.current = ''
+			hasSpeechRef.current = false
 			setLiveTranscript('')
 			setError(null)
 			setConversationStatus('listening')
@@ -251,9 +257,13 @@ export function useConversationMode({
 					sum += value * value
 				}
 				const rms = Math.sqrt(sum / data.length)
-				if (rms > 0.02) {
+				if (rms > SPEECH_RMS_THRESHOLD) {
+					hasSpeechRef.current = true
 					lastSpeechAtRef.current = Date.now()
-				} else if (Date.now() - lastSpeechAtRef.current > SILENCE_MS) {
+				} else if (
+					hasSpeechRef.current &&
+					Date.now() - lastSpeechAtRef.current > SILENCE_MS
+				) {
 					void audioContext.close()
 					void submitTranscript()
 					return
@@ -283,6 +293,7 @@ export function useConversationMode({
 
 		stopRecognition()
 		committedRef.current = ''
+		interimRef.current = ''
 		setLiveTranscript('')
 		setError(null)
 		setConversationStatus('listening')
@@ -306,6 +317,7 @@ export function useConversationMode({
 					lastSpeechAtRef.current = Date.now()
 				}
 			}
+			interimRef.current = interim
 			setLiveTranscript(`${committedRef.current} ${interim}`.trim())
 			scheduleSilenceSubmit()
 		}
@@ -349,6 +361,8 @@ export function useConversationMode({
 		setConversationStatus('idle')
 		setLiveTranscript('')
 		committedRef.current = ''
+		interimRef.current = ''
+		hasSpeechRef.current = false
 	}, [
 		clearSilenceTimer,
 		onStopSpeaking,
