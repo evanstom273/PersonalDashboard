@@ -122,7 +122,7 @@ export function DevStudioComposer() {
 		}
 
 		textarea.style.height = '0px'
-		const maxHeight = Math.max(300, Math.floor(window.innerHeight * 0.4))
+		const maxHeight = Math.max(400, Math.floor(window.innerHeight * 0.5))
 		const nextHeight = Math.min(textarea.scrollHeight, maxHeight)
 		textarea.style.height = `${nextHeight}px`
 		textarea.style.overflowY =
@@ -626,13 +626,13 @@ export function DevStudioComposer() {
 						<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
 						<span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
 					</span>
-					Listening… speak now. Press Continue when done.
+					Listening... speak now. Press Continue when done.
 				</div>
 			) : null}
 
 			{isTranscribing ? (
 				<div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 text-xs text-primary">
-					Transcribing your recording…
+					Transcribing your recording...
 				</div>
 			) : null}
 
@@ -742,11 +742,11 @@ export function DevStudioComposer() {
 						enterKeyHint="enter"
 						placeholder={
 							isTranscribing
-								? 'Transcribing…'
+								? 'Transcribing...'
 								: isListening
-									? 'Recording…'
+									? 'Recording...'
 									: preferences.geminiApiKey.trim()
-										? 'Ask the code agent to inspect, edit, push, or merge PRs…'
+										? 'Ask the code agent to inspect, edit, push, or merge PRs...'
 										: 'Add your Gemini API key in Settings to chat'
 						}
 						disabled={inputDisabled}
