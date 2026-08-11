@@ -1,4 +1,5 @@
 import { FileText } from 'lucide-react'
+import type { CSSProperties } from 'react'
 import type { DocumentRecord } from '@/storage/types'
 import { formatTimestamp } from '@/utils/documentContent'
 import { cn } from '@/utils/cn'
@@ -8,6 +9,7 @@ interface DocumentMentionMenuProps {
 	selectedIndex: number
 	onSelect: (document: DocumentRecord) => void
 	className?: string
+	style?: CSSProperties
 }
 
 export function DocumentMentionMenu({
@@ -15,12 +17,14 @@ export function DocumentMentionMenu({
 	selectedIndex,
 	onSelect,
 	className,
+	style,
 }: DocumentMentionMenuProps) {
 	if (documents.length === 0) {
 		return (
 			<div
+				style={style}
 				className={cn(
-					'surface-popover rounded-xl p-3 text-sm text-muted-foreground shadow-lg',
+					'surface-popover z-[60] rounded-xl p-3 text-sm text-muted-foreground shadow-lg',
 					className,
 				)}
 			>
@@ -31,15 +35,16 @@ export function DocumentMentionMenu({
 
 	return (
 		<div
+			style={style}
 			className={cn(
-				'surface-popover overflow-hidden rounded-xl shadow-lg',
+				'surface-popover z-[60] overflow-y-auto rounded-xl shadow-lg',
 				className,
 			)}
 		>
 			<div className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
 				Reference a document
 			</div>
-			<ul className="max-h-56 overflow-y-auto py-1">
+			<ul className="py-1">
 				{documents.map((document, index) => (
 					<li key={document.id}>
 						<button

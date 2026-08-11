@@ -5,6 +5,10 @@ import {
 } from '@/services/gemini/codebaseTools'
 import { buildChatTools } from '@/services/gemini/executeAppToolCall'
 import {
+	executeHomeTodoToolCall,
+	isHomeTodoToolName,
+} from '@/services/home/homeTodoTools'
+import {
 	executeProjectToolCall,
 	isProjectToolName,
 } from '@/services/projects/projectTools'
@@ -159,6 +163,20 @@ export async function generateChatWithTools(
 
 				if (isProjectToolName(functionCall.name)) {
 					const toolResult = await executeProjectToolCall(
+						functionCall.name,
+						functionCall.args ?? {},
+					)
+					functionResponseParts.push({
+						functionResponse: {
+							name: toolResult.name,
+							response: toolResult.response,
+						},
+					})
+					continue
+				}
+
+				if (isHomeTodoToolName(functionCall.name)) {
+					const toolResult = await executeHomeTodoToolCall(
 						functionCall.name,
 						functionCall.args ?? {},
 					)

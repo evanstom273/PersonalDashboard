@@ -10,6 +10,11 @@ import {
 	PROJECT_TOOL_DECLARATIONS,
 } from '@/services/projects/projectTools'
 import {
+	executeHomeTodoToolCall,
+	HOME_TODO_TOOL_DECLARATIONS,
+	isHomeTodoToolName,
+} from '@/services/home/homeTodoTools'
+import {
 	executeReminderToolCall,
 	isReminderToolName,
 	REMINDER_TOOL_DECLARATIONS,
@@ -33,6 +38,7 @@ export function buildChatTools(
 		...DOCUMENT_TOOL_DECLARATIONS,
 		...PROJECT_TOOL_DECLARATIONS,
 		...REMINDER_TOOL_DECLARATIONS,
+		...HOME_TODO_TOOL_DECLARATIONS,
 		...(allowCodebaseInspection ? CODEBASE_TOOL_DECLARATIONS : []),
 	]
 
@@ -70,6 +76,14 @@ export async function executeAppToolCall(
 
 	if (isProjectToolName(name)) {
 		const toolResult = await executeProjectToolCall(name, args)
+		return {
+			name: toolResult.name,
+			response: toolResult.response,
+		}
+	}
+
+	if (isHomeTodoToolName(name)) {
+		const toolResult = await executeHomeTodoToolCall(name, args)
 		return {
 			name: toolResult.name,
 			response: toolResult.response,

@@ -1,5 +1,15 @@
 import { ArrowUp, Mic, Square, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+	type CSSProperties,
+	type FormEvent,
+	type KeyboardEvent,
+} from 'react'
+import { createPortal } from 'react-dom'
 import { ChatAttachMenu } from '@/components/chat/ChatAttachMenu'
 import { DocumentMentionMenu } from '@/components/chat/DocumentMentionMenu'
 import { Button } from '@/components/ui/button'
@@ -70,7 +80,11 @@ export function ChatInput({
 	const [attachError, setAttachError] = useState<string | null>(null)
 	const [inputMethod, setInputMethod] = useState<ChatInputMethod>('typed')
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
+	const mentionAnchorRef = useRef<HTMLDivElement>(null)
 	const promptBeforeSpeechRef = useRef('')
+	const [mentionMenuStyle, setMentionMenuStyle] = useState<CSSProperties | null>(
+		null,
+	)
 
 	const adjustTextareaHeight = useCallback(() => {
 		const textarea = textareaRef.current
@@ -112,6 +126,53 @@ export function ChatInput({
 		selectedIndex,
 		moveSelection,
 	} = useDocumentMentionPicker(prompt, cursorPosition, !inputDisabled)
+
+	const updateMentionMenuPosition = useCallback(() => {
+		const anchor = mentionAnchorRef.current
+		const textarea = textareaRef.current
+		if (!anchor || !textarea) {
+			return
+		}
+
+		const anchorRect = anchor.getBoundingClientRect()
+		const textareaRect = textarea.getBoundingClientRect()
+		const gap = 8
+		const maxHeight = Math.max(160, textareaRect.top - gap - 16)
+
+		setMentionMenuStyle({
+			position: 'fixed',
+			left: anchorRect.left,
+			width: anchorRect.width,
+			bottom: window.innerHeight - textareaRect.top + gap,
+			maxHeight,
+			zIndex: 60,
+		})
+	}, [])
+
+	useLayoutEffect(() => {
+		if (!isMentionMenuOpen) {
+			setMentionMenuStyle(null)
+			return
+		}
+
+		updateMentionMenuPosition()
+
+		const handleLayoutChange = () => {
+			updateMentionMenuPosition()
+		}
+
+		window.addEventListener('resize', handleLayoutChange)
+		window.addEventListener('scroll', handleLayoutChange, true)
+		window.visualViewport?.addEventListener('resize', handleLayoutChange)
+		window.visualViewport?.addEventListener('scroll', handleLayoutChange)
+
+		return () => {
+			window.removeEventListener('resize', handleLayoutChange)
+			window.removeEventListener('scroll', handleLayoutChange, true)
+			window.visualViewport?.removeEventListener('resize', handleLayoutChange)
+			window.visualViewport?.removeEventListener('scroll', handleLayoutChange)
+		}
+	}, [isMentionMenuOpen, prompt, cursorPosition, updateMentionMenuPosition])
 
 	useEffect(() => {
 		if (isListening) {
@@ -410,7 +471,7 @@ export function ChatInput({
 	return (
 		<form
 			onSubmit={handleSubmit}
-			className="chat-input-bar z-30 w-full max-w-full shrink-0 overflow-hidden border-t border-border px-3 py-2.5 md:px-8 md:py-4"
+			className="chat-input-bar relative z-30 w-full max-w-full shrink-0 overflow-visible border-t border-border px-3 py-2.5 md:px-8 md:py-4"
 		>
 			{isListening ? (
 				<div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 text-xs text-primary">
@@ -530,15 +591,18 @@ export function ChatInput({
 				</div>
 			) : null}
 
-			<div className="relative mx-auto w-full min-w-0 max-w-3xl">
-				{isMentionMenuOpen ? (
-					<DocumentMentionMenu
-						documents={filteredDocuments}
-						selectedIndex={selectedIndex}
-						onSelect={(document) => insertMention(document.title)}
-						className="absolute right-0 bottom-full left-0 mb-2"
-					/>
-				) : null}
+			<div ref={mentionAnchorRef} className="relative mx-auto w-full min-w-0 max-w-3xl">
+				{isMentionMenuOpen && mentionMenuStyle
+					? createPortal(
+							<DocumentMentionMenu
+								documents={filteredDocuments}
+								selectedIndex={selectedIndex}
+								onSelect={(document) => insertMention(document.title)}
+								style={mentionMenuStyle}
+							/>,
+							document.body,
+						)
+					: null}
 
 				<div
 					className={cn(
