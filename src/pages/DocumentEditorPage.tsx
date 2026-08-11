@@ -1,7 +1,8 @@
-import { ArrowLeft, LayoutTemplate, Lock } from 'lucide-react'
+import { ArrowLeft, Code2, LayoutTemplate, Lock, Play } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react'
 import { DocumentEditor } from '@/components/documents/DocumentEditor'
+import { DocumentHtmlRunnerDialog } from '@/components/documents/DocumentHtmlRunnerDialog'
 import { Button } from '@/components/ui/button'
 import {
 	Dialog,
@@ -32,6 +33,7 @@ export function DocumentEditorPage() {
 	const [content, setContent] = useState('<p></p>')
 	const [isLoading, setIsLoading] = useState(true)
 	const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
+	const [runnerDialogOpen, setRunnerDialogOpen] = useState(false)
 	const [templateName, setTemplateName] = useState('')
 	const [templateSaved, setTemplateSaved] = useState(false)
 	const [templateError, setTemplateError] = useState<string | null>(null)
@@ -92,6 +94,21 @@ export function DocumentEditorPage() {
 		setTemplateSaved(false)
 		setTemplateDialogOpen(true)
 	}, [title])
+
+	const handleSendToDevStudio = useCallback(() => {
+		const currentTitle = latestRef.current.title.trim() || 'Untitled document'
+		const meta = documentMetaRef.current
+		const docContent = editorHtmlToDocumentContent(
+			latestRef.current.content,
+			meta?.contentFormat ?? 'markdown',
+		)
+
+		const prompt = `Implement the following specification from document "${currentTitle}":\n\n${docContent}`
+
+		void navigate('/dev-studio', {
+			state: { initialPrompt: prompt },
+		})
+	}, [navigate])
 
 	const persistDocument = useCallback(async () => {
 		const meta = documentMetaRef.current
@@ -221,29 +238,53 @@ export function DocumentEditorPage() {
 						className="min-w-[12rem] flex-1 bg-transparent text-lg font-semibold outline-none read-only:cursor-default read-only:opacity-80"
 						placeholder="Document title"
 					/>
-					{readOnly ? (
-						<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-							<Lock className="h-3.5 w-3.5" />
-							Read-only
-						</div>
-					) : (
-						<>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={openTemplateDialog}
-							>
-								<LayoutTemplate className="h-4 w-4" />
-								Save as template
-							</Button>
-							{document.source === 'upload' ? (
-								<span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
-									Uploaded
-								</span>
-							) : null}
-						</>
-					)}
+					<div className="flex items-center gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => setRunnerDialogOpen(true)}
+							title="Run document HTML/CSS/JS in a sandboxed viewport"
+						>
+							<Play className="h-4 w-4 fill-current" />
+							Run HTML
+						</Button>
+
+						<Button
+							type="button"
+							variant="secondary"
+							size="sm"
+							onClick={handleSendToDevStudio}
+							title="Send specification to Dev Studio agent"
+						>
+							<Code2 className="h-4 w-4 text-primary" />
+							Send to Dev Studio
+						</Button>
+
+						{readOnly ? (
+							<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+								<Lock className="h-3.5 w-3.5" />
+								Read-only
+							</div>
+						) : (
+							<>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={openTemplateDialog}
+								>
+									<LayoutTemplate className="h-4 w-4" />
+									Save as template
+								</Button>
+								{document.source === 'upload' ? (
+									<span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+										Uploaded
+									</span>
+								) : null}
+							</>
+						)}
+					</div>
 				</div>
 			</header>
 
@@ -279,6 +320,14 @@ export function DocumentEditorPage() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			<DocumentHtmlRunnerDialog
+				open={runnerDialogOpen}
+				onOpenChange={setRunnerDialogOpen}
+				title={title}
+				content={content}
+				contentFormat={document.contentFormat}
+			/>
 
 			<DocumentEditor
 				content={content}
