@@ -1,5 +1,6 @@
 import { PhoneOff, Radio } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { VoiceModeOverlayFrame } from '@/components/chat/VoiceModeOverlayFrame'
 import type { LiveSessionStatus } from '@/services/gemini/geminiLiveService'
 import { cn } from '@/utils/cn'
 
@@ -30,8 +31,8 @@ export function LiveModeOverlay({
 	onEnd,
 }: LiveModeOverlayProps) {
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 p-4 backdrop-blur-sm">
-			<div className="surface-panel flex w-full max-w-md flex-col items-center gap-6 rounded-2xl p-8 shadow-xl">
+		<VoiceModeOverlayFrame label="Live Mode">
+			<div className="surface-panel flex w-full max-w-md flex-col items-center gap-6 rounded-2xl p-8 text-foreground shadow-xl">
 				<div className="text-center">
 					<p className="text-sm text-muted-foreground">Live Mode</p>
 					<h2 className="text-2xl font-semibold">{aiName}</h2>
@@ -95,6 +96,6 @@ export function LiveModeOverlay({
 					End Live session
 				</Button>
 			</div>
-		</div>
+		</VoiceModeOverlayFrame>
 	)
 }

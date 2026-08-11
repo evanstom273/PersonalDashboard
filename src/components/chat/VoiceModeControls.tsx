@@ -36,12 +36,16 @@ export function VoiceModeControls({
 		!hasApiKey || isGenerating || isConversationActive || isLiveActive
 
 	function handleConfirm(): void {
-		if (pendingMode === 'conversation') {
-			onStartConversation()
-		} else if (pendingMode === 'live') {
-			onStartLive()
-		}
+		const mode = pendingMode
 		setPendingMode(null)
+		// Let the start dialog unmount before opening the full-screen voice overlay.
+		window.requestAnimationFrame(() => {
+			if (mode === 'conversation') {
+				onStartConversation()
+			} else if (mode === 'live') {
+				onStartLive()
+			}
+		})
 	}
 
 	return (
