@@ -127,6 +127,7 @@ export function ChatVoiceSession({
 			error={conversationMode.error}
 			onEnd={() => void conversationMode.endConversation()}
 			onToggleMute={conversationMode.toggleMute}
+			onFinishSpeaking={() => void conversationMode.finishSpeaking()}
 			onInterrupt={conversationMode.interruptSpeaking}
 			isSpeaking={speechStatus === 'playing'}
 		/>
