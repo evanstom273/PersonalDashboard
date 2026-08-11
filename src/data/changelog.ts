@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.7'
+export const APP_VERSION = '2.0.8'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.8',
+		releasedAt: '2026-08-11',
+		summary: 'Fix GitHub Pages build',
+		changes: [
+			'Restore DevStudioModelSelector after a partial edit broke the TypeScript build.',
+			'Tiered tool iteration limits (32 / 64 / 96) from #80 remain in place.',
+		],
+	},
 	{
 		version: '2.0.7',
 		releasedAt: '2026-08-11',
