@@ -162,7 +162,9 @@ export function useTextToSpeechContext(): TextToSpeechContextValue {
 export function useVoiceSessionContext(): VoiceSessionContextValue {
 	const context = useContext(VoiceSessionContext)
 	if (!context) {
-		throw new Error('useVoiceSessionContext must be used within ChatProvider')
+		return {
+			conversationModeActiveRef: { current: false },
+		}
 	}
 	return context
 }

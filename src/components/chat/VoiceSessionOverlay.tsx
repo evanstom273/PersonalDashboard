@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Button } from '@/components/ui/button'
 
 interface VoiceSessionOverlayProps {
 	label: string
@@ -12,16 +13,14 @@ export function VoiceSessionOverlay({
 	children,
 }: VoiceSessionOverlayProps) {
 	return (
-		<div className="absolute inset-0 z-40 flex items-end justify-center bg-black/70 p-4 pb-6 sm:items-center">
-			<button
-				type="button"
-				className="absolute inset-0 cursor-default"
-				aria-label={`Close ${label}`}
-				onClick={onDismiss}
-			/>
-			<div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-2xl">
-				{children}
+		<div className="shrink-0 border-t border-primary/30 bg-card px-4 py-4 md:px-6">
+			<div className="mb-4 flex items-center justify-between gap-3">
+				<p className="text-sm font-medium text-foreground">{label}</p>
+				<Button type="button" size="sm" variant="outline" onClick={onDismiss}>
+					End
+				</Button>
 			</div>
+			{children}
 		</div>
 	)
 }

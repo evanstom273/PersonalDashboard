@@ -1,12 +1,17 @@
-import { useCallback, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '@/utils/cn'
 
 const FADE_MS = 100
 
 export function useSwipePageTransition() {
 	const navigate = useNavigate()
+	const location = useLocation()
 	const [isFading, setIsFading] = useState(false)
+
+	useEffect(() => {
+		setIsFading(false)
+	}, [location.pathname, location.search])
 
 	const navigateWithFade = useCallback(
 		(target: { pathname: string; search: string }) => {
