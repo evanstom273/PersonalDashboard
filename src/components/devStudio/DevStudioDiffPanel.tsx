@@ -1,23 +1,30 @@
 import { ExternalLink, GitCommitHorizontal, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DevStudioTaskStatusBadge } from '@/components/devStudio/DevStudioTaskStatus'
 import { GitHubApiError } from '@/services/github/githubApiService'
 import { useDevStudio } from '@/providers/DevStudioProvider'
 import { generateDevStudioPushMetadata } from '@/utils/devStudioPushMetadata'
+import { getDevStudioPushSafety } from '@/utils/devStudioTaskStatus'
 import { cn } from '@/utils/cn'
 
 export function DevStudioDiffPanel({ className }: { className?: string }) {
 	const {
 		stagedChanges,
+		agentTaskStatus,
 		discardStagedChange,
 		discardAllStagedChanges,
 		pushStagedChanges,
 		isPushing,
+		isComposerSending,
 		lastPushResult,
 	} = useDevStudio()
 	const [commitMessage, setCommitMessage] = useState('')
 	const [pullRequestTitle, setPullRequestTitle] = useState('')
 	const [pushError, setPushError] = useState<string | null>(null)
+	const pushSafety = getDevStudioPushSafety(agentTaskStatus, stagedChanges)
+	const pushBlocked =
+		!pushSafety.allowed || isComposerSending || agentTaskStatus === 'running'
 
 	const applySuggestedMetadata = useCallback(() => {
 		if (stagedChanges.length === 0) {
@@ -89,7 +96,10 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 			<div className="flex shrink-0 flex-col gap-3 border-b border-border/60 px-4 py-3">
 				<div className="flex items-center justify-between gap-3">
 					<div>
-						<p className="text-sm font-medium">Staged changes</p>
+						<div className="flex flex-wrap items-center gap-2">
+							<p className="text-sm font-medium">Staged changes</p>
+							<DevStudioTaskStatusBadge status={agentTaskStatus} />
+						</div>
 						<p className="text-xs text-muted-foreground">
 							Commit message and PR title are suggested from your edits
 						</p>
@@ -128,7 +138,7 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 							size="sm"
 							variant="outline"
 							onClick={applySuggestedMetadata}
-							disabled={isPushing}
+							disabled={isPushing || pushBlocked}
 						>
 							<RefreshCw className="h-4 w-4" />
 							Regenerate
@@ -137,7 +147,7 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 							type="button"
 							size="sm"
 							onClick={() => void handlePush()}
-							disabled={isPushing}
+							disabled={isPushing || pushBlocked}
 						>
 							{isPushing ? (
 								<Loader2 className="h-4 w-4 animate-spin" />
@@ -147,6 +157,11 @@ export function DevStudioDiffPanel({ className }: { className?: string }) {
 							Push branch & open PR
 						</Button>
 					</div>
+					{!pushSafety.allowed && pushSafety.reason ? (
+						<div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+							{pushSafety.reason}
+						</div>
+					) : null}
 					{pushError ? (
 						<div className="space-y-1">
 							<pre className="whitespace-pre-wrap font-sans text-xs text-destructive">

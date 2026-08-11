@@ -1,9 +1,10 @@
-import { Check, Loader2 } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Loader2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type {
 	DevStudioAgentPhase,
 	DevStudioStreamingState,
 } from '@/types/devStudio'
+import { DEV_STUDIO_AGENT_TIMEOUT_MS } from '@/services/devStudio/devStudioAgentTypes'
 import { cn } from '@/utils/cn'
 
 function formatElapsed(ms: number): string {
@@ -32,6 +33,7 @@ export function DevStudioAgentActivity({
 	className?: string
 }) {
 	const [elapsedMs, setElapsedMs] = useState(() => Date.now() - streaming.startedAt)
+	const [reasoningOpen, setReasoningOpen] = useState(true)
 	const activityListRef = useRef<HTMLUListElement>(null)
 
 	useEffect(() => {
@@ -53,8 +55,16 @@ export function DevStudioAgentActivity({
 		.reverse()
 		.find((activity) => activity.status === 'running')
 
+	const timeoutMinutes = Math.floor(DEV_STUDIO_AGENT_TIMEOUT_MS / 60_000)
+
 	return (
 		<div className={cn('space-y-2.5', className)}>
+			{streaming.showLongRunWarning ? (
+				<div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-100">
+					Still working — this run is taking longer than usual. It will stop
+					automatically at {timeoutMinutes} minutes.
+				</div>
+			) : null}
 			<div className="flex items-center justify-between gap-3">
 				<div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
 					<Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
@@ -72,12 +82,23 @@ export function DevStudioAgentActivity({
 
 			{streaming.thoughts.trim() ? (
 				<div className="rounded-lg border border-border/50 bg-secondary/30 px-2.5 py-2">
-					<p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+					<button
+						type="button"
+						className="flex w-full items-center gap-1 text-left text-[10px] font-medium tracking-wide text-muted-foreground uppercase"
+						onClick={() => setReasoningOpen((open) => !open)}
+					>
+						{reasoningOpen ? (
+							<ChevronDown className="h-3 w-3" />
+						) : (
+							<ChevronRight className="h-3 w-3" />
+						)}
 						Reasoning
-					</p>
-					<p className="mt-1 max-h-20 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
-						{streaming.thoughts.trim()}
-					</p>
+					</button>
+					{reasoningOpen ? (
+						<p className="mt-1 max-h-20 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+							{streaming.thoughts.trim()}
+						</p>
+					) : null}
 				</div>
 			) : null}
 
@@ -94,6 +115,8 @@ export function DevStudioAgentActivity({
 							<span className="mt-0.5 shrink-0">
 								{activity.status === 'running' ? (
 									<Loader2 className="h-3 w-3 animate-spin text-primary" />
+								) : activity.status === 'failed' ? (
+									<X className="h-3 w-3 text-destructive" />
 								) : (
 									<Check className="h-3 w-3 text-emerald-400" />
 								)}

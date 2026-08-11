@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.8'
+export const APP_VERSION = '2.0.10'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,26 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.10',
+		releasedAt: '2026-08-11',
+		summary: 'Dev Studio wall-clock safety',
+		changes: [
+			'Long agent runs show a warning after 5 minutes.',
+			'Runs auto-stop after 15 minutes; staged changes are kept and Resume is available.',
+		],
+	},
+	{
+		version: '2.0.9',
+		releasedAt: '2026-08-11',
+		summary: 'Dev Studio resilience and safety',
+		changes: [
+			'Tiered tool step limits: 64 (2.5 Flash), 128 (3.6 Flash), 256 (3.1 Pro).',
+			'Task status badges on Diff — Ready, Drafting, or Incomplete with push guard.',
+			'Resume task button when a run is stopped or hits the step limit.',
+			'Optional auto-continue (up to 3 rounds) in Settings → App → Dev Studio.',
+		],
+	},
 	{
 		version: '2.0.8',
 		releasedAt: '2026-08-11',

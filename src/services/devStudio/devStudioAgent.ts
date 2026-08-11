@@ -16,6 +16,10 @@ import { geminiStreamGenerateContent } from '@/services/gemini/stream'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
 import type { DevStudioAgentPhase } from '@/types/devStudio'
 import { formatRepositorySlug, type DevStudioRepoRef } from '@/types/devStudio'
+import {
+	DEV_STUDIO_LIMIT_REACHED_MESSAGE,
+	type DevStudioAgentRunResult,
+} from '@/services/devStudio/devStudioAgentTypes'
 
 interface GeminiPart {
 	text?: string
@@ -80,6 +84,7 @@ function buildDevStudioSystemInstruction(
 		'When pushing, either write a concise commit_message and pull_request_title describing your staged edits, or omit them to auto-generate from the changed files and current time.',
 		'Prefer small, focused changes. When proposing code, stage the full updated file content.',
 		'For multi-file work: list or search first, read each file, then stage edits one file at a time.',
+		'When you believe the task is fully done and staged changes are ready for human review, end with a clear summary and the phrase "Task ready for review."',
 	].join('\n\n')
 }
 
@@ -130,7 +135,7 @@ export async function generateDevStudioChat(
 		onToolStart?: (toolName: string, args: Record<string, unknown>) => void
 		onToolComplete?: (toolName: string) => void
 	},
-): Promise<string> {
+): Promise<DevStudioAgentRunResult> {
 	const contents: GeminiContent[] = messages.map((message) => ({
 		role: message.role === 'assistant' ? 'model' : 'user',
 		parts: buildDevStudioMessageParts(message),
@@ -217,8 +222,14 @@ export async function generateDevStudioChat(
 			.join('')
 			.trim()
 
-		return text || 'Done.'
+		return {
+			status: 'completed',
+			text: text || 'Done.',
+		}
 	}
 
-	return 'I reached the tool iteration limit. Try a narrower request.'
+	return {
+		status: 'limit_reached',
+		text: DEV_STUDIO_LIMIT_REACHED_MESSAGE,
+	}
 }

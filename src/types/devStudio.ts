@@ -42,12 +42,23 @@ export interface DevStudioMergedPullRequest {
 
 export type DevStudioAgentPhase = 'thinking' | 'tool' | 'writing'
 
+export type DevStudioAgentTaskStatus =
+	| 'idle'
+	| 'running'
+	| 'completed'
+	| 'limit_reached'
+	| 'stopped'
+	| 'error'
+
+export type DevStudioAgentActivityStatus = 'running' | 'done' | 'failed'
+
 export interface DevStudioAgentActivity {
 	id: string
 	label: string
-	status: 'running' | 'done'
+	status: DevStudioAgentActivityStatus
 	startedAt: number
 	endedAt?: number
+	errorMessage?: string
 }
 
 export interface DevStudioStreamingState {
@@ -57,6 +68,7 @@ export interface DevStudioStreamingState {
 	phase: DevStudioAgentPhase
 	startedAt: number
 	activities: DevStudioAgentActivity[]
+	showLongRunWarning?: boolean
 }
 
 export interface DevStudioStagedChange {
