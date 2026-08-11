@@ -323,3 +323,193 @@ export async function fetchFileContent(
 	const content = atob(data.content.replace(/\n/g, ''))
 	return { content, sha: data.sha, rateLimit }
 }
+
+interface GitRefResponse {
+	object: { sha: string; type: string }
+}
+
+interface GitCommitResponse {
+	sha: string
+	tree: { sha: string }
+}
+
+interface GitBlobResponse {
+	sha: string
+}
+
+interface GitTreeResponseCreate {
+	sha: string
+}
+
+interface GitHubPullCreateResponse {
+	number: number
+	html_url: string
+}
+
+export interface PushStagedChangeInput {
+	path: string
+	status: 'added' | 'modified' | 'deleted'
+	content: string
+}
+
+function encodeRepoPath(repo: DevStudioRepoRef): string {
+	return `/repos/${repo.owner}/${repo.repo}`
+}
+
+export async function pushStagedChangesAndOpenPullRequest(
+	token: string,
+	repo: DevStudioRepoRef,
+	input: {
+		baseBranch: string
+		branchName: string
+		commitMessage: string
+		pullRequestTitle: string
+		pullRequestBody?: string
+		changes: PushStagedChangeInput[]
+	},
+): Promise<{
+	result: {
+		branchName: string
+		commitSha: string
+		pullRequestNumber: number
+		pullRequestUrl: string
+	}
+	rateLimit: GitHubRateLimit | null
+}> {
+	if (input.changes.length === 0) {
+		throw new GitHubApiError('No staged changes to push.', 400)
+	}
+
+	let rateLimit: GitHubRateLimit | null = null
+
+	const baseRef = await githubFetch<GitRefResponse>(
+		token,
+		`${encodeRepoPath(repo)}/git/ref/heads/${encodeURIComponent(input.baseBranch)}`,
+	)
+	rateLimit = baseRef.rateLimit ?? rateLimit
+	const baseCommitSha = baseRef.data.object.sha
+
+	const baseCommit = await githubFetch<GitCommitResponse>(
+		token,
+		`${encodeRepoPath(repo)}/git/commits/${baseCommitSha}`,
+	)
+	rateLimit = baseCommit.rateLimit ?? rateLimit
+	const baseTreeSha = baseCommit.data.tree.sha
+
+	try {
+		await githubFetch(
+			token,
+			`${encodeRepoPath(repo)}/git/refs`,
+			{
+				method: 'POST',
+				body: JSON.stringify({
+					ref: `refs/heads/${input.branchName}`,
+					sha: baseCommitSha,
+				}),
+			},
+		)
+	} catch (error) {
+		if (!(error instanceof GitHubApiError) || error.status !== 422) {
+			throw error
+		}
+	}
+
+	const treeEntries: Array<{
+		path: string
+		mode: '100644'
+		type: 'blob'
+		sha: string | null
+	}> = []
+
+	for (const change of input.changes) {
+		if (change.status === 'deleted') {
+			treeEntries.push({
+				path: change.path,
+				mode: '100644',
+				type: 'blob',
+				sha: null,
+			})
+			continue
+		}
+
+		const blob = await githubFetch<GitBlobResponse>(
+			token,
+			`${encodeRepoPath(repo)}/git/blobs`,
+			{
+				method: 'POST',
+				body: JSON.stringify({
+					content: change.content,
+					encoding: 'utf-8',
+				}),
+			},
+		)
+		rateLimit = blob.rateLimit ?? rateLimit
+		treeEntries.push({
+			path: change.path,
+			mode: '100644',
+			type: 'blob',
+			sha: blob.data.sha,
+		})
+	}
+
+	const tree = await githubFetch<GitTreeResponseCreate>(
+		token,
+		`${encodeRepoPath(repo)}/git/trees`,
+		{
+			method: 'POST',
+			body: JSON.stringify({
+				base_tree: baseTreeSha,
+				tree: treeEntries,
+			}),
+		},
+	)
+	rateLimit = tree.rateLimit ?? rateLimit
+
+	const commit = await githubFetch<GitCommitResponse>(
+		token,
+		`${encodeRepoPath(repo)}/git/commits`,
+		{
+			method: 'POST',
+			body: JSON.stringify({
+				message: input.commitMessage,
+				tree: tree.data.sha,
+				parents: [baseCommitSha],
+			}),
+		},
+	)
+	rateLimit = commit.rateLimit ?? rateLimit
+
+	await githubFetch(
+		token,
+		`${encodeRepoPath(repo)}/git/refs/heads/${encodeURIComponent(input.branchName)}`,
+		{
+			method: 'PATCH',
+			body: JSON.stringify({ sha: commit.data.sha, force: true }),
+		},
+	)
+
+	const pull = await githubFetch<GitHubPullCreateResponse>(
+		token,
+		`${encodeRepoPath(repo)}/pulls`,
+		{
+			method: 'POST',
+			body: JSON.stringify({
+				title: input.pullRequestTitle,
+				body: input.pullRequestBody ?? input.commitMessage,
+				head: input.branchName,
+				base: input.baseBranch,
+			}),
+		},
+	)
+	rateLimit = pull.rateLimit ?? rateLimit
+
+	return {
+		result: {
+			branchName: input.branchName,
+			commitSha: commit.data.sha,
+			pullRequestNumber: pull.data.number,
+			pullRequestUrl: pull.data.html_url,
+		},
+		rateLimit,
+	}
+}

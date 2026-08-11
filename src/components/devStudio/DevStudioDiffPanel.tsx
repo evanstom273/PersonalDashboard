@@ -1,41 +1,124 @@
-import { GitCommitHorizontal, Trash2 } from 'lucide-react'
+import { ExternalLink, GitCommitHorizontal, Loader2, Trash2 } from 'lucide-react'
+import { useCallback, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useDevStudio } from '@/providers/DevStudioProvider'
 import { cn } from '@/utils/cn'
 
 export function DevStudioDiffPanel() {
-	const { stagedChanges, discardStagedChange } = useDevStudio()
+	const {
+		stagedChanges,
+		discardStagedChange,
+		discardAllStagedChanges,
+		pushStagedChanges,
+		isPushing,
+		lastPushResult,
+	} = useDevStudio()
+	const [commitMessage, setCommitMessage] = useState('')
+	const [pullRequestTitle, setPullRequestTitle] = useState('')
+	const [pushError, setPushError] = useState<string | null>(null)
+
+	const handlePush = useCallback(async () => {
+		setPushError(null)
+		try {
+			await pushStagedChanges(commitMessage, pullRequestTitle)
+			setCommitMessage('')
+			setPullRequestTitle('')
+		} catch (caught) {
+			setPushError(
+				caught instanceof Error ? caught.message : 'Could not push changes.',
+			)
+		}
+	}, [commitMessage, pullRequestTitle, pushStagedChanges])
 
 	if (stagedChanges.length === 0) {
 		return (
 			<div className="flex h-full items-center justify-center px-6 py-10 text-center">
 				<div>
-					<p className="text-sm font-medium">No pushed changes</p>
+					<p className="text-sm font-medium">No staged changes</p>
 					<p className="mt-1 text-sm text-muted-foreground">
-						Agent edits will appear here for review before commit.
+						Edit files in the IDE or ask the agent to stage changes for review here.
 					</p>
+					{lastPushResult ? (
+						<div className="mt-4 rounded-xl border border-border/60 bg-background/30 px-4 py-3 text-left">
+							<p className="text-xs font-medium text-muted-foreground uppercase">
+								Last push
+							</p>
+							<p className="mt-1 text-sm">
+								Branch <span className="font-mono">{lastPushResult.branchName}</span>
+							</p>
+							<a
+								href={lastPushResult.pullRequestUrl}
+								target="_blank"
+								rel="noreferrer"
+								className="mt-2 inline-flex items-center gap-1 text-sm text-primary hover:underline"
+							>
+								PR #{lastPushResult.pullRequestNumber}
+								<ExternalLink className="h-3.5 w-3.5" />
+							</a>
+						</div>
+					) : null}
 				</div>
 			</div>
 		)
 	}
 
+	const canPush =
+		commitMessage.trim().length > 0 && pullRequestTitle.trim().length > 0
+
 	return (
 		<div className="flex h-full min-h-0 flex-col">
-			<div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
-				<div>
-					<p className="text-sm font-medium">Staged changes</p>
-					<p className="text-xs text-muted-foreground">
-						Review before pushing to GitHub
-					</p>
+			<div className="flex shrink-0 flex-col gap-3 border-b border-border/60 px-4 py-3">
+				<div className="flex items-center justify-between gap-3">
+					<div>
+						<p className="text-sm font-medium">Staged changes</p>
+						<p className="text-xs text-muted-foreground">
+							Review before pushing branch and PR
+						</p>
+					</div>
+					<div className="flex gap-2">
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onClick={discardAllStagedChanges}
+							disabled={isPushing}
+						>
+							Discard all
+						</Button>
+					</div>
 				</div>
-				<div className="flex gap-2">
-					<Button type="button" size="sm" variant="outline" disabled>
-						Discard all
+
+				<div className="grid gap-2">
+					<input
+						type="text"
+						value={commitMessage}
+						onChange={(event) => setCommitMessage(event.target.value)}
+						placeholder="Commit message"
+						className="rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-sm outline-none focus:border-primary/50"
+					/>
+					<input
+						type="text"
+						value={pullRequestTitle}
+						onChange={(event) => setPullRequestTitle(event.target.value)}
+						placeholder="Pull request title"
+						className="rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-sm outline-none focus:border-primary/50"
+					/>
+					<Button
+						type="button"
+						size="sm"
+						onClick={() => void handlePush()}
+						disabled={!canPush || isPushing}
+					>
+						{isPushing ? (
+							<Loader2 className="h-4 w-4 animate-spin" />
+						) : (
+							<GitCommitHorizontal className="h-4 w-4" />
+						)}
+						Push branch & open PR
 					</Button>
-					<Button type="button" size="sm" disabled>
-						<GitCommitHorizontal className="h-4 w-4" />
-						Commit
-					</Button>
+					{pushError ? (
+						<p className="text-xs text-destructive">{pushError}</p>
+					) : null}
 				</div>
 			</div>
 
@@ -49,7 +132,7 @@ export function DevStudioDiffPanel() {
 							<div className="min-w-0">
 								<p className="truncate font-mono text-xs">{change.path}</p>
 								<p className="mt-0.5 text-[11px] text-muted-foreground capitalize">
-									{change.status}
+									{change.status} · {change.source}
 								</p>
 							</div>
 							<Button
@@ -58,6 +141,7 @@ export function DevStudioDiffPanel() {
 								size="icon"
 								className="shrink-0 text-muted-foreground hover:text-destructive"
 								onClick={() => discardStagedChange(change.id)}
+								disabled={isPushing}
 								aria-label={`Discard ${change.path}`}
 							>
 								<Trash2 className="h-4 w-4" />
@@ -94,7 +178,7 @@ function DiffBlock({
 				{label}
 			</p>
 			<pre className="mt-2 overflow-x-auto font-mono text-xs leading-relaxed whitespace-pre-wrap">
-				{content}
+				{content || '(empty)'}
 			</pre>
 		</div>
 	)

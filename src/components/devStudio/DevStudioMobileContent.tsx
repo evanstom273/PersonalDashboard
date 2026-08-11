@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useDevStudio } from '@/providers/DevStudioProvider'
-import { DevStudioChangesPanel } from '@/components/devStudio/DevStudioChangesPanel'
 import { DevStudioChatPane } from '@/components/devStudio/DevStudioChatPane'
 import { DevStudioDiffPanel } from '@/components/devStudio/DevStudioDiffPanel'
+import { DevStudioEditorPanel } from '@/components/devStudio/DevStudioEditorPanel'
 import { DevStudioFilesPanel } from '@/components/devStudio/DevStudioFilesPanel'
 import { DevStudioGitPanel } from '@/components/devStudio/DevStudioGitPanel'
 import { DevStudioMobileTabs } from '@/components/devStudio/DevStudioMobileTabs'
@@ -16,14 +16,10 @@ export function DevStudioMobileContent() {
 			<DevStudioMobileTabs />
 			<div className="min-h-0 flex-1">
 				{mobileTab === 'chat' ? <DevStudioChatPane /> : null}
+				{mobileTab === 'editor' ? <DevStudioEditorPanel /> : null}
 				{mobileTab === 'diff' ? <DevStudioDiffPanel /> : null}
 				{mobileTab === 'files' ? <DevStudioFilesPanel /> : null}
 				{mobileTab === 'git' ? <DevStudioGitPanel /> : null}
-				{mobileTab === 'git' ? (
-					<div className="hidden">
-						<DevStudioChangesPanel />
-					</div>
-				) : null}
 			</div>
 		</div>
 	)

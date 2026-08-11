@@ -8,9 +8,11 @@ export function DevStudioFilesPanel() {
 	const {
 		workspace,
 		connectionStatus,
-		selectedFilePath,
-		setSelectedFilePath,
+		openFile,
+		openWorkspaceFile,
 	} = useDevStudio()
+
+	const selectedFilePath = openFile?.path ?? null
 
 	if (connectionStatus === 'connecting') {
 		return (
@@ -42,16 +44,13 @@ export function DevStudioFilesPanel() {
 				<FileTree
 					nodes={workspace.tree}
 					selectedFilePath={selectedFilePath}
-					onSelectFile={setSelectedFilePath}
+					onSelectFile={(path) => void openWorkspaceFile(path)}
 				/>
 			</div>
 			{selectedFilePath ? (
 				<div className="shrink-0 border-t border-border/60 px-4 py-3">
-					<p className="text-xs font-medium text-muted-foreground">Selected</p>
+					<p className="text-xs font-medium text-muted-foreground">Open in editor</p>
 					<p className="mt-1 truncate font-mono text-xs">{selectedFilePath}</p>
-					<p className="mt-2 text-xs text-muted-foreground">
-						File preview and agent read tools come next.
-					</p>
 				</div>
 			) : null}
 		</div>

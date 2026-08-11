@@ -1,6 +1,6 @@
-export type DevStudioContextTab = 'git' | 'changes' | 'files'
+export type DevStudioContextTab = 'git' | 'changes' | 'files' | 'editor'
 
-export type DevStudioMobileTab = 'chat' | 'diff' | 'files' | 'git'
+export type DevStudioMobileTab = 'chat' | 'diff' | 'files' | 'editor' | 'git'
 
 export type DevStudioConnectionStatus =
 	| 'disconnected'
@@ -38,6 +38,25 @@ export interface DevStudioStagedChange {
 	status: 'added' | 'modified' | 'deleted'
 	oldContent: string
 	newContent: string
+	source: 'user' | 'agent'
+	baseSha?: string
+}
+
+export interface DevStudioOpenFile {
+	path: string
+	content: string
+	originalContent: string
+	sha?: string
+	isDirty: boolean
+	isLoading: boolean
+	error: string | null
+}
+
+export interface DevStudioPushResult {
+	branchName: string
+	commitSha: string
+	pullRequestNumber: number
+	pullRequestUrl: string
 }
 
 export interface DevStudioWorkspaceSnapshot {

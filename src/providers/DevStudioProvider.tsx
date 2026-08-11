@@ -4,14 +4,22 @@ import {
 	useContext,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 	type ReactNode,
 } from 'react'
 import { usePreferencesContext } from '@/providers/ChatProvider'
+import type { DevStudioToolContext } from '@/services/devStudio/devStudioWorkspaceTools'
 import {
+	loadPersistedWorkspace,
+	savePersistedWorkspace,
+} from '@/services/devStudio/devStudioWorkspaceStore'
+import {
+	fetchFileContent,
 	fetchRepositoryTree,
 	listAccessibleRepositories,
 	listOpenPullRequests,
+	pushStagedChangesAndOpenPullRequest,
 	type GitHubRateLimit,
 	type GitHubRepositorySummary,
 	GitHubApiError,
@@ -23,10 +31,13 @@ import {
 	type DevStudioConnectionStatus,
 	type DevStudioContextTab,
 	type DevStudioMobileTab,
+	type DevStudioOpenFile,
+	type DevStudioPushResult,
 	type DevStudioRepoRef,
 	type DevStudioStagedChange,
 	type DevStudioWorkspaceSnapshot,
 } from '@/types/devStudio'
+import { flattenFilePaths } from '@/utils/devStudioFileTree'
 import {
 	mergeRepositoryOptions,
 	sleep,
@@ -40,40 +51,50 @@ interface DevStudioContextValue {
 	connectionError: string | null
 	rateLimit: GitHubRateLimit | null
 	workspace: DevStudioWorkspaceSnapshot | null
+	filePaths: string[]
 	repositoryOptions: GitHubRepositorySummary[]
 	isLoadingRepositories: boolean
 	repositoryListError: string | null
 	contextTab: DevStudioContextTab
 	mobileTab: DevStudioMobileTab
-	selectedFilePath: string | null
+	openFile: DevStudioOpenFile | null
 	stagedChanges: DevStudioStagedChange[]
 	messages: StoredMessage[]
 	isComposerSending: boolean
+	isPushing: boolean
+	lastPushResult: DevStudioPushResult | null
+	streamingAssistant: string
 	setContextTab: (tab: DevStudioContextTab) => void
 	setMobileTab: (tab: DevStudioMobileTab) => void
-	setSelectedFilePath: (path: string | null) => void
 	connectWorkspace: () => Promise<void>
 	refreshWorkspace: () => Promise<void>
 	switchRepository: (fullName: string, defaultBranch?: string) => Promise<void>
 	loadRepositories: (options?: { retries?: number }) => Promise<void>
 	registerRepository: (repository: GitHubRepositorySummary) => void
-	appendMessage: (message: StoredMessage) => void
-	setComposerSending: (value: boolean) => void
+	openWorkspaceFile: (path: string) => Promise<void>
+	updateOpenFileContent: (content: string) => void
+	stageOpenFile: () => Promise<void>
+	closeOpenFile: () => void
+	stageChange: (change: Omit<DevStudioStagedChange, 'id'>) => Promise<void>
 	discardStagedChange: (id: string) => void
+	discardAllStagedChanges: () => void
+	pushStagedChanges: (commitMessage: string, pullRequestTitle: string) => Promise<void>
+	appendMessage: (message: StoredMessage) => void
+	updateMessage: (messageId: string, content: string) => void
+	setComposerSending: (value: boolean) => void
+	setStreamingAssistant: (content: string) => void
+	buildToolContext: () => DevStudioToolContext | null
 }
 
 const DevStudioContext = createContext<DevStudioContextValue | null>(null)
 
-const SCAFFOLD_STAGED_CHANGES: DevStudioStagedChange[] = [
-	{
-		id: 'scaffold-1',
-		path: 'src/services/example/feature.ts',
-		status: 'modified',
-		oldContent: 'export function greet(name: string) {\n\treturn `Hello ${name}`\n}\n',
-		newContent:
-			'export function greet(name: string) {\n\treturn `Hello, ${name}!`\n}\n',
-	},
-]
+const WELCOME_MESSAGE: StoredMessage = {
+	id: 'dev-studio-welcome',
+	role: 'assistant',
+	content:
+		'Dev Studio is connected. Open a file to edit in the IDE, ask me to inspect or change code, then review staged edits in Diff before pushing a branch and PR.',
+	createdAt: Date.now(),
+}
 
 function buildRepoRef(
 	repository: string,
@@ -88,6 +109,11 @@ function buildRepoRef(
 		...parsed,
 		branch: branch.trim() || 'main',
 	}
+}
+
+function createBranchName(): string {
+	const stamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)
+	return `dev-studio/${stamp}`
 }
 
 export function DevStudioProvider({ children }: { children: ReactNode }) {
@@ -111,19 +137,30 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	)
 	const [contextTab, setContextTab] = useState<DevStudioContextTab>('files')
 	const [mobileTab, setMobileTab] = useState<DevStudioMobileTab>('chat')
-	const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
-	const [stagedChanges, setStagedChanges] =
-		useState<DevStudioStagedChange[]>(SCAFFOLD_STAGED_CHANGES)
-	const [messages, setMessages] = useState<StoredMessage[]>([
-		{
-			id: 'dev-studio-welcome',
-			role: 'assistant',
-			content:
-				'Dev Studio is ready. Connect a GitHub repo in Settings, then ask me to inspect files or propose changes. Staged edits appear in Diff before anything is pushed.',
-			createdAt: Date.now(),
-		},
-	])
+	const [openFile, setOpenFile] = useState<DevStudioOpenFile | null>(null)
+	const [stagedChanges, setStagedChanges] = useState<DevStudioStagedChange[]>([])
+	const [fileShaByPath, setFileShaByPath] = useState<Record<string, string>>({})
+	const [messages, setMessages] = useState<StoredMessage[]>([WELCOME_MESSAGE])
 	const [isComposerSending, setComposerSending] = useState(false)
+	const [isPushing, setIsPushing] = useState(false)
+	const [lastPushResult, setLastPushResult] = useState<DevStudioPushResult | null>(
+		null,
+	)
+	const [streamingAssistant, setStreamingAssistant] = useState('')
+
+	const fileShaRef = useRef(fileShaByPath)
+	const stagedRef = useRef(stagedChanges)
+	const messagesRef = useRef(messages)
+
+	useEffect(() => {
+		fileShaRef.current = fileShaByPath
+	}, [fileShaByPath])
+	useEffect(() => {
+		stagedRef.current = stagedChanges
+	}, [stagedChanges])
+	useEffect(() => {
+		messagesRef.current = messages
+	}, [messages])
 
 	const repoRef = useMemo(
 		() =>
@@ -140,6 +177,11 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	const repositorySlug = repoRef ? formatRepositorySlug(repoRef) : ''
 	const branch = repoRef?.branch ?? 'main'
 
+	const filePaths = useMemo(
+		() => (workspace ? flattenFilePaths(workspace.tree) : []),
+		[workspace],
+	)
+
 	const repositoryOptions = useMemo(
 		() =>
 			mergeRepositoryOptions(
@@ -149,6 +191,22 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				branch,
 			),
 		[branch, pinnedRepositories, remoteRepositories, repositorySlug],
+	)
+
+	const persistWorkspaceState = useCallback(
+		async (repo: DevStudioRepoRef) => {
+			await savePersistedWorkspace(repo, {
+				stagedChanges: stagedRef.current,
+				fileShaByPath: fileShaRef.current,
+				messages: messagesRef.current.map((message) => ({
+					id: message.id,
+					role: message.role,
+					content: message.content,
+					createdAt: message.createdAt,
+				})),
+			})
+		},
+		[],
 	)
 
 	const loadRepositories = useCallback(
@@ -211,6 +269,16 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 		}
 	}, [loadRepositories, preferences.githubPat])
 
+	useEffect(() => {
+		if (!repoRef) {
+			return
+		}
+		const timer = window.setTimeout(() => {
+			void persistWorkspaceState(repoRef)
+		}, 400)
+		return () => window.clearTimeout(timer)
+	}, [fileShaByPath, messages, persistWorkspaceState, repoRef, stagedChanges])
+
 	const hydrateWorkspace = useCallback(
 		async (repoOverride?: DevStudioRepoRef) => {
 			const activeRepo = repoOverride ?? repoRef
@@ -223,7 +291,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 
 			setConnectionStatus('connecting')
 			setConnectionError(null)
-			setSelectedFilePath(null)
+			setOpenFile(null)
 
 			try {
 				const token = preferences.githubPat.trim()
@@ -246,6 +314,24 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 
 				const pullResult = await listOpenPullRequests(token, activeRepo)
 				latestRateLimit = pullResult.rateLimit ?? latestRateLimit
+
+				const persisted = await loadPersistedWorkspace(activeRepo)
+				if (persisted) {
+					setStagedChanges(persisted.stagedChanges)
+					setFileShaByPath(persisted.fileShaByPath)
+					if (persisted.messages.length > 0) {
+						setMessages(
+							persisted.messages.map((message) => ({
+								...message,
+								role: message.role,
+							})),
+						)
+					}
+				} else {
+					setStagedChanges([])
+					setFileShaByPath({})
+					setMessages([WELCOME_MESSAGE])
+				}
 
 				setRateLimit(latestRateLimit)
 				setWorkspace({
@@ -304,18 +390,220 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				devStudioRepository: fullName,
 				devStudioBranch: branchName,
 			})
+			setLastPushResult(null)
 			await hydrateWorkspace(nextRepo)
 		},
 		[hydrateWorkspace, preferences, registerRepository, savePreferences],
+	)
+
+	const stageChange = useCallback(
+		async (change: Omit<DevStudioStagedChange, 'id'>) => {
+			setStagedChanges((current) => {
+				const existingIndex = current.findIndex(
+					(item) => item.path === change.path,
+				)
+				const nextChange: DevStudioStagedChange = {
+					...change,
+					id:
+						existingIndex >= 0
+							? current[existingIndex].id
+							: crypto.randomUUID(),
+				}
+
+				if (change.oldContent === change.newContent && change.status !== 'deleted') {
+					return current.filter((item) => item.path !== change.path)
+				}
+
+				if (existingIndex >= 0) {
+					const next = [...current]
+					next[existingIndex] = nextChange
+					return next
+				}
+
+				return [...current, nextChange]
+			})
+			setMobileTab('diff')
+			setContextTab('changes')
+		},
+		[],
+	)
+
+	const openWorkspaceFile = useCallback(
+		async (path: string) => {
+			if (!repoRef || !preferences.githubPat.trim()) {
+				return
+			}
+
+			setOpenFile({
+				path,
+				content: '',
+				originalContent: '',
+				isDirty: false,
+				isLoading: true,
+				error: null,
+			})
+			setContextTab('editor')
+			setMobileTab('editor')
+
+			try {
+				const result = await fetchFileContent(
+					preferences.githubPat.trim(),
+					repoRef,
+					path,
+				)
+				setFileShaByPath((current) => ({ ...current, [path]: result.sha }))
+				setRateLimit((current) => result.rateLimit ?? current)
+				setOpenFile({
+					path,
+					content: result.content,
+					originalContent: result.content,
+					sha: result.sha,
+					isDirty: false,
+					isLoading: false,
+					error: null,
+				})
+			} catch (caught) {
+				setOpenFile({
+					path,
+					content: '',
+					originalContent: '',
+					isDirty: false,
+					isLoading: false,
+					error:
+						caught instanceof Error ? caught.message : 'Could not open file.',
+				})
+			}
+		},
+		[preferences.githubPat, repoRef],
+	)
+
+	const updateOpenFileContent = useCallback((content: string) => {
+		setOpenFile((current) => {
+			if (!current) {
+				return current
+			}
+			return {
+				...current,
+				content,
+				isDirty: content !== current.originalContent,
+			}
+		})
+	}, [])
+
+	const stageOpenFile = useCallback(async () => {
+		if (!openFile || openFile.isLoading) {
+			return
+		}
+
+		const exists = filePaths.includes(openFile.path)
+		await stageChange({
+			path: openFile.path,
+			status: exists ? 'modified' : 'added',
+			oldContent: openFile.originalContent,
+			newContent: openFile.content,
+			source: 'user',
+			baseSha: openFile.sha ?? fileShaRef.current[openFile.path],
+		})
+
+		setOpenFile((current) =>
+			current
+				? {
+						...current,
+						originalContent: current.content,
+						isDirty: false,
+					}
+				: current,
+		)
+	}, [filePaths, openFile, stageChange])
+
+	const closeOpenFile = useCallback(() => {
+		setOpenFile(null)
+	}, [])
+
+	const discardStagedChange = useCallback((id: string) => {
+		setStagedChanges((current) => current.filter((change) => change.id !== id))
+	}, [])
+
+	const discardAllStagedChanges = useCallback(() => {
+		setStagedChanges([])
+	}, [])
+
+	const pushStagedChanges = useCallback(
+		async (commitMessage: string, pullRequestTitle: string) => {
+			if (!repoRef || !preferences.githubPat.trim()) {
+				throw new Error('Connect a repository first.')
+			}
+			if (stagedRef.current.length === 0) {
+				throw new Error('No staged changes to push.')
+			}
+
+			setIsPushing(true)
+			try {
+				const branchName = createBranchName()
+				const pushResult = await pushStagedChangesAndOpenPullRequest(
+					preferences.githubPat.trim(),
+					repoRef,
+					{
+						baseBranch: repoRef.branch,
+						branchName,
+						commitMessage: commitMessage.trim(),
+						pullRequestTitle: pullRequestTitle.trim(),
+						pullRequestBody: commitMessage.trim(),
+						changes: stagedRef.current.map((change) => ({
+							path: change.path,
+							status: change.status,
+							content: change.newContent,
+						})),
+					},
+				)
+
+				setRateLimit((current) => pushResult.rateLimit ?? current)
+				setLastPushResult(pushResult.result)
+				setStagedChanges([])
+				setOpenFile(null)
+				await hydrateWorkspace()
+				setContextTab('git')
+				setMobileTab('git')
+			} finally {
+				setIsPushing(false)
+			}
+		},
+		[hydrateWorkspace, preferences.githubPat, repoRef],
 	)
 
 	const appendMessage = useCallback((message: StoredMessage) => {
 		setMessages((current) => [...current, message])
 	}, [])
 
-	const discardStagedChange = useCallback((id: string) => {
-		setStagedChanges((current) => current.filter((change) => change.id !== id))
+	const updateMessage = useCallback((messageId: string, content: string) => {
+		setMessages((current) =>
+			current.map((message) =>
+				message.id === messageId ? { ...message, content } : message,
+			),
+		)
 	}, [])
+
+	const buildToolContext = useCallback((): DevStudioToolContext | null => {
+		if (!repoRef || !preferences.githubPat.trim()) {
+			return null
+		}
+
+		return {
+			token: preferences.githubPat.trim(),
+			repo: repoRef,
+			filePaths,
+			stageChange,
+			getCachedSha: (path) => fileShaRef.current[path],
+			setCachedSha: (path, sha) => {
+				setFileShaByPath((current) => ({ ...current, [path]: sha }))
+			},
+			onRateLimit: (next) => {
+				if (next) {
+					setRateLimit(next)
+				}
+			},
+		}
+	}, [filePaths, preferences.githubPat, repoRef, stageChange])
 
 	const value = useMemo(
 		(): DevStudioContextValue => ({
@@ -326,50 +614,76 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			connectionError,
 			rateLimit,
 			workspace,
+			filePaths,
 			repositoryOptions,
 			isLoadingRepositories,
 			repositoryListError,
 			contextTab,
 			mobileTab,
-			selectedFilePath,
+			openFile,
 			stagedChanges,
 			messages,
 			isComposerSending,
+			isPushing,
+			lastPushResult,
+			streamingAssistant,
 			setContextTab,
 			setMobileTab,
-			setSelectedFilePath,
 			connectWorkspace,
 			refreshWorkspace,
 			switchRepository,
 			loadRepositories,
 			registerRepository,
-			appendMessage,
-			setComposerSending,
+			openWorkspaceFile,
+			updateOpenFileContent,
+			stageOpenFile,
+			closeOpenFile,
+			stageChange,
 			discardStagedChange,
+			discardAllStagedChanges,
+			pushStagedChanges,
+			appendMessage,
+			updateMessage,
+			setComposerSending,
+			setStreamingAssistant,
+			buildToolContext,
 		}),
 		[
 			appendMessage,
 			branch,
+			buildToolContext,
+			closeOpenFile,
 			connectWorkspace,
 			connectionError,
 			connectionStatus,
 			contextTab,
+			discardAllStagedChanges,
 			discardStagedChange,
+			filePaths,
 			isComposerSending,
 			isConfigured,
 			isLoadingRepositories,
+			isPushing,
+			lastPushResult,
 			loadRepositories,
 			messages,
 			mobileTab,
+			openFile,
+			openWorkspaceFile,
+			pushStagedChanges,
 			rateLimit,
 			refreshWorkspace,
 			registerRepository,
 			repositoryListError,
 			repositoryOptions,
 			repositorySlug,
-			selectedFilePath,
+			stageChange,
+			stageOpenFile,
 			stagedChanges,
+			streamingAssistant,
 			switchRepository,
+			updateMessage,
+			updateOpenFileContent,
 			workspace,
 		],
 	)

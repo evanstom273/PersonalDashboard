@@ -1,22 +1,72 @@
 import { ArrowUp, Loader2 } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { generateDevStudioChat } from '@/services/devStudio/devStudioAgent'
+import { getGenerationModelPreferences } from '@/services/gemini/modelPreferences'
 import { usePreferencesContext } from '@/providers/ChatProvider'
 import { useDevStudio } from '@/providers/DevStudioProvider'
+import { parseRepositorySlug } from '@/types/devStudio'
 
 export function DevStudioComposer() {
 	const { preferences } = usePreferencesContext()
 	const {
 		appendMessage,
+		updateMessage,
 		isComposerSending,
 		setComposerSending,
 		isConfigured,
+		messages,
+		buildToolContext,
+		setStreamingAssistant,
+		repositorySlug,
+		branch,
 	} = useDevStudio()
 	const [draft, setDraft] = useState('')
+	const streamingRef = useRef('')
+	const abortRef = useRef<AbortController | null>(null)
 
 	const handleSubmit = useCallback(async () => {
 		const trimmed = draft.trim()
 		if (!trimmed || isComposerSending) {
+			return
+		}
+
+		const apiKey = preferences.geminiApiKey.trim()
+		if (!apiKey) {
+			appendMessage({
+				id: crypto.randomUUID(),
+				role: 'assistant',
+				content: 'Add your Gemini API key in Settings before chatting.',
+				createdAt: Date.now(),
+			})
+			return
+		}
+
+		if (!isConfigured) {
+			appendMessage({
+				id: crypto.randomUUID(),
+				role: 'user',
+				content: trimmed,
+				createdAt: Date.now(),
+			})
+			appendMessage({
+				id: crypto.randomUUID(),
+				role: 'assistant',
+				content: 'Connect GitHub in Settings first, then I can work against your repository workspace.',
+				createdAt: Date.now(),
+			})
+			setDraft('')
+			return
+		}
+
+		const repo = parseRepositorySlug(repositorySlug)
+		if (!repo) {
+			return
+		}
+		repo.branch = branch
+
+		const toolContext = buildToolContext()
+		if (!toolContext) {
 			return
 		}
 
@@ -27,27 +77,75 @@ export function DevStudioComposer() {
 			createdAt: Date.now(),
 		}
 
+		const nextMessages = [...messages, userMessage]
 		appendMessage(userMessage)
 		setDraft('')
 		setComposerSending(true)
+		setStreamingAssistant('')
+		streamingRef.current = ''
 
-		window.setTimeout(() => {
-			appendMessage({
-				id: crypto.randomUUID(),
-				role: 'assistant',
-				content: isConfigured
-					? 'Scaffold reply: agent tools and workspace reads are not wired yet. Your message was captured in the Dev Studio session.'
-					: 'Connect GitHub in Settings first, then I can work against your repository workspace.',
-				createdAt: Date.now(),
-			})
+		const assistantId = crypto.randomUUID()
+		appendMessage({
+			id: assistantId,
+			role: 'assistant',
+			content: '',
+			createdAt: Date.now(),
+		})
+
+		const abortController = new AbortController()
+		abortRef.current = abortController
+
+		try {
+			const modelId = getGenerationModelPreferences(preferences).chatModelId
+			const reply = await generateDevStudioChat(
+				apiKey,
+				modelId,
+				nextMessages,
+				preferences,
+				repo,
+				toolContext,
+				{
+					signal: abortController.signal,
+					onTextDelta: (delta) => {
+						streamingRef.current += delta
+						setStreamingAssistant(streamingRef.current)
+						updateMessage(assistantId, streamingRef.current)
+					},
+					onToolActivity: () => {
+						setStreamingAssistant('Using workspace tools…')
+					},
+				},
+			)
+
+			updateMessage(assistantId, reply)
+			setStreamingAssistant('')
+		} catch (caught) {
+			if (caught instanceof DOMException && caught.name === 'AbortError') {
+				updateMessage(assistantId, 'Generation stopped.')
+			} else {
+				updateMessage(
+					assistantId,
+					caught instanceof Error ? caught.message : 'Generation failed.',
+				)
+			}
+			setStreamingAssistant('')
+		} finally {
 			setComposerSending(false)
-		}, 500)
+			abortRef.current = null
+		}
 	}, [
 		appendMessage,
+		branch,
+		buildToolContext,
 		draft,
 		isComposerSending,
 		isConfigured,
+		messages,
+		preferences,
+		repositorySlug,
 		setComposerSending,
+		setStreamingAssistant,
+		updateMessage,
 	])
 
 	return (
