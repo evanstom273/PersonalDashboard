@@ -1,6 +1,6 @@
 import { ArrowLeft, Code2, LayoutTemplate, Lock, Play } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DocumentEditor } from '@/components/documents/DocumentEditor'
 import { DocumentHtmlRunnerDialog } from '@/components/documents/DocumentHtmlRunnerDialog'
 import { Button } from '@/components/ui/button'
@@ -72,7 +72,7 @@ export function DocumentEditorPage() {
 					latestRef.current.content,
 					meta.contentFormat,
 				),
-				description: `From “${latestRef.current.title.trim() || 'Untitled document'}”`,
+				description: `From "${latestRef.current.title.trim() || 'Untitled document'}"`,
 			})
 			setTemplateSaved(true)
 			setTemplateError(null)
@@ -216,7 +216,7 @@ export function DocumentEditorPage() {
 	if (isLoading || !document) {
 		return (
 			<div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-				Loading document…
+				Loading document...
 			</div>
 		)
 	}
