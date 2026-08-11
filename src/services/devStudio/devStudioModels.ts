@@ -13,6 +13,7 @@ export interface DevStudioModelDefinition {
 	name: string
 	analogy: string
 	description: string
+	maxIterations: number
 }
 
 export const DEV_STUDIO_MODELS: DevStudioModelDefinition[] = [
@@ -22,6 +23,7 @@ export const DEV_STUDIO_MODELS: DevStudioModelDefinition[] = [
 		analogy: 'Haiku',
 		description:
 			'Fastest and cheapest. Best for quick fixes, typos, and single-file tweaks.',
+		maxIterations: 32,
 	},
 	{
 		id: 'gemini-3.6-flash',
@@ -29,6 +31,7 @@ export const DEV_STUDIO_MODELS: DevStudioModelDefinition[] = [
 		analogy: 'Sonnet',
 		description:
 			'Default balance of speed and quality. Great for everyday coding and small features.',
+		maxIterations: 64,
 	},
 	{
 		id: 'gemini-3.1-pro-preview',
@@ -36,6 +39,7 @@ export const DEV_STUDIO_MODELS: DevStudioModelDefinition[] = [
 		analogy: 'Opus',
 		description:
 			'Deepest reasoning. Slower but better for multi-file refactors and tricky bugs.',
+		maxIterations: 96,
 	},
 ]
 
@@ -57,4 +61,13 @@ export function resolveDevStudioModelId(
 		return preferredId as DevStudioModelId
 	}
 	return DEFAULT_DEV_STUDIO_MODEL_ID
+}
+
+export function getMaxIterationsForModel(modelId: string): number {
+	if (modelId.startsWith('gemini-2.5')) {
+		return 32
+	}
+	const resolvedId = resolveDevStudioModelId(modelId)
+	const model = getDevStudioModelById(resolvedId)
+	return model?.maxIterations ?? 64
 }
