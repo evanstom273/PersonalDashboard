@@ -1,6 +1,8 @@
 import type { GenerationIntent } from '@/services/gemini/constants'
+import { ChatVoiceSession } from '@/components/chat/ChatVoiceSession'
 import {
 	useChatGenerationContext,
+	useChatHeaderSlot,
 	useMainConversationContext,
 	usePreferencesContext,
 	useTextToSpeechContext,
@@ -41,6 +43,7 @@ export function ChatPage() {
 		stop: stopSpeech,
 		clearError: clearSpeechError,
 	} = useTextToSpeechContext()
+	const { slot: voiceHeaderSlot } = useChatHeaderSlot()
 
 	const [webSearchEnabled, setWebSearchEnabled] = useState(false)
 	const [forcedNextIntent, setForcedNextIntent] =
@@ -148,12 +151,20 @@ export function ChatPage() {
 		[clearSpeechError, speakAssistantMessage],
 	)
 
+	const handleVoiceSubmit = useCallback(
+		async (payload: Parameters<typeof submitMessage>[0]) => {
+			await submitMessage(payload)
+		},
+		[submitMessage],
+	)
+
 	return (
 		<div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
 			<header className="hidden shrink-0 flex-wrap items-center justify-between gap-3 app-header-glass px-4 py-3 md:flex md:px-6">
 				<div>
 					<div className="flex items-center gap-2">
 						<h1 className="text-lg font-semibold">{aiName}</h1>
+						{voiceHeaderSlot}
 						<ChatConversationActions
 							conversation={conversation}
 							isGenerating={isGenerating}
@@ -223,6 +234,20 @@ export function ChatPage() {
 				onSpeakMessage={handleSpeakMessage}
 				onStopSpeech={stopSpeech}
 				speechDisabled={!hasApiKey || isGenerating}
+			/>
+
+			<ChatVoiceSession
+				preferences={preferences}
+				conversationMessages={conversation?.messages ?? []}
+				webSearchEnabled={webSearchEnabled}
+				isGenerating={isGenerating}
+				hasApiKey={hasApiKey}
+				aiName={aiName}
+				speechStatus={speechStatus}
+				onSubmit={handleVoiceSubmit}
+				onStopSpeech={stopSpeech}
+				onSpeakAssistantMessage={speakAssistantMessage}
+				onAppendMessages={appendMessages}
 			/>
 
 			<ChatInput

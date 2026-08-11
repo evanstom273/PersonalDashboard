@@ -13,6 +13,7 @@ import {
 	useCallback,
 	useContext,
 	useRef,
+	useState,
 	type ReactNode,
 } from 'react'
 import { useLocation } from 'react-router-dom'
@@ -36,6 +37,15 @@ interface VoiceSessionContextValue {
 
 const VoiceSessionContext = createContext<VoiceSessionContextValue | null>(null)
 
+interface ChatHeaderSlotContextValue {
+	slot: ReactNode | null
+	setSlot: (slot: ReactNode | null) => void
+}
+
+const ChatHeaderSlotContext = createContext<ChatHeaderSlotContextValue | null>(
+	null,
+)
+
 export function ChatProvider({ children }: { children: ReactNode }) {
 	const preferencesState = usePreferences()
 	const conversationState = useMainConversation(
@@ -46,6 +56,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		preferences: preferencesState.preferences,
 	})
 	const conversationModeActiveRef = useRef(false)
+	const [chatHeaderSlot, setChatHeaderSlot] = useState<ReactNode | null>(null)
+
+	const setChatHeaderSlotStable = useCallback((slot: ReactNode | null) => {
+		setChatHeaderSlot(slot)
+	}, [])
 
 	const handleAssistantReply = useCallback<
 		NonNullable<Parameters<typeof useChatGeneration>[0]['onAssistantReply']>
@@ -111,9 +126,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 			<MainConversationContext.Provider value={conversationState}>
 				<TextToSpeechContext.Provider value={textToSpeechState}>
 					<VoiceSessionContext.Provider value={{ conversationModeActiveRef }}>
-						<ChatGenerationContext.Provider value={generationState}>
-							{children}
-						</ChatGenerationContext.Provider>
+						<ChatHeaderSlotContext.Provider
+							value={{ slot: chatHeaderSlot, setSlot: setChatHeaderSlotStable }}
+						>
+							<ChatGenerationContext.Provider value={generationState}>
+								{children}
+							</ChatGenerationContext.Provider>
+						</ChatHeaderSlotContext.Provider>
 					</VoiceSessionContext.Provider>
 				</TextToSpeechContext.Provider>
 			</MainConversationContext.Provider>
@@ -165,6 +184,14 @@ export function useVoiceSessionContext(): VoiceSessionContextValue {
 		return {
 			conversationModeActiveRef: { current: false },
 		}
+	}
+	return context
+}
+
+export function useChatHeaderSlot(): ChatHeaderSlotContextValue {
+	const context = useContext(ChatHeaderSlotContext)
+	if (!context) {
+		throw new Error('useChatHeaderSlot must be used within ChatProvider')
 	}
 	return context
 }
