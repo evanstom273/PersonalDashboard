@@ -16,6 +16,7 @@ import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ChatMobileToolbar } from '@/components/chat/ChatMobileToolbar'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { ChatMessages } from '@/components/chat/ChatMessages'
@@ -111,6 +112,18 @@ export function ChatPage() {
 			])
 		},
 	})
+
+	const endConversationRef = useRef(conversationMode.endConversation)
+	const endLiveSessionRef = useRef(liveMode.endSession)
+	endConversationRef.current = conversationMode.endConversation
+	endLiveSessionRef.current = liveMode.endSession
+
+	useEffect(() => {
+		return () => {
+			void endConversationRef.current()
+			void endLiveSessionRef.current()
+		}
+	}, [])
 
 	useEffect(() => {
 		conversationModeActiveRef.current = conversationMode.isActive
@@ -252,8 +265,20 @@ export function ChatPage() {
 	)
 
 	return (
-		<div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-			<header className="flex shrink-0 items-center gap-2 app-header-glass px-4 py-2.5 md:px-6">
+		<div className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+			<ChatMobileToolbar
+				hasApiKey={hasApiKey}
+				isConversationActive={conversationMode.isActive}
+				isLiveActive={liveMode.isActive}
+				isGenerating={isGenerating}
+				conversation={conversation}
+				onStartConversation={() => void conversationMode.startConversation()}
+				onStartLive={() => void liveMode.startSession()}
+				onClear={handleClearChat}
+				onImport={handleImportChat}
+			/>
+
+			<header className="hidden shrink-0 items-center gap-2 app-header-glass px-4 py-2.5 md:flex md:px-6">
 				<h1 className="min-w-0 flex-1 truncate text-base font-semibold md:text-lg">
 					{aiName}
 				</h1>

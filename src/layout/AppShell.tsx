@@ -1,17 +1,15 @@
 import { Loader2, X } from 'lucide-react'
 import { useCallback } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
+import { useMobileNavLayout } from '@/hooks/useMobileNavLayout'
 import { useAppSwipeNavigation } from '@/hooks/useAppSwipeNavigation'
 import { useSwipePageTransition } from '@/hooks/useSwipePageTransition'
 import { BottomNav } from '@/layout/BottomNav'
 import {
 	useChatGenerationContext,
-	useMainConversationContext,
 	usePreferencesContext,
 } from '@/providers/ChatProvider'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
-import { getModelById } from '@/services/gemini/models'
 import { cn } from '@/utils/cn'
 
 function getPageTitle(pathname: string, aiName: string): string {
@@ -48,14 +46,12 @@ function getPageTitle(pathname: string, aiName: string): string {
 
 export function AppShell() {
 	const { preferences } = usePreferencesContext()
-	const { conversation, clearConversation, replaceConversation } =
-		useMainConversationContext()
-	const { isGenerating, completionNotice, clearCompletionNotice, stopGeneration } =
+	const { isGenerating, completionNotice, clearCompletionNotice } =
 		useChatGenerationContext()
 	const location = useLocation()
 	const navigate = useNavigate()
+	const isMobileNav = useMobileNavLayout()
 	const aiName = getConfiguredAiName(preferences)
-	const selectedModel = getModelById(preferences.defaultModelId)
 	const isChatRoute = location.pathname === '/chat'
 	const pageTitle = getPageTitle(location.pathname, aiName)
 	const { navigateWithFade, contentClassName } = useSwipePageTransition()
@@ -63,21 +59,9 @@ export function AppShell() {
 		!location.pathname.startsWith('/library/documents/') &&
 		!location.pathname.startsWith('/library/projects/') &&
 		location.pathname !== '/home' &&
-		location.pathname !== '/chat'
+		!(isChatRoute && !isMobileNav)
 
 	useAppSwipeNavigation(navigateWithFade)
-
-	const handleClearChat = useCallback(async () => {
-		stopGeneration()
-		await clearConversation()
-	}, [clearConversation, stopGeneration])
-
-	const handleImportChat = useCallback(
-		async (imported: Parameters<typeof replaceConversation>[0]) => {
-			await replaceConversation(imported)
-		},
-		[replaceConversation],
-	)
 
 	const goToChat = useCallback(() => {
 		clearCompletionNotice()
@@ -96,26 +80,12 @@ export function AppShell() {
 							<h1 className="truncate text-base font-semibold md:text-lg">
 								{pageTitle}
 							</h1>
-							{isChatRoute ? (
-								<p className="truncate text-xs text-muted-foreground">
-									{selectedModel?.name ?? 'Chat model'}
-								</p>
-							) : isGenerating && !isChatRoute ? (
+							{isGenerating && !isChatRoute ? (
 								<p className="truncate text-xs text-muted-foreground">
 									{aiName} is replying in the background…
 								</p>
 							) : null}
 						</div>
-						{isChatRoute ? (
-							<div className="shrink-0">
-								<ChatConversationActions
-									conversation={conversation}
-									isGenerating={isGenerating}
-									onClear={handleClearChat}
-									onImport={handleImportChat}
-								/>
-							</div>
-						) : null}
 					</div>
 				</header>
 			) : null}
