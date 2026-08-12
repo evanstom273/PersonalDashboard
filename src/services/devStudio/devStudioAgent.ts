@@ -1,4 +1,5 @@
 import {
+	DEV_STUDIO_READ_ONLY_TOOL_NAMES,
 	DEV_STUDIO_TOOL_DECLARATIONS,
 	executeDevStudioToolCall,
 	type DevStudioToolContext,
@@ -14,7 +15,7 @@ import {
 } from '@/services/gemini/systemInstruction'
 import { geminiStreamGenerateContent } from '@/services/gemini/stream'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
-import type { DevStudioAgentPhase } from '@/types/devStudio'
+import type { DevStudioAgentPhase, DevStudioExecutionMode } from '@/types/devStudio'
 import { formatRepositorySlug, type DevStudioRepoRef } from '@/types/devStudio'
 import {
 	DEV_STUDIO_LIMIT_REACHED_MESSAGE,
@@ -71,12 +72,35 @@ function buildDevStudioGenerationConfig(modelId: string): Record<string, unknown
 function buildDevStudioSystemInstruction(
 	preferences: UserPreferences,
 	repo: DevStudioRepoRef,
+	executionMode: DevStudioExecutionMode = 'act',
 ): string {
-	return [
+	const base = [
 		buildSystemInstruction(preferences),
 		`${getConfiguredAiName(preferences)} Dev Studio code agent mode.`,
 		`Connected repository: ${formatRepositorySlug(repo)} on branch ${repo.branch}.`,
-		'Use workspace tools to inspect and edit files in this repository only.',
+	]
+
+	if (executionMode === 'plan') {
+		return [
+			...base,
+			'CURRENT EXECUTION MODE: PLAN MODE 📝',
+			'You are in read-only analysis and planning mode. Do NOT attempt to stage code changes or edit workspace files.',
+			'Restricted tools: stage_workspace_file, push_staged_changes, merge_pull_request, close_pull_request are write-protected.',
+			'Use workspace inspection tools (list_workspace_files, read_workspace_file, search_workspace_code, list_staged_changes) to diagnose the codebase.',
+			'Output a standardized, clear Markdown plan formatted as follows:',
+			'# Dev Studio Execution Plan',
+			'## 🔍 Problem Diagnosis / Objective',
+			'## 🏗️ Architectural Strategy & Touched Files',
+			'## ⚠️ Edge Cases, Safety & Risks',
+			'## 🧪 Verification & Testing Steps',
+			'End your response with a clear summary asking the user to review, download, or approve the plan to switch to Act Mode.',
+		].join('\n\n')
+	}
+
+	return [
+		...base,
+		'CURRENT EXECUTION MODE: ACT MODE ⚡',
+		'Use workspace tools to inspect and edit files in this repository.',
 		'Think step by step before editing. Read files before changing them.',
 		'Stage file edits with stage_workspace_file for user review in Diff before push.',
 		'Pull request tools: list_pull_requests, push_staged_changes, merge_pull_request, close_pull_request.',
@@ -128,6 +152,7 @@ export async function generateDevStudioChat(
 	repo: DevStudioRepoRef,
 	toolContext: DevStudioToolContext,
 	options?: {
+		executionMode?: DevStudioExecutionMode
 		signal?: AbortSignal
 		onTextDelta?: (delta: string) => void
 		onThoughtDelta?: (delta: string) => void
@@ -136,12 +161,20 @@ export async function generateDevStudioChat(
 		onToolComplete?: (toolName: string) => void
 	},
 ): Promise<DevStudioAgentRunResult> {
+	const executionMode = options?.executionMode ?? 'act'
 	const contents: GeminiContent[] = messages.map((message) => ({
 		role: message.role === 'assistant' ? 'model' : 'user',
 		parts: buildDevStudioMessageParts(message),
 	}))
 
 	const maxIterations = getMaxIterationsForModel(modelId)
+
+	const activeToolDeclarations =
+		executionMode === 'plan'
+			? DEV_STUDIO_TOOL_DECLARATIONS.filter((tool) =>
+					DEV_STUDIO_READ_ONLY_TOOL_NAMES.has(tool.name),
+				)
+			: [...DEV_STUDIO_TOOL_DECLARATIONS]
 
 	for (let iteration = 0; iteration < maxIterations; iteration += 1) {
 		if (options?.signal?.aborted) {
@@ -153,10 +186,18 @@ export async function generateDevStudioChat(
 		const requestBody = applySafetySettingsToRequestBody(
 			{
 				systemInstruction: {
-					parts: [{ text: buildDevStudioSystemInstruction(preferences, repo) }],
+					parts: [
+						{
+							text: buildDevStudioSystemInstruction(
+								preferences,
+								repo,
+								executionMode,
+							),
+						},
+					],
 				},
 				generationConfig: buildDevStudioGenerationConfig(modelId),
-				tools: [{ functionDeclarations: [...DEV_STUDIO_TOOL_DECLARATIONS] }],
+				tools: [{ functionDeclarations: activeToolDeclarations }],
 				contents,
 			},
 			preferences.allowMatureContent ?? true,
@@ -199,6 +240,7 @@ export async function generateDevStudioChat(
 					functionCall.name,
 					functionCall.args ?? {},
 					toolContext,
+					executionMode,
 				)
 				options?.onToolComplete?.(functionCall.name)
 

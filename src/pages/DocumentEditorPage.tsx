@@ -98,15 +98,14 @@ export function DocumentEditorPage() {
 	const handleSendToDevStudio = useCallback(() => {
 		const currentTitle = latestRef.current.title.trim() || 'Untitled document'
 		const meta = documentMetaRef.current
-		const docContent = editorHtmlToDocumentContent(
-			latestRef.current.content,
-			meta?.contentFormat ?? 'markdown',
-		)
-
-		const prompt = `Implement the following specification from document "${currentTitle}":\n\n${docContent}`
 
 		void navigate('/dev-studio', {
-			state: { initialPrompt: prompt },
+			state: {
+				initialDocument: meta
+					? { id: meta.id, title: currentTitle }
+					: undefined,
+				initialPrompt: `Implement specification from document "${currentTitle}"`,
+			},
 		})
 	}, [navigate])
 

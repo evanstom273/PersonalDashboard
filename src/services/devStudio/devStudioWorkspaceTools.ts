@@ -3,6 +3,7 @@ import {
 	type GitHubRateLimit,
 } from '@/services/github/githubApiService'
 import type {
+	DevStudioExecutionMode,
 	DevStudioPullRequest,
 	DevStudioPushResult,
 	DevStudioRepoRef,
@@ -172,6 +173,14 @@ const DEV_STUDIO_TOOL_NAMES = new Set<string>(
 	DEV_STUDIO_TOOL_DECLARATIONS.map((tool) => tool.name),
 )
 
+export const DEV_STUDIO_READ_ONLY_TOOL_NAMES = new Set<string>([
+	'list_workspace_files',
+	'read_workspace_file',
+	'search_workspace_code',
+	'list_staged_changes',
+	'list_pull_requests',
+])
+
 export function isDevStudioToolName(name: string): boolean {
 	return DEV_STUDIO_TOOL_NAMES.has(name)
 }
@@ -219,7 +228,20 @@ export async function executeDevStudioToolCall(
 	name: string,
 	args: Record<string, unknown>,
 	context: DevStudioToolContext,
+	executionMode: DevStudioExecutionMode = 'act',
 ): Promise<DevStudioToolResult> {
+	if (
+		executionMode === 'plan' &&
+		!DEV_STUDIO_READ_ONLY_TOOL_NAMES.has(name)
+	) {
+		return {
+			name,
+			response: {
+				error: `Tool "${name}" is write-protected in Plan Mode. Switch to Act Mode to stage code edits or perform git mutations.`,
+			},
+		}
+	}
+
 	switch (name) {
 		case 'list_workspace_files':
 			return listWorkspaceFiles(args, context)

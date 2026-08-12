@@ -5,6 +5,8 @@ import {
 	Loader2,
 	RefreshCw,
 	Settings,
+	Zap,
+	FileText,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -18,6 +20,8 @@ export function DevStudioHeader() {
 	const {
 		isConfigured,
 		branch,
+		executionMode,
+		setExecutionMode,
 		connectionStatus,
 		connectionError,
 		rateLimit,
@@ -63,7 +67,36 @@ export function DevStudioHeader() {
 					) : null}
 				</div>
 
-				<div className="flex shrink-0 items-center gap-1">
+				<div className="flex shrink-0 items-center gap-2">
+					<div className="flex items-center rounded-lg border border-border/70 bg-background/60 p-0.5 text-xs">
+						<button
+							type="button"
+							onClick={() => setExecutionMode('plan')}
+							className={cn(
+								'flex items-center gap-1.5 rounded-md px-2.5 py-1 transition-all font-medium',
+								executionMode === 'plan'
+									? 'bg-primary/15 text-primary shadow-xs'
+									: 'text-muted-foreground hover:text-foreground',
+							)}
+						>
+							<FileText className="h-3.5 w-3.5" />
+							Plan
+						</button>
+						<button
+							type="button"
+							onClick={() => setExecutionMode('act')}
+							className={cn(
+								'flex items-center gap-1.5 rounded-md px-2.5 py-1 transition-all font-medium',
+								executionMode === 'act'
+									? 'bg-emerald-500/15 text-emerald-400 shadow-xs'
+									: 'text-muted-foreground hover:text-foreground',
+							)}
+						>
+							<Zap className="h-3.5 w-3.5" />
+							Act
+						</button>
+					</div>
+
 					{isConfigured ? (
 						<>
 							<DevStudioCreateRepoButton />

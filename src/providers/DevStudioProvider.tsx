@@ -35,9 +35,11 @@ import {
 	parseRepositorySlug,
 	type DevStudioConnectionStatus,
 	type DevStudioContextTab,
+	type DevStudioExecutionMode,
 	type DevStudioMobileTab,
 	type DevStudioMergedPullRequest,
 	type DevStudioOpenFile,
+	type DevStudioPlan,
 	type DevStudioPushResult,
 	type DevStudioRepoRef,
 	type DevStudioStagedChange,
@@ -58,6 +60,10 @@ interface DevStudioContextValue {
 	isConfigured: boolean
 	repositorySlug: string
 	branch: string
+	executionMode: DevStudioExecutionMode
+	setExecutionMode: Dispatch<SetStateAction<DevStudioExecutionMode>>
+	latestPlan: DevStudioPlan | null
+	setLatestPlan: Dispatch<SetStateAction<DevStudioPlan | null>>
 	connectionStatus: DevStudioConnectionStatus
 	connectionError: string | null
 	rateLimit: GitHubRateLimit | null
@@ -143,6 +149,9 @@ function createBranchName(): string {
 
 export function DevStudioProvider({ children }: { children: ReactNode }) {
 	const { preferences, savePreferences } = usePreferencesContext()
+	const [executionMode, setExecutionMode] =
+		useState<DevStudioExecutionMode>('plan')
+	const [latestPlan, setLatestPlan] = useState<DevStudioPlan | null>(null)
 	const [connectionStatus, setConnectionStatus] =
 		useState<DevStudioConnectionStatus>('disconnected')
 	const [connectionError, setConnectionError] = useState<string | null>(null)
@@ -421,7 +430,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				} catch (caught) {
 					if (caught instanceof GitHubApiError && caught.status === 404) {
 						emptyRepoNotice =
-							'Repository is empty or the branch has no commits yet. Enable â€œInitialize with READMEâ€  when creating, or push a first commit on GitHub.'
+							'Repository is empty or the branch has no commits yet.'
 					} else {
 						throw caught
 					}
@@ -867,6 +876,10 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			isConfigured,
 			repositorySlug,
 			branch,
+			executionMode,
+			setExecutionMode,
+			latestPlan,
+			setLatestPlan,
 			connectionStatus,
 			connectionError,
 			rateLimit,
@@ -926,6 +939,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			contextTab,
 			discardAllStagedChanges,
 			discardStagedChange,
+			executionMode,
 			filePaths,
 			isComposerSending,
 			isConfigured,
@@ -933,6 +947,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			isPollingPagesStatus,
 			isPushing,
 			lastPushResult,
+			latestPlan,
 			recentlyMergedPullRequests,
 			loadRepositories,
 			mergePullRequestByNumber,

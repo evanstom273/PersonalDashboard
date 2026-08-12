@@ -1,4 +1,4 @@
-import { ArrowUp, Mic, Square, X } from 'lucide-react'
+import { ArrowUp, Download, Mic, Square, X, Zap } from 'lucide-react'
 import {
 	useCallback,
 	useEffect,
@@ -22,6 +22,7 @@ import { resolveDevStudioModelId } from '@/services/devStudio/devStudioModels'
 import { createDocument } from '@/services/documents/documentService'
 import { ingestUploadedDocumentContent } from '@/utils/documentContent'
 import { buildDocumentMention, insertDocumentMention } from '@/utils/documentMentions'
+import { downloadDevStudioPlan } from '@/utils/downloads'
 import {
 	getFileBaseName,
 	isImageFile,
@@ -32,7 +33,7 @@ import {
 import { usePreferencesContext } from '@/providers/ChatProvider'
 import { useDevStudio } from '@/providers/DevStudioProvider'
 import type { ChatAttachment, ChatInputMethod } from '@/types/chat'
-import type { DevStudioAgentPhase, DevStudioStreamingState } from '@/types/devStudio'
+import type { DevStudioAgentPhase, DevStudioExecutionMode, DevStudioStreamingState } from '@/types/devStudio'
 import { parseRepositorySlug } from '@/types/devStudio'
 import type { MessageMedia, StoredMessage } from '@/storage/types'
 import { formatDevStudioToolLabel } from '@/utils/devStudioToolLabels'
@@ -110,6 +111,10 @@ export function DevStudioComposer() {
 		setStreamingAssistant,
 		repositorySlug,
 		branch,
+		executionMode,
+		setExecutionMode,
+		latestPlan,
+		setLatestPlan,
 	} = useDevStudio()
 
 	const [draft, setDraft] = useState('')
@@ -128,10 +133,38 @@ export function DevStudioComposer() {
 	const [mentionMenuStyle, setMentionMenuStyle] = useState<CSSProperties | null>(null)
 
 	useEffect(() => {
-		const initialPrompt = (location.state as { initialPrompt?: string } | null)?.initialPrompt
-		if (initialPrompt) {
-			setDraft(initialPrompt)
-			setCursorPosition(initialPrompt.length)
+		const state = location.state as {
+			initialPrompt?: string
+			initialDocument?: { id: string; title: string }
+		} | null
+
+		if (state) {
+			if (state.initialDocument) {
+				const docAttachment: ChatAttachment = {
+					id: crypto.randomUUID(),
+					type: 'document',
+					name: state.initialDocument.title,
+					documentId: state.initialDocument.id,
+				}
+				setAttachments((prev) => {
+					if (
+						prev.some(
+							(a) =>
+								a.type === 'document' &&
+								a.documentId === docAttachment.documentId,
+						)
+					) {
+						return prev
+					}
+					return [...prev, docAttachment]
+				})
+			}
+
+			if (state.initialPrompt) {
+				setDraft(state.initialPrompt)
+				setCursorPosition(state.initialPrompt.length)
+			}
+
 			window.history.replaceState({}, document.title)
 		}
 	}, [location.state])
@@ -460,7 +493,10 @@ export function DevStudioComposer() {
 	}
 
 	const runAgentConversation = useCallback(
-		async (conversationMessages: StoredMessage[]) => {
+		async (
+			conversationMessages: StoredMessage[],
+			mode: DevStudioExecutionMode = executionMode,
+		) => {
 			const apiKey = preferences.geminiApiKey.trim()
 			const repo = parseRepositorySlug(repositorySlug)
 			if (!repo) {
@@ -508,6 +544,7 @@ export function DevStudioComposer() {
 					repo,
 					toolContext,
 					{
+						executionMode: mode,
 						signal: abortController.signal,
 						onThoughtDelta: (delta) => {
 							thoughtsRef.current += delta
@@ -544,6 +581,16 @@ export function DevStudioComposer() {
 					content: result.text,
 					createdAt: Date.now(),
 				})
+
+				if (mode === 'plan' && result.text) {
+					setLatestPlan({
+						id: assistantMessageId,
+						title: 'Dev Studio Execution Plan',
+						content: result.text,
+						createdAt: Date.now(),
+					})
+				}
+
 				setAgentTaskStatus(result.status)
 				setStreamingAssistant(null)
 			} catch (caught) {
@@ -574,10 +621,12 @@ export function DevStudioComposer() {
 			appendMessage,
 			branch,
 			buildToolContext,
+			executionMode,
 			preferences,
 			repositorySlug,
 			setAgentTaskStatus,
 			setComposerSending,
+			setLatestPlan,
 			setStreamingAssistant,
 			updateStreaming,
 		],
@@ -597,15 +646,41 @@ export function DevStudioComposer() {
 		}
 
 		appendMessage(resumeMessage)
-		await runAgentConversation([...messages, resumeMessage])
+		await runAgentConversation([...messages, resumeMessage], executionMode)
 	}, [
 		appendMessage,
+		executionMode,
 		isComposerSending,
 		isConfigured,
 		messages,
 		preferences.devStudioModelId,
 		runAgentConversation,
 		stagedChanges,
+	])
+
+	const handleApprovePlanAndExecute = useCallback(async () => {
+		if (!latestPlan || isComposerSending) {
+			return
+		}
+
+		setExecutionMode('act')
+		const executeUserMessage: StoredMessage = {
+			id: crypto.randomUUID(),
+			role: 'user',
+			content: `Plan approved! Proceeding to execute staged file edits based on the following plan:\n\n${latestPlan.content}`,
+			createdAt: Date.now(),
+		}
+
+		const nextMessages = [...messages, executeUserMessage]
+		appendMessage(executeUserMessage)
+		await runAgentConversation(nextMessages, 'act')
+	}, [
+		appendMessage,
+		isComposerSending,
+		latestPlan,
+		messages,
+		runAgentConversation,
+		setExecutionMode,
 	])
 
 	const handleSubmit = useCallback(async () => {
@@ -684,11 +759,12 @@ export function DevStudioComposer() {
 		setAttachError(null)
 		setInputMethod('typed')
 		resetSpeechState()
-		await runAgentConversation(nextMessages)
+		await runAgentConversation(nextMessages, executionMode)
 	}, [
 		appendMessage,
 		attachments,
 		draft,
+		executionMode,
 		isComposerSending,
 		isConfigured,
 		isListening,
@@ -742,6 +818,36 @@ export function DevStudioComposer() {
 				/>
 			) : null}
 
+			{latestPlan && executionMode === 'plan' && !isComposerSending ? (
+				<div className="mx-auto mb-2 flex max-w-3xl flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs shadow-xs">
+					<div className="flex items-center gap-2 min-w-0">
+						<span className="font-semibold text-primary shrink-0">📝 Plan Generated</span>
+						<span className="truncate text-muted-foreground">{latestPlan.title}</span>
+					</div>
+					<div className="flex items-center gap-2 shrink-0">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => downloadDevStudioPlan(latestPlan.title, latestPlan.content)}
+							className="h-8 gap-1.5 text-xs"
+						>
+							<Download className="h-3.5 w-3.5" />
+							Download Plan
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							onClick={() => void handleApprovePlanAndExecute()}
+							className="h-8 gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+						>
+							<Zap className="h-3.5 w-3.5" />
+							Approve Plan & Switch to Act Mode
+						</Button>
+					</div>
+				</div>
+			) : null}
+
 			{attachments.length > 0 ? (
 				<div className="mx-auto mb-2 flex max-w-3xl flex-wrap gap-2">
 					{attachments.map((attachment) => (
@@ -756,7 +862,7 @@ export function DevStudioComposer() {
 									className="h-5 w-5 rounded object-cover"
 								/>
 							) : null}
-							<span className="max-w-[10rem] truncate">{attachment.name}</span>
+							<span className="max-w-[12rem] truncate font-medium">📄 {attachment.name}</span>
 							<button
 								type="button"
 								className="text-muted-foreground hover:text-foreground"
@@ -834,7 +940,9 @@ export function DevStudioComposer() {
 								: isListening
 									? 'Recording...'
 									: preferences.geminiApiKey.trim()
-										? 'Ask the code agent to inspect, edit, push, or merge PRs...'
+										? executionMode === 'plan'
+											? 'Ask the agent to research code & create a plan...'
+											: 'Ask the code agent to inspect, edit, push, or merge PRs...'
 										: 'Add your Gemini API key in Settings to chat'
 						}
 						disabled={inputDisabled}

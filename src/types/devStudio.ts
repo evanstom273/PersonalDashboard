@@ -2,6 +2,15 @@ export type DevStudioContextTab = 'git' | 'changes' | 'files' | 'editor'
 
 export type DevStudioMobileTab = 'chat' | 'diff' | 'files' | 'editor' | 'git'
 
+export type DevStudioExecutionMode = 'plan' | 'act'
+
+export interface DevStudioPlan {
+	id: string
+	title: string
+	content: string
+	createdAt: number
+}
+
 export type DevStudioConnectionStatus =
 	| 'disconnected'
 	| 'connecting'
