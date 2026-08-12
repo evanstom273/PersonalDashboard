@@ -104,6 +104,9 @@ export async function openRouterStreamChatCompletion(
 		} catch {
 			// ignore parse errors
 		}
+		if (message.includes('No endpoints found')) {
+			message = `${message} The model may have been removed from OpenRouter's free tier. Try another Dev Studio model or check openrouter.ai/models.`
+		}
 		throw new OpenRouterApiError(message, response.status)
 	}
 

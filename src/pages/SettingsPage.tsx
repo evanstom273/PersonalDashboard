@@ -1157,7 +1157,7 @@ function AppTab({
 					/>
 				</label>
 				<label className="block space-y-2 text-sm">
-					<span className="font-medium">OpenRouter API key (Qwen coding only)</span>
+					<span className="font-medium">OpenRouter API key (free Dev Studio coding)</span>
 					<input
 						type="password"
 						value={openRouterApiKey}
@@ -1167,9 +1167,9 @@ function AppTab({
 						autoComplete="off"
 					/>
 					<span className="block text-xs text-muted-foreground">
-						Required only when Dev Studio uses Qwen 3.6 Plus (free preview). Main
-						chat still uses your Gemini key. Get a key at openrouter.ai — model
-						inference is free; OpenRouter still needs an account key.
+						Required only when Dev Studio uses Gemma 4 31B (free). Main chat still
+						uses your Gemini key. Get a key at openrouter.ai — the model is $0;
+						OpenRouter still needs an account key.
 					</span>
 				</label>
 				<DevStudioRepositorySelect

@@ -21,7 +21,7 @@ export function getDevStudioAgentApiKey(
 export function getDevStudioAgentApiKeyMessage(modelId: string): string {
 	const resolvedId = resolveDevStudioModelId(modelId)
 	if (getDevStudioModelProvider(resolvedId) === 'openrouter') {
-		return 'Add your OpenRouter API key in Settings → App → Dev Studio to use Qwen 3.6 Plus (free preview).'
+		return 'Add your OpenRouter API key in Settings → App → Dev Studio to use Gemma 4 31B (free).'
 	}
 	return 'Add your Gemini API key in Settings before chatting.'
 }
