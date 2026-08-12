@@ -146,7 +146,7 @@ async function streamTtsOnce(options: StreamTtsOptions): Promise<void> {
 
 export async function streamSpeechWithGemini(
 	options: StreamTtsOptions,
-): Promise<void> {
+): Promise<{ receivedAudio: boolean }> {
 	let lastError: unknown
 
 	for (let attempt = 0; attempt <= MAX_TTS_RETRIES; attempt += 1) {
@@ -156,7 +156,7 @@ export async function streamSpeechWithGemini(
 
 		try {
 			await streamTtsOnce(options)
-			return
+			return { receivedAudio: true }
 		} catch (error) {
 			lastError = error
 			if (

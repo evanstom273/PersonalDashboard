@@ -4,6 +4,7 @@ import {
 	buildSystemInstruction,
 	getConfiguredUserName,
 } from '@/services/gemini/systemInstruction'
+import { MAX_MEMORY_ARCHIVE_OUTPUT_TOKENS } from '@/services/gemini/constants'
 import type { UserPreferences } from '@/storage/types'
 
 interface GenerateContentResponse {
@@ -72,6 +73,7 @@ async function generateScratchpadJson<T>(
 			],
 			generationConfig: {
 				temperature: 0.4,
+				maxOutputTokens: MAX_MEMORY_ARCHIVE_OUTPUT_TOKENS,
 			},
 		},
 		request.preferences.allowMatureContent ?? true,

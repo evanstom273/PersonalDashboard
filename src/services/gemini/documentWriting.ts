@@ -5,6 +5,7 @@ import {
 	getConfiguredAiName,
 	getConfiguredUserName,
 } from '@/services/gemini/systemInstruction'
+import { MAX_CHAT_OUTPUT_TOKENS } from '@/services/gemini/constants'
 import type { UserPreferences } from '@/storage/types'
 
 export type DocumentWritingAction =
@@ -110,6 +111,7 @@ export async function generateDocumentWritingSuggestion(
 			],
 			generationConfig: {
 				temperature: 0.7,
+				maxOutputTokens: MAX_CHAT_OUTPUT_TOKENS,
 			},
 		},
 		request.preferences.allowMatureContent ?? true,

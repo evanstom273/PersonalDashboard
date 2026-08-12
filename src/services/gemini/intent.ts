@@ -148,29 +148,6 @@ const CONVERSATIONAL_INTENT_PATTERNS: IntentPattern[] = [
 	},
 ]
 
-const LOOSE_INTENT_PATTERNS: IntentPattern[] = [
-	{
-		intent: 'image',
-		regex:
-			/\b(?:generate|create|make|draw|render|design)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|photo|illustration|artwork|poster)\b/i,
-	},
-	{
-		intent: 'image',
-		regex:
-			/\b(?:image|picture|photo|illustration|artwork|poster)\s+(?:of|for|showing|about|depicting)\s+/i,
-	},
-	{
-		intent: 'music',
-		regex:
-			/\b(?:generate|create|make|compose)\s+(?:(?:me|the|a|an|that|this)\s+)*(?:music|song|track|beat|jingle|sample)\b/i,
-	},
-	{
-		intent: 'music',
-		regex:
-			/\b(?:go ahead|make that|make the)\b[\s\S]{0,40}\b(?:track|song|music|sample|instrumental)\b/i,
-	},
-]
-
 const CONTEXTUAL_FOLLOW_UP_PATTERNS: RegExp[] = [
 	/\bwhat about\b/i,
 	/\bhow about\b/i,
@@ -253,15 +230,6 @@ export function enrichPromptWithConversationContext(
 	return `Conversation context:\n${contextLines}\n\nCurrent request: ${prompt}`
 }
 
-function detectLooseIntent(trimmed: string): GenerationIntent | null {
-	for (const { intent, regex } of LOOSE_INTENT_PATTERNS) {
-		if (regex.test(trimmed)) {
-			return intent
-		}
-	}
-	return null
-}
-
 function detectConversationalIntent(trimmed: string): GenerationIntent | null {
 	for (const { intent, regex } of CONVERSATIONAL_INTENT_PATTERNS) {
 		if (regex.test(trimmed)) {
@@ -335,21 +303,6 @@ export function resolvePromptIntent(
 				trimmed,
 				recentMessages,
 				conversationalIntent === 'music'
-					? shouldEnrichMusicPrompt(trimmed)
-					: shouldEnrichImagePrompt(trimmed),
-			),
-		}
-	}
-
-	const looseIntent = detectLooseIntent(trimmed)
-	if (looseIntent) {
-		return {
-			intent: looseIntent,
-			modelId: getModelIdForIntent(looseIntent, models),
-			prompt: finalizeGenerationPrompt(
-				trimmed,
-				recentMessages,
-				looseIntent === 'music'
 					? shouldEnrichMusicPrompt(trimmed)
 					: shouldEnrichImagePrompt(trimmed),
 			),

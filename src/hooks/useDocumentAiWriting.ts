@@ -5,6 +5,7 @@ import {
 	generateDocumentWritingSuggestion,
 	type DocumentWritingAction,
 } from '@/services/gemini/documentWriting'
+import { getEconomyModelId } from '@/services/gemini/modelPreferences'
 import type { UserPreferences } from '@/storage/types'
 import { markdownToHtml } from '@/utils/documentContent'
 
@@ -72,7 +73,7 @@ export function useDocumentAiWriting({
 			try {
 				const suggestion = await generateDocumentWritingSuggestion({
 					apiKey,
-					modelId: preferences.defaultModelId,
+					modelId: getEconomyModelId(),
 					preferences,
 					documentTitle,
 					selectedText,

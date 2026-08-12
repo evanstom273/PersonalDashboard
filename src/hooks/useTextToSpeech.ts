@@ -228,6 +228,7 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 			setActiveMessageId(messageId)
 			setStatus('playing')
 
+			let receivedAudio = false
 			await streamSpeechWithGemini({
 				apiKey: preferences.geminiApiKey,
 				text: speechText,
@@ -238,12 +239,17 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 					if (requestId !== requestIdRef.current) {
 						return
 					}
+					receivedAudio = true
 					player.enqueuePcmBase64(base64)
 				},
 			})
 
 			if (requestId !== requestIdRef.current) {
 				return
+			}
+
+			if (!receivedAudio) {
+				throw new Error('Speech generation returned no audio.')
 			}
 
 			player.markStreamComplete()
@@ -315,6 +321,11 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 						streamError instanceof DOMException &&
 						streamError.name === 'AbortError'
 					) {
+						return
+					}
+
+					if (pcmPlayerRef.current?.hasQueuedAudio()) {
+						pcmPlayerRef.current.markStreamComplete()
 						return
 					}
 

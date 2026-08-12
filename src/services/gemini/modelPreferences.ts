@@ -1,4 +1,5 @@
 import type { GenerationIntent } from '@/services/gemini/constants'
+import { ECONOMY_MODEL_ID } from '@/services/gemini/constants'
 import type { UserPreferences } from '@/storage/types'
 
 export interface GenerationModelPreferences {
@@ -29,4 +30,12 @@ export function getModelIdForIntent(
 		case 'music':
 			return models.musicModelId
 	}
+}
+
+export function getTranscriptionModelId(): string {
+	return ECONOMY_MODEL_ID
+}
+
+export function getEconomyModelId(): string {
+	return ECONOMY_MODEL_ID
 }

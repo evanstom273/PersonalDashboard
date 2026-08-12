@@ -13,6 +13,7 @@ import {
 	htmlToPlainText,
 	normalizeMarkdownContent,
 } from '@/utils/documentContent'
+import { truncateDocumentTextForTool } from '@/services/gemini/documentContext'
 
 export interface DocumentToolResult {
 	name: string
@@ -150,19 +151,26 @@ export async function executeDocumentToolCall(
 				return { name, response: { error: 'Document not found.' } }
 			}
 
+			const rawContent =
+				document.contentFormat === 'markdown'
+					? document.content
+					: htmlToPlainText(document.content)
+			const rawMarkdown =
+				document.contentFormat === 'markdown'
+					? document.content
+					: htmlToMarkdown(document.content)
+			const truncatedContent = truncateDocumentTextForTool(rawContent)
+			const truncatedMarkdown = truncateDocumentTextForTool(rawMarkdown)
+
 			return {
 				name,
 				response: {
 					id: document.id,
 					title: document.title,
-					content:
-						document.contentFormat === 'markdown'
-							? document.content
-							: htmlToPlainText(document.content),
-					markdown:
-						document.contentFormat === 'markdown'
-							? document.content
-							: htmlToMarkdown(document.content),
+					content: truncatedContent.text,
+					markdown: truncatedMarkdown.text,
+					truncated:
+						truncatedContent.truncated || truncatedMarkdown.truncated,
 					createdAt: document.createdAt,
 					updatedAt: document.updatedAt,
 					readOnly: document.readOnly,

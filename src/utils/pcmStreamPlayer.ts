@@ -7,6 +7,7 @@ export class PcmStreamPlayer {
 	private streamComplete = false
 	private onPlaybackEnded: (() => void) | null = null
 	private endCheckTimer: number | null = null
+	private receivedChunks = false
 
 	constructor(sampleRate = 24000) {
 		this.sampleRate = sampleRate
@@ -15,6 +16,7 @@ export class PcmStreamPlayer {
 	async start(): Promise<void> {
 		this.ended = false
 		this.streamComplete = false
+		this.receivedChunks = false
 		this.nextStartTime = 0
 		this.audioContext = new AudioContext({ sampleRate: this.sampleRate })
 		await this.audioContext.resume()
@@ -34,6 +36,8 @@ export class PcmStreamPlayer {
 		if (!this.audioContext || this.ended || pcm.byteLength < 2) {
 			return
 		}
+
+		this.receivedChunks = true
 
 		const int16 = new Int16Array(
 			pcm.buffer,
@@ -76,6 +80,10 @@ export class PcmStreamPlayer {
 
 	setOnPlaybackEnded(callback: () => void): void {
 		this.onPlaybackEnded = callback
+	}
+
+	hasQueuedAudio(): boolean {
+		return this.receivedChunks || this.activeSources.size > 0
 	}
 
 	stop(): void {

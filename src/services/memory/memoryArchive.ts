@@ -1,4 +1,8 @@
 import { geminiFetch } from '@/services/gemini/client'
+import {
+	ECONOMY_MODEL_ID,
+	MAX_MEMORY_ARCHIVE_OUTPUT_TOKENS,
+} from '@/services/gemini/constants'
 import { applySafetySettingsToRequestBody } from '@/services/gemini/safetySettings'
 import { getConfiguredUserName } from '@/services/gemini/systemInstruction'
 import {
@@ -80,7 +84,6 @@ function parseExtractedMemory(text: string): ExtractedMemoryItem[] {
 
 async function extractMemoryFromBatch(
 	apiKey: string,
-	modelId: string,
 	messages: StoredMessage[],
 	preferences: UserPreferences,
 ): Promise<ExtractedMemoryItem[]> {
@@ -112,7 +115,7 @@ async function extractMemoryFromBatch(
 
 	const response = await geminiFetch<GenerateContentResponse>(
 		apiKey,
-		`/models/${modelId}:generateContent`,
+		`/models/${ECONOMY_MODEL_ID}:generateContent`,
 		{
 			method: 'POST',
 			body: JSON.stringify(
@@ -126,6 +129,7 @@ async function extractMemoryFromBatch(
 						],
 						generationConfig: {
 							temperature: 0.2,
+							maxOutputTokens: MAX_MEMORY_ARCHIVE_OUTPUT_TOKENS,
 						},
 					},
 					preferences.allowMatureContent ?? true,
@@ -152,7 +156,6 @@ export function getUnarchivedMessages(
 
 export async function archiveConversationIfNeeded(
 	apiKey: string,
-	modelId: string,
 	conversation: ConversationRecord,
 	preferences: UserPreferences,
 ): Promise<ConversationRecord> {
@@ -178,7 +181,6 @@ export async function archiveConversationIfNeeded(
 			const batch = unarchived.slice(0, interval)
 			const extracted = await extractMemoryFromBatch(
 				apiKey,
-				modelId,
 				batch,
 				preferences,
 			)
@@ -220,7 +222,6 @@ export interface ManualMemoryArchiveResult {
 
 export async function runManualMemoryArchive(
 	apiKey: string,
-	modelId: string,
 	conversation: ConversationRecord,
 	preferences: UserPreferences,
 ): Promise<{
@@ -257,7 +258,6 @@ export async function runManualMemoryArchive(
 			const batch = unarchived.slice(0, batchSize)
 			const extracted = await extractMemoryFromBatch(
 				apiKey,
-				modelId,
 				batch,
 				preferences,
 			)
@@ -302,16 +302,15 @@ export async function runManualMemoryArchive(
 
 export function queueMemoryArchive(
 	apiKey: string,
-	modelId: string,
 	conversation: ConversationRecord,
 	preferences: UserPreferences,
 	onPersist: (next: ConversationRecord) => Promise<void>,
+	onError?: (error: Error) => void,
 ): void {
 	void (async () => {
 		try {
 			const updated = await archiveConversationIfNeeded(
 				apiKey,
-				modelId,
 				conversation,
 				preferences,
 			)
@@ -323,7 +322,10 @@ export function queueMemoryArchive(
 				await onPersist(updated)
 			}
 		} catch (error) {
-			console.error('Memory archival failed:', error)
+			const normalized =
+				error instanceof Error ? error : new Error('Memory archival failed.')
+			console.error('Memory archival failed:', normalized)
+			onError?.(normalized)
 		}
 	})()
 }
