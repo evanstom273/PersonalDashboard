@@ -11,7 +11,10 @@ import type {
 } from '@/types/devStudio'
 import { filterFilePaths } from '@/utils/devStudioFileTree'
 import { generateDevStudioPushMetadata } from '@/utils/devStudioPushMetadata'
-import type { DevStudioTokenBudget } from '@/services/devStudio/devStudioTokenBudget'
+import type {
+	DevStudioReadCache,
+	DevStudioTokenBudget,
+} from '@/services/devStudio/devStudioTokenBudget'
 import { getDevStudioTokenBudget } from '@/services/devStudio/devStudioTokenBudget'
 
 export interface DevStudioToolContext {
@@ -35,6 +38,7 @@ export interface DevStudioToolContext {
 	setCachedSha: (path: string, sha: string) => void
 	onRateLimit?: (rateLimit: GitHubRateLimit | null) => void
 	tokenBudget?: DevStudioTokenBudget
+	readCache?: DevStudioReadCache
 }
 
 export interface DevStudioToolResult {
@@ -46,7 +50,7 @@ export const DEV_STUDIO_TOOL_DECLARATIONS = [
 	{
 		name: 'list_workspace_files',
 		description:
-			'List file paths in the connected GitHub repository workspace. Use before reading or editing files.',
+			'List file paths in the connected repository. Prefer path_prefix to narrow scope before reading files.',
 		parameters: {
 			type: 'OBJECT',
 			properties: {
@@ -59,7 +63,8 @@ export const DEV_STUDIO_TOOL_DECLARATIONS = [
 	},
 	{
 		name: 'read_workspace_file',
-		description: 'Read one file from the connected repository workspace.',
+		description:
+			'Read one file. Use search_workspace_code first when you only need a snippet. Large files may be truncated.',
 		parameters: {
 			type: 'OBJECT',
 			properties: {
@@ -74,7 +79,7 @@ export const DEV_STUDIO_TOOL_DECLARATIONS = [
 	{
 		name: 'search_workspace_code',
 		description:
-			'Search file contents in the connected repository for a string or regex pattern.',
+			'Search file contents for a string or regex. Prefer this over reading whole files when locating symbols or usages.',
 		parameters: {
 			type: 'OBJECT',
 			properties: {
@@ -219,12 +224,19 @@ function parseMergeMethod(
 async function readWorkspaceFileContent(
 	context: DevStudioToolContext,
 	path: string,
-): Promise<{ content: string; sha: string }> {
+): Promise<{ content: string; sha: string; cached: boolean }> {
 	const normalized = normalizePath(path)
+	const cached = context.readCache?.get(normalized)
+	if (cached) {
+		return { ...cached, cached: true }
+	}
+
 	const result = await fetchFileContent(context.token, context.repo, normalized)
 	context.setCachedSha(normalized, result.sha)
 	context.onRateLimit?.(result.rateLimit)
-	return { content: result.content, sha: result.sha }
+	const entry = { content: result.content, sha: result.sha }
+	context.readCache?.set(normalized, entry)
+	return { ...entry, cached: false }
 }
 
 export async function executeDevStudioToolCall(
@@ -470,6 +482,7 @@ async function readWorkspaceFile(
 			response: {
 				path,
 				sha: file.sha,
+				cached: file.cached,
 				content: truncated
 					? `${file.content.slice(0, budget.maxReadChars)}\n\n[Truncated for context length.]`
 					: file.content,

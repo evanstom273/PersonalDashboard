@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.14'
+export const APP_VERSION = '2.0.15'
 
 export interface ChangelogEntry {
 	version: string
@@ -9,13 +9,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
-		version: '2.0.14',
+		version: '2.0.15',
 		releasedAt: '2026-08-12',
-		summary: 'Gemma 4 31B via Gemini API',
+		summary: 'Dev Studio efficiency for all models',
 		changes: [
-			'Remove OpenRouter — Gemma 4 31B now uses your Gemini API key in Dev Studio and chat.',
-			'Dev Studio quota-aware mode for Gemma: tighter tool output, context pruning, and request pacing for Tier 2 limits.',
-			'OpenRouter API key setting removed; one Gemini key covers chat and coding.',
+			'Token budgets, context pruning, and tool output caps now apply to every Dev Studio model (Gemma stays strictest).',
+			'Parallel tool execution, in-session file read cache, and lighter thinking budgets on Flash/Pro.',
+			'Efficiency guidance in the agent prompt for all models; search-before-read tool hints.',
 		],
 	},
 	{

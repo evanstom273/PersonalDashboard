@@ -11,6 +11,7 @@ import {
 } from '@/services/devStudio/devStudioModels'
 import {
 	compactToolResponseForBudget,
+	createDevStudioReadCache,
 	getDevStudioTokenBudget,
 	pruneDevStudioContents,
 	sleep,
@@ -59,17 +60,15 @@ function buildDevStudioGenerationConfig(modelId: string): Record<string, unknown
 		return {
 			thinkingConfig: {
 				includeThoughts: true,
-				thinkingBudget: 4096,
+				thinkingBudget: 2048,
 			},
 		}
 	}
 
 	const thinkingLevel =
 		resolvedId === 'gemini-3.1-pro-preview'
-			? 'high'
-			: resolvedId === 'gemini-3.6-flash'
-				? 'medium'
-				: 'low'
+			? 'medium'
+			: 'low'
 
 	return {
 		thinkingConfig: {
@@ -150,9 +149,11 @@ export async function generateDevStudioChat(
 	}))
 
 	const maxIterations = getMaxIterationsForModel(resolvedId)
+	const readCache = createDevStudioReadCache()
 	const budgetedToolContext: DevStudioToolContext = {
 		...toolContext,
 		tokenBudget,
+		readCache,
 	}
 
 	const activeToolDeclarations =
@@ -236,32 +237,35 @@ export async function generateDevStudioChat(
 				parts,
 			})
 
-			const functionResponseParts: GeminiPart[] = []
-			for (const part of functionCallParts) {
-				const functionCall = part.functionCall!
-				options?.onToolStart?.(
-					functionCall.name,
-					functionCall.args ?? {},
-				)
+			const functionResponseParts: GeminiPart[] = (
+				await Promise.all(
+					functionCallParts.map(async (part) => {
+						const functionCall = part.functionCall!
+						options?.onToolStart?.(
+							functionCall.name,
+							functionCall.args ?? {},
+						)
 
-				const toolResult = await executeDevStudioToolCall(
-					functionCall.name,
-					functionCall.args ?? {},
-					budgetedToolContext,
-					executionMode,
-				)
-				options?.onToolComplete?.(functionCall.name)
+						const toolResult = await executeDevStudioToolCall(
+							functionCall.name,
+							functionCall.args ?? {},
+							budgetedToolContext,
+							executionMode,
+						)
+						options?.onToolComplete?.(functionCall.name)
 
-				functionResponseParts.push({
-					functionResponse: {
-						name: toolResult.name,
-						response: compactToolResponseForBudget(
-							toolResult.response,
-							tokenBudget,
-						),
-					},
-				})
-			}
+						return {
+							functionResponse: {
+								name: toolResult.name,
+								response: compactToolResponseForBudget(
+									toolResult.response,
+									tokenBudget,
+								),
+							},
+						}
+					}),
+				)
+			)
 
 			contents.push({
 				role: 'user',

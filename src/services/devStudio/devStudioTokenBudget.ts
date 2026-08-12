@@ -1,7 +1,4 @@
-import {
-	isGemmaDevStudioModel,
-	resolveDevStudioModelId,
-} from '@/services/devStudio/devStudioModels'
+import { resolveDevStudioModelId } from '@/services/devStudio/devStudioModels'
 
 export interface DevStudioTokenBudget {
 	maxReadChars: number
@@ -15,18 +12,32 @@ export interface DevStudioTokenBudget {
 	includeThoughts: boolean
 }
 
-const DEFAULT_BUDGET: DevStudioTokenBudget = {
-	maxReadChars: 60_000,
-	maxSearchFiles: 24,
-	maxSearchResults: 40,
-	maxListPaths: 500,
-	maxToolResponseJsonChars: 32_000,
-	minRequestIntervalMs: 0,
-	maxContextContents: 40,
-	maxSeedMessages: 20,
+/** Default Dev Studio limits — tighter than raw API max context on every model. */
+const FLASH_BUDGET: DevStudioTokenBudget = {
+	maxReadChars: 32_000,
+	maxSearchFiles: 16,
+	maxSearchResults: 24,
+	maxListPaths: 250,
+	maxToolResponseJsonChars: 12_000,
+	minRequestIntervalMs: 400,
+	maxContextContents: 18,
+	maxSeedMessages: 8,
 	includeThoughts: true,
 }
 
+const PRO_BUDGET: DevStudioTokenBudget = {
+	maxReadChars: 48_000,
+	maxSearchFiles: 20,
+	maxSearchResults: 32,
+	maxListPaths: 350,
+	maxToolResponseJsonChars: 16_000,
+	minRequestIntervalMs: 400,
+	maxContextContents: 24,
+	maxSeedMessages: 12,
+	includeThoughts: true,
+}
+
+/** Strictest tier — Gemma Tier 2 RPM/TPM caps. */
 const GEMMA_BUDGET: DevStudioTokenBudget = {
 	maxReadChars: 20_000,
 	maxSearchFiles: 10,
@@ -40,10 +51,15 @@ const GEMMA_BUDGET: DevStudioTokenBudget = {
 }
 
 export function getDevStudioTokenBudget(modelId: string): DevStudioTokenBudget {
-	if (isGemmaDevStudioModel(modelId)) {
+	const resolved = resolveDevStudioModelId(modelId)
+
+	if (resolved === 'gemma-4-31b-it') {
 		return GEMMA_BUDGET
 	}
-	return DEFAULT_BUDGET
+	if (resolved === 'gemini-3.1-pro-preview') {
+		return PRO_BUDGET
+	}
+	return FLASH_BUDGET
 }
 
 interface GeminiContentPart {
@@ -67,9 +83,9 @@ function truncateJsonResponse(
 		return response
 	}
 	return {
-		...response,
 		_truncated: true,
-		_preview: `${serialized.slice(0, maxChars - 120)}…`,
+		_note: 'Response trimmed to fit Dev Studio context budget. Narrow your next tool call if you need more detail.',
+		_preview: `${serialized.slice(0, maxChars - 160)}…`,
 	}
 }
 
@@ -88,15 +104,19 @@ export function pruneDevStudioContents(
 		return contents
 	}
 
-	const seedCount = Math.min(budget.maxSeedMessages, contents.length)
-	const seed = contents.slice(0, seedCount)
-	const tail = contents.slice(-Math.max(0, budget.maxContextContents - seedCount))
+	const anchor = contents[0]
+	const tailCount = Math.max(0, budget.maxContextContents - 1)
+	const tail = contents.slice(-tailCount)
 
 	if (tail.length === 0) {
-		return seed
+		return [anchor]
 	}
 
-	return [...seed, ...tail]
+	if (tail[0] === anchor) {
+		return tail
+	}
+
+	return [anchor, ...tail]
 }
 
 export function sleep(ms: number): Promise<void> {
@@ -108,7 +128,13 @@ export function sleep(ms: number): Promise<void> {
 	})
 }
 
-export function getResolvedModelBudgetLabel(modelId: string): string {
-	const resolved = resolveDevStudioModelId(modelId)
-	return resolved === 'gemma-4-31b-it' ? 'Gemma (quota-aware)' : resolved
+export interface DevStudioReadCacheEntry {
+	content: string
+	sha: string
+}
+
+export type DevStudioReadCache = Map<string, DevStudioReadCacheEntry>
+
+export function createDevStudioReadCache(): DevStudioReadCache {
+	return new Map()
 }

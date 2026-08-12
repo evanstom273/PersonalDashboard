@@ -8,33 +8,39 @@ import type { DevStudioExecutionMode } from '@/types/devStudio'
 import { formatRepositorySlug, type DevStudioRepoRef } from '@/types/devStudio'
 import type { UserPreferences } from '@/storage/types'
 
+const EFFICIENCY_GUIDANCE = [
+	'DEV STUDIO EFFICIENCY (always follow):',
+	'Search or list files before reading — load only paths you will edit.',
+	'Avoid re-reading the same file; use prior tool output when the SHA has not changed.',
+	'Prefer one purposeful tool call over exploratory chains. Stage one file at a time.',
+	'Keep replies concise; put detail in staged file content, not long chat prose.',
+].join('\n')
+
+const GEMMA_EXTRA_GUIDANCE = [
+	'QUOTA MODE (Gemma — strict):',
+	'Minimize API round-trips. Never read a large file when search gives enough context.',
+	'Batch your plan before touching tools. Skip optional reads.',
+].join('\n')
+
 export function buildDevStudioSystemInstruction(
 	preferences: UserPreferences,
 	repo: DevStudioRepoRef,
 	executionMode: DevStudioExecutionMode = 'act',
 	modelId?: string,
 ): string {
-	const quotaAware = modelId ? isGemmaDevStudioModel(modelId) : false
+	const strictQuota = modelId ? isGemmaDevStudioModel(modelId) : false
 
 	const base = [
 		buildSystemInstruction(preferences),
 		`${getConfiguredAiName(preferences)} Dev Studio code agent mode.`,
 		`Connected repository: ${formatRepositorySlug(repo)} on branch ${repo.branch}.`,
+		EFFICIENCY_GUIDANCE,
+		strictQuota ? GEMMA_EXTRA_GUIDANCE : '',
 	]
-
-	const tokenEfficiency = quotaAware
-		? [
-				'TOKEN & QUOTA EFFICIENCY (required on this model):',
-				'Minimize API round-trips. Batch reads: search or list first, then read only the files you need.',
-				'Never read large files whole if a targeted search suffices. Prefer small, incremental edits.',
-				'Keep tool use focused — avoid exploratory loops. One file at a time when staging.',
-			].join('\n')
-		: ''
 
 	if (executionMode === 'plan') {
 		return [
 			...base,
-			tokenEfficiency,
 			'CURRENT EXECUTION MODE: PLAN MODE 📝',
 			'You are in read-only analysis and planning mode. Do NOT attempt to stage code changes or edit workspace files.',
 			'Restricted tools: stage_workspace_file, push_staged_changes, merge_pull_request, close_pull_request are write-protected.',
@@ -53,7 +59,6 @@ export function buildDevStudioSystemInstruction(
 
 	return [
 		...base,
-		tokenEfficiency,
 		'CURRENT EXECUTION MODE: ACT MODE ⚡',
 		'Use workspace tools to inspect and edit files in this repository.',
 		'Think step by step before editing. Read files before changing them.',
