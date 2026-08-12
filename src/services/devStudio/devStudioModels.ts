@@ -2,15 +2,15 @@ export const DEV_STUDIO_MODEL_IDS = [
 	'gemini-2.5-flash',
 	'gemini-3.6-flash',
 	'gemini-3.1-pro-preview',
-	'qwen-3.6-plus-free',
+	'gemma-4-31b-free',
 ] as const
 
 export type DevStudioModelId = (typeof DEV_STUDIO_MODEL_IDS)[number]
 
 export type DevStudioModelProvider = 'gemini' | 'openrouter'
 
-export const OPENROUTER_QWEN_36_PLUS_FREE_MODEL =
-	'qwen/qwen3.6-plus-preview:free'
+/** Live on OpenRouter as of Aug 2026 — Qwen :free slugs were removed. */
+export const OPENROUTER_DEV_STUDIO_FREE_MODEL = 'google/gemma-4-31b-it:free'
 
 export const DEFAULT_DEV_STUDIO_MODEL_ID: DevStudioModelId = 'gemini-3.6-flash'
 
@@ -53,14 +53,14 @@ export const DEV_STUDIO_MODELS: DevStudioModelDefinition[] = [
 		provider: 'gemini',
 	},
 	{
-		id: 'qwen-3.6-plus-free',
-		name: 'Qwen 3.6 Plus',
+		id: 'gemma-4-31b-free',
+		name: 'Gemma 4 31B',
 		analogy: 'Free coder',
 		description:
-			'Free OpenRouter preview for Dev Studio coding. Strong on agentic multi-file edits.',
+			'Free via OpenRouter. Fast Google model with tools, vision, and 262k context.',
 		maxIterations: 128,
 		provider: 'openrouter',
-		openRouterModelId: OPENROUTER_QWEN_36_PLUS_FREE_MODEL,
+		openRouterModelId: OPENROUTER_DEV_STUDIO_FREE_MODEL,
 	},
 ]
 
@@ -79,7 +79,7 @@ export function getDevStudioModelProvider(modelId: string): DevStudioModelProvid
 
 export function resolveOpenRouterModelId(modelId: string): string {
 	const model = getDevStudioModelById(resolveDevStudioModelId(modelId))
-	return model?.openRouterModelId ?? OPENROUTER_QWEN_36_PLUS_FREE_MODEL
+	return model?.openRouterModelId ?? OPENROUTER_DEV_STUDIO_FREE_MODEL
 }
 
 export function resolveDevStudioModelId(
@@ -87,6 +87,9 @@ export function resolveDevStudioModelId(
 ): DevStudioModelId {
 	if (preferredId === 'gemini-3-flash-preview') {
 		return 'gemini-3.1-pro-preview'
+	}
+	if (preferredId === 'qwen-3.6-plus-free') {
+		return 'gemma-4-31b-free'
 	}
 	if (preferredId && modelMap.has(preferredId as DevStudioModelId)) {
 		return preferredId as DevStudioModelId

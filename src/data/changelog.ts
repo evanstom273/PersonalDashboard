@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.12'
+export const APP_VERSION = '2.0.13'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.13',
+		releasedAt: '2026-08-12',
+		summary: 'Fix OpenRouter free Dev Studio model',
+		changes: [
+			'Switch free Dev Studio OpenRouter model to Gemma 4 31B — Qwen free preview was removed from OpenRouter.',
+			'Existing Qwen model selections migrate to Gemma automatically.',
+		],
+	},
 	{
 		version: '2.0.12',
 		releasedAt: '2026-08-12',
