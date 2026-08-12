@@ -32,7 +32,7 @@ const FoldablePaneContext = createContext<FoldablePaneContextValue | null>(null)
 const DEFAULT_SECONDARY_ROUTE = '/dev-studio'
 
 export function FoldablePaneProvider({ children }: { children: ReactNode }) {
-	const { preferences, updatePreferences } = usePreferencesContext()
+	const { preferences, savePreferences } = usePreferencesContext()
 	const foldableInfo = useFoldableDevice(preferences)
 	const location = useLocation()
 	const navigate = useNavigate()
@@ -67,9 +67,12 @@ export function FoldablePaneProvider({ children }: { children: ReactNode }) {
 		(ratio: number) => {
 			const clamped = Math.min(80, Math.max(20, Math.round(ratio)))
 			setRatioState(clamped)
-			void updatePreferences({ dualPaneSplitRatio: clamped })
+			void savePreferences({
+				...preferences,
+				dualPaneSplitRatio: clamped,
+			})
 		},
-		[updatePreferences],
+		[preferences, savePreferences],
 	)
 
 	const openInSecondaryPane = useCallback(
