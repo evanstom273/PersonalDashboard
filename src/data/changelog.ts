@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.10'
+export const APP_VERSION = '2.0.11'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.11',
+		releasedAt: '2026-08-12',
+		summary: 'Fix dual-pane crash on wide screens',
+		changes: [
+			'Fix blank app on desktop/wide viewports caused by nested React Router in the secondary pane.',
+		],
+	},
 	{
 		version: '2.0.10',
 		releasedAt: '2026-08-11',

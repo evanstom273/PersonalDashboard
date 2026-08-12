@@ -1,4 +1,5 @@
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { useMemo } from 'react'
+import { Route, Routes, type Location } from 'react-router-dom'
 import { DevStudioPage } from '@/pages/DevStudioPage'
 import { DocumentEditorPage } from '@/pages/DocumentEditorPage'
 import { LibraryPage } from '@/pages/LibraryPage'
@@ -11,23 +12,36 @@ interface SecondaryPaneContentProps {
 	route: string
 }
 
+function buildSecondaryLocation(route: string): Location {
+	const trimmed = route.trim() || '/dev-studio'
+	const queryIndex = trimmed.indexOf('?')
+	const pathname = queryIndex >= 0 ? trimmed.slice(0, queryIndex) : trimmed
+	const search = queryIndex >= 0 ? trimmed.slice(queryIndex) : ''
+
+	return {
+		pathname: pathname || '/dev-studio',
+		search,
+		hash: '',
+		state: null,
+		key: 'secondary-pane',
+	}
+}
+
 export function SecondaryPaneContent({ route }: SecondaryPaneContentProps) {
-	const currentRoute = route || '/dev-studio'
+	const secondaryLocation = useMemo(() => buildSecondaryLocation(route), [route])
 
 	return (
 		<div className="h-full w-full overflow-hidden bg-background">
-			<MemoryRouter key={currentRoute} initialEntries={[currentRoute]}>
-				<Routes>
-					<Route path="/dev-studio" element={<DevStudioPage />} />
-					<Route path="/library/documents/:documentId" element={<DocumentEditorPage />} />
-					<Route path="/library/projects/:projectId" element={<ProjectBoardPage />} />
-					<Route path="/library" element={<LibraryPage />} />
-					<Route path="/memory" element={<MemoryPage />} />
-					<Route path="/settings" element={<SettingsPage />} />
-					<Route path="/scratchpad" element={<ScratchpadPanel embedMode />} />
-					<Route path="*" element={<DevStudioPage />} />
-				</Routes>
-			</MemoryRouter>
+			<Routes location={secondaryLocation}>
+				<Route path="/dev-studio" element={<DevStudioPage />} />
+				<Route path="/library/documents/:documentId" element={<DocumentEditorPage />} />
+				<Route path="/library/projects/:projectId" element={<ProjectBoardPage />} />
+				<Route path="/library" element={<LibraryPage />} />
+				<Route path="/memory" element={<MemoryPage />} />
+				<Route path="/settings" element={<SettingsPage />} />
+				<Route path="/scratchpad" element={<ScratchpadPanel embedMode />} />
+				<Route path="*" element={<DevStudioPage />} />
+			</Routes>
 		</div>
 	)
 }
