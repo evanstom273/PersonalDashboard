@@ -17,6 +17,7 @@ import { DocumentMentionMenu } from '@/components/chat/DocumentMentionMenu'
 import { useDocumentMentionPicker } from '@/hooks/useDocumentMentionPicker'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { runDevStudioAgentWithContinue } from '@/services/devStudio/runDevStudioAgentWithContinue'
+import { formatGeminiQuotaErrorMessage } from '@/services/devStudio/devStudioGeminiRequest'
 import { DEV_STUDIO_TIMEOUT_MESSAGE } from '@/services/devStudio/devStudioAgentTypes'
 import { resolveDevStudioModelId } from '@/services/devStudio/devStudioModels'
 import {
@@ -613,7 +614,7 @@ export function DevStudioComposer() {
 						: isAbort
 							? 'Generation stopped.'
 							: caught instanceof Error
-								? caught.message
+								? formatGeminiQuotaErrorMessage(caught)
 								: 'Generation failed.',
 					createdAt: Date.now(),
 				})

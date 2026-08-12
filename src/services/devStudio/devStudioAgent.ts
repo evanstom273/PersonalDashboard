@@ -12,6 +12,8 @@ import {
 import {
 	compactToolResponseForBudget,
 	createDevStudioReadCache,
+	DevStudioTpmTracker,
+	estimateRequestTokens,
 	getDevStudioTokenBudget,
 	pruneDevStudioContents,
 	sleep,
@@ -22,8 +24,8 @@ import {
 	executeDevStudioToolCall,
 	type DevStudioToolContext,
 } from '@/services/devStudio/devStudioWorkspaceTools'
+import { geminiStreamDevStudioRequest } from '@/services/devStudio/devStudioGeminiRequest'
 import { applySafetySettingsToRequestBody } from '@/services/gemini/safetySettings'
-import { geminiStreamGenerateContent } from '@/services/gemini/stream'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
 import type { DevStudioAgentPhase, DevStudioExecutionMode } from '@/types/devStudio'
 import type { DevStudioRepoRef } from '@/types/devStudio'
@@ -164,6 +166,8 @@ export async function generateDevStudioChat(
 			: [...DEV_STUDIO_TOOL_DECLARATIONS]
 
 	let lastRequestAt = 0
+	const tpmTracker =
+		tokenBudget.tpmLimitTokens !== null ? new DevStudioTpmTracker() : null
 
 	for (let iteration = 0; iteration < maxIterations; iteration += 1) {
 		if (options?.signal?.aborted) {
@@ -208,9 +212,18 @@ export async function generateDevStudioChat(
 			preferences.allowMatureContent ?? true,
 		)
 
+		const estimatedTokens = estimateRequestTokens(requestBody)
+		if (tpmTracker && tokenBudget.tpmLimitTokens !== null) {
+			await tpmTracker.waitForCapacity(
+				estimatedTokens,
+				tokenBudget.tpmLimitTokens,
+				options?.signal,
+			)
+		}
+
 		lastRequestAt = Date.now()
 
-		const streamed = await geminiStreamGenerateContent(
+		const streamed = await geminiStreamDevStudioRequest(
 			apiKey,
 			geminiModelId,
 			requestBody,
@@ -225,6 +238,8 @@ export async function generateDevStudioChat(
 				},
 			},
 		)
+
+		tpmTracker?.record(estimatedTokens)
 
 		const parts = streamed.parts
 		const functionCallParts = parts.filter((part) => part.functionCall?.name)

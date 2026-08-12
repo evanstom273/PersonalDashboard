@@ -15,7 +15,10 @@ import type {
 	DevStudioReadCache,
 	DevStudioTokenBudget,
 } from '@/services/devStudio/devStudioTokenBudget'
-import { getDevStudioTokenBudget } from '@/services/devStudio/devStudioTokenBudget'
+import {
+	getDevStudioTokenBudget,
+	sliceFileContentByLines,
+} from '@/services/devStudio/devStudioTokenBudget'
 
 export interface DevStudioToolContext {
 	token: string
@@ -64,13 +67,21 @@ export const DEV_STUDIO_TOOL_DECLARATIONS = [
 	{
 		name: 'read_workspace_file',
 		description:
-			'Read one file. Use search_workspace_code first when you only need a snippet. Large files may be truncated.',
+			'Read one file or a line range. Large files: pass start_line/end_line (1-based) instead of loading the whole file.',
 		parameters: {
 			type: 'OBJECT',
 			properties: {
 				path: {
 					type: 'STRING',
 					description: 'Repository file path, e.g. "src/App.tsx".',
+				},
+				start_line: {
+					type: 'INTEGER',
+					description: 'Optional 1-based start line for partial reads.',
+				},
+				end_line: {
+					type: 'INTEGER',
+					description: 'Optional 1-based end line (inclusive).',
 				},
 			},
 			required: ['path'],
@@ -191,6 +202,17 @@ export function isDevStudioToolName(name: string): boolean {
 
 function resolveBudget(context: DevStudioToolContext): DevStudioTokenBudget {
 	return context.tokenBudget ?? getDevStudioTokenBudget('gemini-3.6-flash')
+}
+
+function parseLineNumber(value: unknown): number | undefined {
+	if (typeof value === 'number' && Number.isFinite(value)) {
+		return Math.max(1, Math.trunc(value))
+	}
+	if (typeof value === 'string' && value.trim()) {
+		const parsed = Number.parseInt(value.trim(), 10)
+		return Number.isFinite(parsed) ? Math.max(1, parsed) : undefined
+	}
+	return undefined
 }
 
 function normalizePath(value: string): string {
@@ -476,17 +498,57 @@ async function readWorkspaceFile(
 	try {
 		const budget = resolveBudget(context)
 		const file = await readWorkspaceFileContent(context, path)
-		const truncated = file.content.length > budget.maxReadChars
+		const startLine = parseLineNumber(args.start_line)
+		const endLine = parseLineNumber(args.end_line)
+
+		if (startLine !== undefined || endLine !== undefined) {
+			const slice = sliceFileContentByLines(file.content, {
+				startLine,
+				endLine,
+				maxLines: budget.maxLinesPerRead,
+				maxChars: budget.maxReadChars,
+			})
+			return {
+				name: 'read_workspace_file',
+				response: {
+					path,
+					sha: file.sha,
+					cached: file.cached,
+					total_lines: slice.totalLines,
+					start_line: slice.startLine,
+					end_line: slice.endLine,
+					content: slice.content,
+					truncated: slice.truncated,
+					_hint:
+						slice.truncated && slice.endLine < slice.totalLines
+							? `File has ${slice.totalLines} lines. Read next section with start_line=${slice.endLine + 1}.`
+							: undefined,
+				},
+			}
+		}
+
+		const slice = sliceFileContentByLines(file.content, {
+			startLine: 1,
+			endLine: budget.maxLinesPerRead,
+			maxLines: budget.maxLinesPerRead,
+			maxChars: budget.maxReadChars,
+		})
+
 		return {
 			name: 'read_workspace_file',
 			response: {
 				path,
 				sha: file.sha,
 				cached: file.cached,
-				content: truncated
-					? `${file.content.slice(0, budget.maxReadChars)}\n\n[Truncated for context length.]`
-					: file.content,
-				truncated,
+				total_lines: slice.totalLines,
+				start_line: slice.startLine,
+				end_line: slice.endLine,
+				content: slice.content,
+				truncated: slice.truncated,
+				_hint:
+					slice.truncated && slice.totalLines > slice.endLine
+						? `File has ${slice.totalLines} lines. Use start_line/end_line to read other sections.`
+						: undefined,
 			},
 		}
 	} catch (error) {
