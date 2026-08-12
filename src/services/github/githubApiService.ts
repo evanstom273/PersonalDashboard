@@ -2,6 +2,9 @@ import type {
 	DevStudioFileNode,
 	DevStudioPullRequest,
 	DevStudioRepoRef,
+	GitHubPagesBuildResponse,
+	GitHubPagesDeploymentInfo,
+	GitHubWorkflowRunResponse,
 } from '@/types/devStudio'
 import { buildPatPermissionErrorHint } from '@/utils/githubPatHelp'
 
@@ -655,4 +658,258 @@ export async function closePullRequest(
 	)
 
 	return { rateLimit: result.rateLimit }
+}
+
+export async function getPagesBuildStatus(
+	token: string,
+	repo: DevStudioRepoRef,
+): Promise<{
+	build: GitHubPagesBuildResponse | null
+	pagesConfig: { htmlUrl?: string; status?: string } | null
+	rateLimit: GitHubRateLimit | null
+}> {
+	let rateLimit: GitHubRateLimit | null = null
+	let pagesConfig: { htmlUrl?: string; status?: string } | null = null
+	let build: GitHubPagesBuildResponse | null = null
+
+	try {
+		const pagesRes = await githubFetch<{ html_url?: string; status?: string }>(
+			token,
+			`${encodeRepoPath(repo)}/pages`,
+		)
+		rateLimit = pagesRes.rateLimit ?? rateLimit
+		pagesConfig = {
+			htmlUrl: pagesRes.data.html_url,
+			status: pagesRes.data.status,
+		}
+	} catch (caught) {
+		if (caught instanceof GitHubApiError && caught.status === 404) {
+			return { build: null, pagesConfig: null, rateLimit }
+		}
+	}
+
+	try {
+		const buildRes = await githubFetch<GitHubPagesBuildResponse>(
+			token,
+			`${encodeRepoPath(repo)}/pages/builds/latest`,
+		)
+		rateLimit = buildRes.rateLimit ?? rateLimit
+		build = buildRes.data
+	} catch {
+		// builds/latest might return 404 or fail if using Actions deployment workflows
+	}
+
+	return { build, pagesConfig, rateLimit }
+}
+
+export async function getWorkflowRuns(
+	token: string,
+	repo: DevStudioRepoRef,
+	options?: { event?: string; perPage?: number },
+): Promise<{
+	runs: GitHubWorkflowRunResponse[]
+	rateLimit: GitHubRateLimit | null
+}> {
+	const params = new URLSearchParams()
+	params.set('per_page', String(options?.perPage ?? 10))
+	if (options?.event) {
+		params.set('event', options.event)
+	}
+
+	try {
+		const result = await githubFetch<{
+			workflow_runs: GitHubWorkflowRunResponse[]
+		}>(
+			token,
+			`${encodeRepoPath(repo)}/actions/runs?${params.toString()}`,
+		)
+		return {
+			runs: result.data.workflow_runs || [],
+			rateLimit: result.rateLimit,
+		}
+	} catch {
+		return { runs: [], rateLimit: null }
+	}
+}
+
+export async function getPagesDeploymentStatus(
+	token: string,
+	repo: DevStudioRepoRef,
+): Promise<{
+	deployment: GitHubPagesDeploymentInfo | null
+	rateLimit: GitHubRateLimit | null
+}> {
+	let rateLimit: GitHubRateLimit | null = null
+
+	// 1. Fetch GitHub Pages site settings
+	let pagesHtmlUrl: string | undefined
+	let pagesStatus: string | undefined
+
+	try {
+		const pagesRes = await githubFetch<{ html_url?: string; status?: string }>(
+			token,
+			`${encodeRepoPath(repo)}/pages`,
+		)
+		rateLimit = pagesRes.rateLimit ?? rateLimit
+		pagesHtmlUrl = pagesRes.data.html_url
+		pagesStatus = pagesRes.data.status
+	} catch (caught) {
+		if (caught instanceof GitHubApiError && caught.status === 404) {
+			return { deployment: null, rateLimit }
+		}
+	}
+
+	const fallbackHtmlUrl = pagesHtmlUrl || `https://${repo.owner}.github.io/${repo.repo}/`
+
+	// 2. Query GitHub Actions workflow runs (e.g. pages-build-deployment or recent runs)
+	const actionsRes = await getWorkflowRuns(token, repo, { perPage: 10 })
+	rateLimit = actionsRes.rateLimit ?? rateLimit
+
+	const pageWorkflowRun =
+		actionsRes.runs.find(
+			(run) =>
+				run.name.toLowerCase().includes('pages') ||
+				run.name.toLowerCase().includes('deploy') ||
+				run.head_branch === repo.branch,
+		) || actionsRes.runs[0]
+
+	if (pageWorkflowRun) {
+		if (
+			pageWorkflowRun.status === 'queued' ||
+			pageWorkflowRun.status === 'in_progress' ||
+			pageWorkflowRun.status === 'waiting'
+		) {
+			return {
+				deployment: {
+					state: 'building',
+					statusText: 'Building...',
+					htmlUrl: fallbackHtmlUrl,
+					logsUrl: pageWorkflowRun.html_url,
+					updatedAt: pageWorkflowRun.updated_at,
+					commitSha: pageWorkflowRun.head_sha,
+				},
+				rateLimit,
+			}
+		}
+
+		if (pageWorkflowRun.status === 'completed') {
+			if (pageWorkflowRun.conclusion === 'success') {
+				return {
+					deployment: {
+						state: 'deployed',
+						statusText: 'Deployed',
+						htmlUrl: fallbackHtmlUrl,
+						logsUrl: pageWorkflowRun.html_url,
+						updatedAt: pageWorkflowRun.updated_at,
+						commitSha: pageWorkflowRun.head_sha,
+					},
+					rateLimit,
+				}
+			}
+
+			if (
+				pageWorkflowRun.conclusion === 'failure' ||
+				pageWorkflowRun.conclusion === 'cancelled' ||
+				pageWorkflowRun.conclusion === 'timed_out'
+			) {
+				return {
+					deployment: {
+						state: 'failed',
+						statusText: 'Build Failed',
+						htmlUrl: fallbackHtmlUrl,
+						logsUrl: pageWorkflowRun.html_url,
+						updatedAt: pageWorkflowRun.updated_at,
+						commitSha: pageWorkflowRun.head_sha,
+					},
+					rateLimit,
+				}
+			}
+		}
+	}
+
+	// 3. Fallback to /pages/builds/latest
+	try {
+		const buildRes = await githubFetch<GitHubPagesBuildResponse>(
+			token,
+			`${encodeRepoPath(repo)}/pages/builds/latest`,
+		)
+		rateLimit = buildRes.rateLimit ?? rateLimit
+		const build = buildRes.data
+
+		if (build.status === 'building' || build.status === 'queued') {
+			return {
+				deployment: {
+					state: 'building',
+					statusText: 'Building...',
+					htmlUrl: fallbackHtmlUrl,
+					logsUrl: build.html_url,
+					updatedAt: build.updated_at,
+					commitSha: build.commit,
+				},
+				rateLimit,
+			}
+		}
+
+		if (build.status === 'errored') {
+			return {
+				deployment: {
+					state: 'failed',
+					statusText: 'Build Failed',
+					htmlUrl: fallbackHtmlUrl,
+					logsUrl: build.html_url,
+					updatedAt: build.updated_at,
+					commitSha: build.commit,
+				},
+				rateLimit,
+			}
+		}
+
+		if (build.status === 'built') {
+			return {
+				deployment: {
+					state: 'deployed',
+					statusText: 'Deployed',
+					htmlUrl: fallbackHtmlUrl,
+					logsUrl: build.html_url,
+					updatedAt: build.updated_at,
+					commitSha: build.commit,
+				},
+				rateLimit,
+			}
+		}
+	} catch {
+		// Ignore API error for builds endpoint
+	}
+
+	// 4. Fallback based on /pages configuration status
+	if (pagesStatus === 'building') {
+		return {
+			deployment: {
+				state: 'building',
+				statusText: 'Building...',
+				htmlUrl: fallbackHtmlUrl,
+			},
+			rateLimit,
+		}
+	}
+
+	if (pagesStatus === 'errored') {
+		return {
+			deployment: {
+				state: 'failed',
+				statusText: 'Build Failed',
+				htmlUrl: fallbackHtmlUrl,
+			},
+			rateLimit,
+		}
+	}
+
+	return {
+		deployment: {
+			state: 'deployed',
+			statusText: 'Deployed',
+			htmlUrl: fallbackHtmlUrl,
+		},
+		rateLimit,
+	}
 }
