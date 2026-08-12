@@ -129,7 +129,6 @@ export interface UserPreferences {
 	allowCodebaseInspection: boolean
 	scratchpadContent: string
 	githubPat: string
-	openRouterApiKey: string
 	devStudioRepository: string
 	devStudioBranch: string
 	devStudioModelId: string
@@ -156,7 +155,6 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	allowCodebaseInspection: true,
 	scratchpadContent: '',
 	githubPat: '',
-	openRouterApiKey: '',
 	devStudioRepository: '',
 	devStudioBranch: 'main',
 	devStudioModelId: 'gemini-3.6-flash',

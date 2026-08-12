@@ -11,10 +11,8 @@ import type {
 } from '@/types/devStudio'
 import { filterFilePaths } from '@/utils/devStudioFileTree'
 import { generateDevStudioPushMetadata } from '@/utils/devStudioPushMetadata'
-
-const MAX_READ_CHARS = 60_000
-const MAX_SEARCH_FILES = 24
-const MAX_SEARCH_RESULTS = 40
+import type { DevStudioTokenBudget } from '@/services/devStudio/devStudioTokenBudget'
+import { getDevStudioTokenBudget } from '@/services/devStudio/devStudioTokenBudget'
 
 export interface DevStudioToolContext {
 	token: string
@@ -36,6 +34,7 @@ export interface DevStudioToolContext {
 	getCachedSha: (path: string) => string | undefined
 	setCachedSha: (path: string, sha: string) => void
 	onRateLimit?: (rateLimit: GitHubRateLimit | null) => void
+	tokenBudget?: DevStudioTokenBudget
 }
 
 export interface DevStudioToolResult {
@@ -185,6 +184,10 @@ export function isDevStudioToolName(name: string): boolean {
 	return DEV_STUDIO_TOOL_NAMES.has(name)
 }
 
+function resolveBudget(context: DevStudioToolContext): DevStudioTokenBudget {
+	return context.tokenBudget ?? getDevStudioTokenBudget('gemini-3.6-flash')
+}
+
 function normalizePath(value: string): string {
 	return value.trim().replace(/\\/g, '/').replace(/^\.\//, '')
 }
@@ -270,6 +273,7 @@ function listWorkspaceFiles(
 	args: Record<string, unknown>,
 	context: DevStudioToolContext,
 ): DevStudioToolResult {
+	const budget = resolveBudget(context)
 	const pathPrefix =
 		typeof args.path_prefix === 'string' ? args.path_prefix : undefined
 	const paths = filterFilePaths(context.filePaths, pathPrefix)
@@ -280,7 +284,8 @@ function listWorkspaceFiles(
 			repository: `${context.repo.owner}/${context.repo.repo}`,
 			branch: context.repo.branch,
 			count: paths.length,
-			paths: paths.slice(0, 500),
+			paths: paths.slice(0, budget.maxListPaths),
+			truncated: paths.length > budget.maxListPaths,
 		},
 	}
 }
@@ -457,15 +462,16 @@ async function readWorkspaceFile(
 	}
 
 	try {
+		const budget = resolveBudget(context)
 		const file = await readWorkspaceFileContent(context, path)
-		const truncated = file.content.length > MAX_READ_CHARS
+		const truncated = file.content.length > budget.maxReadChars
 		return {
 			name: 'read_workspace_file',
 			response: {
 				path,
 				sha: file.sha,
 				content: truncated
-					? `${file.content.slice(0, MAX_READ_CHARS)}\n\n[Truncated for context length.]`
+					? `${file.content.slice(0, budget.maxReadChars)}\n\n[Truncated for context length.]`
 					: file.content,
 				truncated,
 			},
@@ -495,9 +501,10 @@ async function searchWorkspaceCode(
 	const pathPrefix =
 		typeof args.path_prefix === 'string' ? args.path_prefix : undefined
 	const caseSensitive = args.case_sensitive === true
+	const budget = resolveBudget(context)
 	const paths = filterFilePaths(context.filePaths, pathPrefix).slice(
 		0,
-		MAX_SEARCH_FILES,
+		budget.maxSearchFiles,
 	)
 
 	let pattern: RegExp
@@ -513,7 +520,7 @@ async function searchWorkspaceCode(
 	const matches: Array<{ path: string; line: number; text: string }> = []
 
 	for (const path of paths) {
-		if (matches.length >= MAX_SEARCH_RESULTS) {
+		if (matches.length >= budget.maxSearchResults) {
 			break
 		}
 
@@ -521,7 +528,7 @@ async function searchWorkspaceCode(
 			const file = await readWorkspaceFileContent(context, path)
 			const lines = file.content.split('\n')
 			for (let index = 0; index < lines.length; index += 1) {
-				if (matches.length >= MAX_SEARCH_RESULTS) {
+				if (matches.length >= budget.maxSearchResults) {
 					break
 				}
 				const line = lines[index]

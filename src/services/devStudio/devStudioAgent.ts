@@ -4,11 +4,17 @@ import {
 	type DevStudioAgentRunResult,
 } from '@/services/devStudio/devStudioAgentTypes'
 import {
-	getDevStudioModelProvider,
 	getMaxIterationsForModel,
+	isGemmaDevStudioModel,
+	resolveDevStudioGeminiModelId,
 	resolveDevStudioModelId,
 } from '@/services/devStudio/devStudioModels'
-import { generateOpenRouterDevStudioChat } from '@/services/devStudio/openRouterDevStudioAgent'
+import {
+	compactToolResponseForBudget,
+	getDevStudioTokenBudget,
+	pruneDevStudioContents,
+	sleep,
+} from '@/services/devStudio/devStudioTokenBudget'
 import {
 	DEV_STUDIO_READ_ONLY_TOOL_NAMES,
 	DEV_STUDIO_TOOL_DECLARATIONS,
@@ -43,7 +49,13 @@ interface GeminiContent {
 }
 
 function buildDevStudioGenerationConfig(modelId: string): Record<string, unknown> {
-	if (modelId.startsWith('gemini-2.5')) {
+	const resolvedId = resolveDevStudioModelId(modelId)
+
+	if (resolvedId === 'gemma-4-31b-it') {
+		return {}
+	}
+
+	if (resolvedId.startsWith('gemini-2.5')) {
 		return {
 			thinkingConfig: {
 				includeThoughts: true,
@@ -52,7 +64,6 @@ function buildDevStudioGenerationConfig(modelId: string): Record<string, unknown
 		}
 	}
 
-	const resolvedId = resolveDevStudioModelId(modelId)
 	const thinkingLevel =
 		resolvedId === 'gemini-3.1-pro-preview'
 			? 'high'
@@ -100,7 +111,17 @@ function buildDevStudioMessageParts(message: StoredMessage): GeminiPart[] {
 	return parts
 }
 
-async function generateGeminiDevStudioChat(
+function trimSeedMessages(
+	messages: StoredMessage[],
+	maxSeedMessages: number,
+): StoredMessage[] {
+	if (messages.length <= maxSeedMessages) {
+		return messages
+	}
+	return messages.slice(-maxSeedMessages)
+}
+
+export async function generateDevStudioChat(
 	apiKey: string,
 	modelId: string,
 	messages: StoredMessage[],
@@ -117,13 +138,22 @@ async function generateGeminiDevStudioChat(
 		onToolComplete?: (toolName: string) => void
 	},
 ): Promise<DevStudioAgentRunResult> {
+	const resolvedId = resolveDevStudioModelId(modelId)
+	const geminiModelId = resolveDevStudioGeminiModelId(resolvedId)
+	const tokenBudget = getDevStudioTokenBudget(resolvedId)
 	const executionMode = options?.executionMode ?? 'act'
-	const contents: GeminiContent[] = messages.map((message) => ({
+
+	const seededMessages = trimSeedMessages(messages, tokenBudget.maxSeedMessages)
+	const contents: GeminiContent[] = seededMessages.map((message) => ({
 		role: message.role === 'assistant' ? 'model' : 'user',
 		parts: buildDevStudioMessageParts(message),
 	}))
 
-	const maxIterations = getMaxIterationsForModel(modelId)
+	const maxIterations = getMaxIterationsForModel(resolvedId)
+	const budgetedToolContext: DevStudioToolContext = {
+		...toolContext,
+		tokenBudget,
+	}
 
 	const activeToolDeclarations =
 		executionMode === 'plan'
@@ -132,12 +162,29 @@ async function generateGeminiDevStudioChat(
 				)
 			: [...DEV_STUDIO_TOOL_DECLARATIONS]
 
+	let lastRequestAt = 0
+
 	for (let iteration = 0; iteration < maxIterations; iteration += 1) {
 		if (options?.signal?.aborted) {
 			throw new DOMException('Generation aborted', 'AbortError')
 		}
 
+		const elapsedSinceLastRequest = Date.now() - lastRequestAt
+		if (
+			tokenBudget.minRequestIntervalMs > 0 &&
+			lastRequestAt > 0 &&
+			elapsedSinceLastRequest < tokenBudget.minRequestIntervalMs
+		) {
+			await sleep(tokenBudget.minRequestIntervalMs - elapsedSinceLastRequest)
+		}
+
+		if (options?.signal?.aborted) {
+			throw new DOMException('Generation aborted', 'AbortError')
+		}
+
 		options?.onPhaseChange?.('thinking')
+
+		const prunedContents = pruneDevStudioContents(contents, tokenBudget)
 
 		const requestBody = applySafetySettingsToRequestBody(
 			{
@@ -148,24 +195,29 @@ async function generateGeminiDevStudioChat(
 								preferences,
 								repo,
 								executionMode,
+								resolvedId,
 							),
 						},
 					],
 				},
-				generationConfig: buildDevStudioGenerationConfig(modelId),
+				generationConfig: buildDevStudioGenerationConfig(resolvedId),
 				tools: [{ functionDeclarations: activeToolDeclarations }],
-				contents,
+				contents: prunedContents,
 			},
 			preferences.allowMatureContent ?? true,
 		)
 
+		lastRequestAt = Date.now()
+
 		const streamed = await geminiStreamGenerateContent(
 			apiKey,
-			modelId,
+			geminiModelId,
 			requestBody,
 			{
 				signal: options?.signal,
-				onThoughtDelta: options?.onThoughtDelta,
+				onThoughtDelta: tokenBudget.includeThoughts
+					? options?.onThoughtDelta
+					: undefined,
 				onTextDelta: (delta) => {
 					options?.onPhaseChange?.('writing')
 					options?.onTextDelta?.(delta)
@@ -195,7 +247,7 @@ async function generateGeminiDevStudioChat(
 				const toolResult = await executeDevStudioToolCall(
 					functionCall.name,
 					functionCall.args ?? {},
-					toolContext,
+					budgetedToolContext,
 					executionMode,
 				)
 				options?.onToolComplete?.(functionCall.name)
@@ -203,7 +255,10 @@ async function generateGeminiDevStudioChat(
 				functionResponseParts.push({
 					functionResponse: {
 						name: toolResult.name,
-						response: toolResult.response,
+						response: compactToolResponseForBudget(
+							toolResult.response,
+							tokenBudget,
+						),
 					},
 				})
 			}
@@ -232,44 +287,4 @@ async function generateGeminiDevStudioChat(
 	}
 }
 
-export async function generateDevStudioChat(
-	apiKey: string,
-	modelId: string,
-	messages: StoredMessage[],
-	preferences: UserPreferences,
-	repo: DevStudioRepoRef,
-	toolContext: DevStudioToolContext,
-	options?: {
-		executionMode?: DevStudioExecutionMode
-		signal?: AbortSignal
-		onTextDelta?: (delta: string) => void
-		onThoughtDelta?: (delta: string) => void
-		onPhaseChange?: (phase: DevStudioAgentPhase) => void
-		onToolStart?: (toolName: string, args: Record<string, unknown>) => void
-		onToolComplete?: (toolName: string) => void
-	},
-): Promise<DevStudioAgentRunResult> {
-	const resolvedId = resolveDevStudioModelId(modelId)
-
-	if (getDevStudioModelProvider(resolvedId) === 'openrouter') {
-		return generateOpenRouterDevStudioChat(
-			apiKey,
-			resolvedId,
-			messages,
-			preferences,
-			repo,
-			toolContext,
-			options,
-		)
-	}
-
-	return generateGeminiDevStudioChat(
-		apiKey,
-		resolvedId,
-		messages,
-		preferences,
-		repo,
-		toolContext,
-		options,
-	)
-}
+export { isGemmaDevStudioModel }

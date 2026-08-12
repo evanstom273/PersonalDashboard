@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.13'
+export const APP_VERSION = '2.0.14'
 
 export interface ChangelogEntry {
 	version: string
@@ -9,12 +9,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
-		version: '2.0.13',
+		version: '2.0.14',
 		releasedAt: '2026-08-12',
-		summary: 'Fix OpenRouter free Dev Studio model',
+		summary: 'Gemma 4 31B via Gemini API',
 		changes: [
-			'Switch free Dev Studio OpenRouter model to Gemma 4 31B — Qwen free preview was removed from OpenRouter.',
-			'Existing Qwen model selections migrate to Gemma automatically.',
+			'Remove OpenRouter — Gemma 4 31B now uses your Gemini API key in Dev Studio and chat.',
+			'Dev Studio quota-aware mode for Gemma: tighter tool output, context pruning, and request pacing for Tier 2 limits.',
+			'OpenRouter API key setting removed; one Gemini key covers chat and coding.',
 		],
 	},
 	{

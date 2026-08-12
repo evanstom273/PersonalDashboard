@@ -2,6 +2,7 @@ import {
 	buildSystemInstruction,
 	getConfiguredAiName,
 } from '@/services/gemini/systemInstruction'
+import { isGemmaDevStudioModel } from '@/services/devStudio/devStudioModels'
 import type { StoredMessage } from '@/storage/types'
 import type { DevStudioExecutionMode } from '@/types/devStudio'
 import { formatRepositorySlug, type DevStudioRepoRef } from '@/types/devStudio'
@@ -11,16 +12,29 @@ export function buildDevStudioSystemInstruction(
 	preferences: UserPreferences,
 	repo: DevStudioRepoRef,
 	executionMode: DevStudioExecutionMode = 'act',
+	modelId?: string,
 ): string {
+	const quotaAware = modelId ? isGemmaDevStudioModel(modelId) : false
+
 	const base = [
 		buildSystemInstruction(preferences),
 		`${getConfiguredAiName(preferences)} Dev Studio code agent mode.`,
 		`Connected repository: ${formatRepositorySlug(repo)} on branch ${repo.branch}.`,
 	]
 
+	const tokenEfficiency = quotaAware
+		? [
+				'TOKEN & QUOTA EFFICIENCY (required on this model):',
+				'Minimize API round-trips. Batch reads: search or list first, then read only the files you need.',
+				'Never read large files whole if a targeted search suffices. Prefer small, incremental edits.',
+				'Keep tool use focused — avoid exploratory loops. One file at a time when staging.',
+			].join('\n')
+		: ''
+
 	if (executionMode === 'plan') {
 		return [
 			...base,
+			tokenEfficiency,
 			'CURRENT EXECUTION MODE: PLAN MODE 📝',
 			'You are in read-only analysis and planning mode. Do NOT attempt to stage code changes or edit workspace files.',
 			'Restricted tools: stage_workspace_file, push_staged_changes, merge_pull_request, close_pull_request are write-protected.',
@@ -32,11 +46,14 @@ export function buildDevStudioSystemInstruction(
 			'## ⚠️ Edge Cases, Safety & Risks',
 			'## 🧪 Verification & Testing Steps',
 			'End your response with a clear summary asking the user to review, download, or approve the plan to switch to Act Mode.',
-		].join('\n\n')
+		]
+			.filter(Boolean)
+			.join('\n\n')
 	}
 
 	return [
 		...base,
+		tokenEfficiency,
 		'CURRENT EXECUTION MODE: ACT MODE ⚡',
 		'Use workspace tools to inspect and edit files in this repository.',
 		'Think step by step before editing. Read files before changing them.',
@@ -47,7 +64,9 @@ export function buildDevStudioSystemInstruction(
 		'Prefer small, focused changes. When proposing code, stage the full updated file content.',
 		'For multi-file work: list or search first, read each file, then stage edits one file at a time.',
 		'When you believe the task is fully done and staged changes are ready for human review, end with a clear summary and the phrase "Task ready for review."',
-	].join('\n\n')
+	]
+		.filter(Boolean)
+		.join('\n\n')
 }
 
 export function buildDevStudioUserText(message: StoredMessage): string {
