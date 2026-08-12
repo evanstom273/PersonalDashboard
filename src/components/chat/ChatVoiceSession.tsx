@@ -52,7 +52,7 @@ export function ChatVoiceSession({
 
 	const conversationMode = useConversationMode({
 		geminiApiKey: preferences.geminiApiKey,
-		transcriptionModelId: getTranscriptionModelId(),
+		transcriptionModelId: getTranscriptionModelId(preferences.defaultModelId),
 		onSubmit: handleConversationSubmit,
 		onStopSpeaking: onStopSpeech,
 	})

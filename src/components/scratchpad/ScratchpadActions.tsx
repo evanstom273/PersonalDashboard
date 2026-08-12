@@ -171,7 +171,7 @@ export function useScratchpadActions() {
 		try {
 			const organized = await organizeScratchpadIntoDocument({
 				apiKey: preferences.geminiApiKey,
-				modelId: getEconomyModelId(),
+				modelId: getEconomyModelId(preferences.defaultModelId),
 				preferences,
 				rawText: content,
 			})
@@ -206,7 +206,7 @@ export function useScratchpadActions() {
 		try {
 			const extracted = await extractScratchpadTasks({
 				apiKey: preferences.geminiApiKey,
-				modelId: getEconomyModelId(),
+				modelId: getEconomyModelId(preferences.defaultModelId),
 				preferences,
 				rawText: content,
 			})

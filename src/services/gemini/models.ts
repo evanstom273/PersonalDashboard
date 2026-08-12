@@ -15,6 +15,18 @@ export const GEMINI_MODELS: GeminiModelDefinition[] = [
 		category: 'chat',
 	},
 	{
+		id: 'gemini-3.5-flash-lite',
+		name: 'Gemini 3.5 Flash Lite',
+		description: 'Free-tier friendly — high TPM; swap to 3.1 Flash Lite if you hit daily limits',
+		category: 'chat',
+	},
+	{
+		id: 'gemini-3.1-flash-lite',
+		name: 'Gemini 3.1 Flash Lite',
+		description: 'Free-tier friendly — separate daily quota from 3.5 Flash Lite',
+		category: 'chat',
+	},
+	{
 		id: 'gemini-3.1-pro-preview',
 		name: 'Gemini 3.1 Pro',
 		description: 'Advanced reasoning and complex problem solving',

@@ -73,7 +73,7 @@ export function useDocumentAiWriting({
 			try {
 				const suggestion = await generateDocumentWritingSuggestion({
 					apiKey,
-					modelId: getEconomyModelId(),
+					modelId: getEconomyModelId(preferences.defaultModelId),
 					preferences,
 					documentTitle,
 					selectedText,

@@ -1,5 +1,5 @@
 import type { GenerationIntent } from '@/services/gemini/constants'
-import { ECONOMY_MODEL_ID } from '@/services/gemini/constants'
+import { resolveEconomyModelId } from '@/services/gemini/constants'
 import type { UserPreferences } from '@/storage/types'
 
 export interface GenerationModelPreferences {
@@ -32,10 +32,10 @@ export function getModelIdForIntent(
 	}
 }
 
-export function getTranscriptionModelId(): string {
-	return ECONOMY_MODEL_ID
+export function getTranscriptionModelId(chatModelId: string): string {
+	return resolveEconomyModelId(chatModelId)
 }
 
-export function getEconomyModelId(): string {
-	return ECONOMY_MODEL_ID
+export function getEconomyModelId(chatModelId: string): string {
+	return resolveEconomyModelId(chatModelId)
 }
