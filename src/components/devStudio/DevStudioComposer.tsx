@@ -19,6 +19,10 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { runDevStudioAgentWithContinue } from '@/services/devStudio/runDevStudioAgentWithContinue'
 import { DEV_STUDIO_TIMEOUT_MESSAGE } from '@/services/devStudio/devStudioAgentTypes'
 import { resolveDevStudioModelId } from '@/services/devStudio/devStudioModels'
+import {
+	getDevStudioAgentApiKey,
+	getDevStudioAgentApiKeyMessage,
+} from '@/utils/devStudioApiKeys'
 import { createDocument } from '@/services/documents/documentService'
 import { ingestUploadedDocumentContent } from '@/utils/documentContent'
 import { buildDocumentMention, insertDocumentMention } from '@/utils/documentMentions'
@@ -497,7 +501,8 @@ export function DevStudioComposer() {
 			conversationMessages: StoredMessage[],
 			mode: DevStudioExecutionMode = executionMode,
 		) => {
-			const apiKey = preferences.geminiApiKey.trim()
+			const modelId = resolveDevStudioModelId(preferences.devStudioModelId)
+			const apiKey = getDevStudioAgentApiKey(preferences, modelId)
 			const repo = parseRepositorySlug(repositorySlug)
 			if (!repo) {
 				return
@@ -535,7 +540,10 @@ export function DevStudioComposer() {
 			}
 
 			try {
-				const modelId = resolveDevStudioModelId(preferences.devStudioModelId)
+				if (!apiKey) {
+					throw new Error(getDevStudioAgentApiKeyMessage(modelId))
+				}
+
 				const result = await runDevStudioAgentWithContinue(
 					apiKey,
 					modelId,
@@ -689,12 +697,13 @@ export function DevStudioComposer() {
 			return
 		}
 
-		const apiKey = preferences.geminiApiKey.trim()
+		const modelId = resolveDevStudioModelId(preferences.devStudioModelId)
+		const apiKey = getDevStudioAgentApiKey(preferences, modelId)
 		if (!apiKey) {
 			appendMessage({
 				id: crypto.randomUUID(),
 				role: 'assistant',
-				content: 'Add your Gemini API key in Settings before chatting.',
+				content: getDevStudioAgentApiKeyMessage(modelId),
 				createdAt: Date.now(),
 			})
 			return
