@@ -14,7 +14,12 @@ import {
 } from '@/components/ui/dialog'
 import { useDualPaneNavigation } from '@/hooks/useDualPaneNavigation'
 import { usePreferencesContext } from '@/providers/ChatProvider'
-import { getDocument, createDocument, updateDocument } from '@/services/documents/documentService'
+import {
+	getDocument,
+	createDocument,
+	updateDocument,
+	subscribeDocumentsChanged,
+} from '@/services/documents/documentService'
 import { saveDocumentAsTemplate } from '@/services/documents/documentTemplateService'
 import type { DocumentContentFormat, DocumentRecord } from '@/storage/types'
 import {
@@ -45,6 +50,7 @@ export function DocumentEditorPage() {
 		contentFormat: DocumentContentFormat
 	} | null>(null)
 	const lastPersistedRef = useRef({ title: '', content: '' })
+	const lastKnownUpdatedAtRef = useRef(0)
 	const readOnlyRef = useRef(false)
 
 	useEffect(() => {
@@ -112,7 +118,7 @@ export function DocumentEditorPage() {
 		}
 
 		try {
-			await updateDocument(meta.id, {
+			const updated = await updateDocument(meta.id, {
 				title: snapshot.title,
 				content: editorHtmlToDocumentContent(
 					snapshot.content,
@@ -120,6 +126,7 @@ export function DocumentEditorPage() {
 				),
 			})
 			lastPersistedRef.current = { ...snapshot }
+			lastKnownUpdatedAtRef.current = updated.updatedAt
 		} catch {
 			// Save failures must not disrupt editing.
 		}
@@ -163,6 +170,7 @@ export function DocumentEditorPage() {
 					title: stored.title,
 					content: editorHtml,
 				}
+				lastKnownUpdatedAtRef.current = stored.updatedAt
 				setIsLoading(false)
 			}
 		}
@@ -173,6 +181,31 @@ export function DocumentEditorPage() {
 			cancelled = true
 		}
 	}, [documentId, goToLibrary, navigateApp])
+
+	useEffect(() => {
+		if (!documentId || documentId === 'new' || isLoading) {
+			return
+		}
+
+		return subscribeDocumentsChanged(() => {
+			void (async () => {
+				const stored = await getDocument(documentId)
+				if (!stored || stored.updatedAt <= lastKnownUpdatedAtRef.current) {
+					return
+				}
+
+				const editorHtml = documentContentToEditorHtml(stored)
+				lastKnownUpdatedAtRef.current = stored.updatedAt
+				lastPersistedRef.current = {
+					title: stored.title,
+					content: editorHtml,
+				}
+				setDocument(stored)
+				setTitle(stored.title)
+				setContent(editorHtml)
+			})()
+		})
+	}, [documentId, isLoading])
 
 	useEffect(() => {
 		if (!documentMetaRef.current || isLoading || readOnly) {
