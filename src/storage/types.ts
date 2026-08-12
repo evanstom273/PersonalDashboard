@@ -133,6 +133,11 @@ export interface UserPreferences {
 	devStudioBranch: string
 	devStudioModelId: string
 	devStudioAutoContinue: boolean
+	enableFoldableDualPane: boolean
+	forceDualPaneMode: boolean
+	customHingeGap: number
+	dualPaneMinWidth: number
+	dualPaneSplitRatio: number
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -154,6 +159,11 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	devStudioBranch: 'main',
 	devStudioModelId: 'gemini-3.6-flash',
 	devStudioAutoContinue: false,
+	enableFoldableDualPane: true,
+	forceDualPaneMode: false,
+	customHingeGap: 0,
+	dualPaneMinWidth: 900,
+	dualPaneSplitRatio: 50,
 }
 
 export interface DocumentRecord {

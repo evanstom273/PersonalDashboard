@@ -11,6 +11,7 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { DevStudioPage } from '@/pages/DevStudioPage'
 import { ChatProvider } from '@/providers/ChatProvider'
 import { DevStudioProvider } from '@/providers/DevStudioProvider'
+import { FoldablePaneProvider } from '@/providers/FoldablePaneProvider'
 import { ScratchpadProvider } from '@/providers/ScratchpadProvider'
 
 export function App() {
@@ -21,22 +22,24 @@ export function App() {
 			<ChatProvider>
 				<ScratchpadProvider>
 					<DevStudioProvider>
-						<Routes>
-							<Route element={<AppShell />}>
-								<Route index element={<Navigate to="/home" replace />} />
-								<Route path="home" element={<HomePage />} />
-								<Route path="chat" element={<ChatPage />} />
-								<Route path="dev-studio" element={<DevStudioPage />} />
-								<Route path="library" element={<LibraryPage />} />
-							<Route path="library/projects/:projectId" element={<ProjectBoardPage />} />
-							<Route path="library/documents/:documentId" element={<DocumentEditorPage />} />
-							<Route path="memory" element={<MemoryPage />} />
-							<Route path="documents" element={<Navigate to="/library" replace />} />
-							<Route path="documents/:documentId" element={<LegacyDocumentRedirect />} />
-							<Route path="settings" element={<SettingsPage />} />
-						</Route>
-						<Route path="*" element={<Navigate to="/home" replace />} />
-						</Routes>
+						<FoldablePaneProvider>
+							<Routes>
+								<Route element={<AppShell />}>
+									<Route index element={<Navigate to="/home" replace />} />
+									<Route path="home" element={<HomePage />} />
+									<Route path="chat" element={<ChatPage />} />
+									<Route path="dev-studio" element={<DevStudioPage />} />
+									<Route path="library" element={<LibraryPage />} />
+									<Route path="library/projects/:projectId" element={<ProjectBoardPage />} />
+									<Route path="library/documents/:documentId" element={<DocumentEditorPage />} />
+									<Route path="memory" element={<MemoryPage />} />
+									<Route path="documents" element={<Navigate to="/library" replace />} />
+									<Route path="documents/:documentId" element={<LegacyDocumentRedirect />} />
+									<Route path="settings" element={<SettingsPage />} />
+								</Route>
+								<Route path="*" element={<Navigate to="/home" replace />} />
+							</Routes>
+						</FoldablePaneProvider>
 					</DevStudioProvider>
 				</ScratchpadProvider>
 			</ChatProvider>

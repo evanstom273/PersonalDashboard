@@ -14,6 +14,7 @@ import { ChatMarkdown } from '@/components/chat/ChatMarkdown'
 import { MessageActions } from '@/components/chat/MessageActions'
 import { MediaLightbox } from '@/components/media/MediaLightbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useFoldablePane } from '@/hooks/useFoldablePane'
 import type { MessageDocumentLink, StoredMessage } from '@/storage/types'
 import type { TtsPlaybackStatus } from '@/hooks/useTextToSpeech'
 import { formatMessageTime } from '@/utils/dateTime'
@@ -489,9 +490,20 @@ function DocumentLinkCard({
 	link: MessageDocumentLink
 	className?: string
 }) {
+	const { isDualPaneActive, openInSecondaryPane } = useFoldablePane()
+	const targetRoute = `/library/documents/${link.id}`
+
+	const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+		if (isDualPaneActive) {
+			e.preventDefault()
+			openInSecondaryPane(targetRoute)
+		}
+	}
+
 	return (
 		<Link
-			to={`/library/documents/${link.id}`}
+			to={targetRoute}
+			onClick={handleClick}
 			className={cn(
 				'mt-3 flex min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-xl border border-border bg-secondary/40 px-4 py-3 transition-colors hover:bg-secondary/70',
 				className,
