@@ -1,4 +1,5 @@
 import {
+	ExternalLink,
 	GitBranch,
 	GitPullRequest,
 	Loader2,
@@ -37,6 +38,7 @@ export function DevStudioHeader() {
 									{branch}
 								</span>
 								<ConnectionBadge status={connectionStatus} />
+								<PagesStatusBadge />
 								{rateLimit ? (
 									<span title="GitHub REST API hourly limit">
 										{formatRateLimitLabel(rateLimit)}
@@ -129,5 +131,66 @@ function ConnectionBadge({
 			{status === 'connected' ? <GitPullRequest className="h-3 w-3" /> : null}
 			{label}
 		</span>
+	)
+}
+
+function PagesStatusBadge() {
+	const { pagesDeployment, isPollingPagesStatus } = useDevStudio()
+
+	if (!pagesDeployment || pagesDeployment.state === 'not_found') {
+		return null
+	}
+
+	const { state, statusText, htmlUrl, logsUrl } = pagesDeployment
+	const href =
+		(state === 'failed' || state === 'building' ? logsUrl : htmlUrl) ||
+		htmlUrl ||
+		logsUrl ||
+		'#'
+
+	return (
+		<a
+			href={href}
+			target="_blank"
+			rel="noreferrer"
+			className={cn(
+				'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors',
+				state === 'building' &&
+					'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25',
+				state === 'deployed' &&
+					'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25',
+				state === 'failed' &&
+					'bg-destructive/15 text-destructive hover:bg-destructive/25',
+				state === 'idle' && 'bg-secondary text-muted-foreground',
+			)}
+			title={
+				state === 'building'
+					? 'GitHub Pages is building... Click to view run logs.'
+					: state === 'deployed'
+						? 'GitHub Pages site is live! Click to open.'
+						: state === 'failed'
+							? 'GitHub Pages build failed. Click to view run logs.'
+							: 'GitHub Pages status'
+			}
+		>
+			{state === 'building' && (
+				<span className="relative flex h-2 w-2 shrink-0">
+					<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+					<span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+				</span>
+			)}
+			{state === 'deployed' && (
+				<span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+			)}
+			{state === 'failed' && (
+				<span className="h-2 w-2 shrink-0 rounded-full bg-destructive" />
+			)}
+			<span>{statusText}</span>
+			{isPollingPagesStatus ? (
+				<Loader2 className="h-3 w-3 animate-spin shrink-0 text-muted-foreground" />
+			) : (
+				<ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
+			)}
+		</a>
 	)
 }
