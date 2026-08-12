@@ -99,7 +99,6 @@ export function SettingsPage() {
 	)
 	const [allowCodebaseInspection, setAllowCodebaseInspection] = useState(true)
 	const [githubPat, setGithubPat] = useState('')
-	const [openRouterApiKey, setOpenRouterApiKey] = useState('')
 	const [devStudioRepository, setDevStudioRepository] = useState('')
 	const [devStudioBranch, setDevStudioBranch] = useState('main')
 	const [devStudioAutoContinue, setDevStudioAutoContinue] = useState(false)
@@ -127,7 +126,6 @@ export function SettingsPage() {
 			setTtsVoiceName(preferences.ttsVoiceName)
 			setAllowCodebaseInspection(preferences.allowCodebaseInspection ?? true)
 			setGithubPat(preferences.githubPat)
-			setOpenRouterApiKey(preferences.openRouterApiKey ?? '')
 			setDevStudioRepository(preferences.devStudioRepository)
 			setDevStudioBranch(preferences.devStudioBranch || 'main')
 			setDevStudioAutoContinue(preferences.devStudioAutoContinue ?? false)
@@ -236,7 +234,6 @@ export function SettingsPage() {
 			await savePreferences({
 				...preferences,
 				githubPat: githubPat.trim(),
-				openRouterApiKey: openRouterApiKey.trim(),
 				devStudioRepository: devStudioRepository.trim(),
 				devStudioBranch: devStudioBranch.trim() || 'main',
 				devStudioAutoContinue,
@@ -489,7 +486,6 @@ export function SettingsPage() {
 							notificationMessage={notificationMessage}
 							allowCodebaseInspection={allowCodebaseInspection}
 							githubPat={githubPat}
-							openRouterApiKey={openRouterApiKey}
 							devStudioRepository={devStudioRepository}
 							devStudioBranch={devStudioBranch}
 							devStudioAutoContinue={devStudioAutoContinue}
@@ -500,7 +496,6 @@ export function SettingsPage() {
 							customHingeGap={customHingeGap}
 							dualPaneMinWidth={dualPaneMinWidth}
 							onGithubPatChange={setGithubPat}
-							onOpenRouterApiKeyChange={setOpenRouterApiKey}
 							onDevStudioRepositoryChange={setDevStudioRepository}
 							onDevStudioBranchChange={setDevStudioBranch}
 							onDevStudioAutoContinueChange={setDevStudioAutoContinue}
@@ -1006,7 +1001,6 @@ function AppTab({
 	notificationMessage,
 	allowCodebaseInspection,
 	githubPat,
-	openRouterApiKey,
 	devStudioRepository,
 	devStudioBranch,
 	devStudioAutoContinue,
@@ -1017,7 +1011,6 @@ function AppTab({
 	customHingeGap,
 	dualPaneMinWidth,
 	onGithubPatChange,
-	onOpenRouterApiKeyChange,
 	onDevStudioRepositoryChange,
 	onDevStudioBranchChange,
 	onDevStudioAutoContinueChange,
@@ -1030,7 +1023,6 @@ function AppTab({
 	notificationMessage: string | null
 	allowCodebaseInspection: boolean
 	githubPat: string
-	openRouterApiKey: string
 	devStudioRepository: string
 	devStudioBranch: string
 	devStudioAutoContinue: boolean
@@ -1041,7 +1033,6 @@ function AppTab({
 	customHingeGap: number
 	dualPaneMinWidth: number
 	onGithubPatChange: (value: string) => void
-	onOpenRouterApiKeyChange: (value: string) => void
 	onDevStudioRepositoryChange: (value: string) => void
 	onDevStudioBranchChange: (value: string) => void
 	onDevStudioAutoContinueChange: (value: boolean) => void
@@ -1155,22 +1146,6 @@ function AppTab({
 						className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
 						autoComplete="off"
 					/>
-				</label>
-				<label className="block space-y-2 text-sm">
-					<span className="font-medium">OpenRouter API key (Qwen coding only)</span>
-					<input
-						type="password"
-						value={openRouterApiKey}
-						onChange={(event) => onOpenRouterApiKeyChange(event.target.value)}
-						placeholder="sk-or-…"
-						className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
-						autoComplete="off"
-					/>
-					<span className="block text-xs text-muted-foreground">
-						Required only when Dev Studio uses Qwen 3.6 Plus (free preview). Main
-						chat still uses your Gemini key. Get a key at openrouter.ai — model
-						inference is free; OpenRouter still needs an account key.
-					</span>
 				</label>
 				<DevStudioRepositorySelect
 					repository={devStudioRepository}

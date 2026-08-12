@@ -21,6 +21,12 @@ export const GEMINI_MODELS: GeminiModelDefinition[] = [
 		category: 'chat',
 	},
 	{
+		id: 'gemma-4-31b-it',
+		name: 'Gemma 4 31B',
+		description: 'Free on Gemini API — fast, capable chat at Tier 2 quota',
+		category: 'chat',
+	},
+	{
 		id: 'gemini-3-pro-image',
 		name: 'Nano Banana Pro',
 		description: 'High-fidelity image generation and editing',

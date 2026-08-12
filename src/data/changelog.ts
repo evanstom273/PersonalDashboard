@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.12'
+export const APP_VERSION = '2.0.15'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.15',
+		releasedAt: '2026-08-12',
+		summary: 'Dev Studio efficiency for all models',
+		changes: [
+			'Token budgets, context pruning, and tool output caps now apply to every Dev Studio model (Gemma stays strictest).',
+			'Parallel tool execution, in-session file read cache, and lighter thinking budgets on Flash/Pro.',
+			'Efficiency guidance in the agent prompt for all models; search-before-read tool hints.',
+		],
+	},
 	{
 		version: '2.0.12',
 		releasedAt: '2026-08-12',

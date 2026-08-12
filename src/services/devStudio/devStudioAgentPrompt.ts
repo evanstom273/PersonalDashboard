@@ -2,20 +2,40 @@ import {
 	buildSystemInstruction,
 	getConfiguredAiName,
 } from '@/services/gemini/systemInstruction'
+import { isGemmaDevStudioModel } from '@/services/devStudio/devStudioModels'
 import type { StoredMessage } from '@/storage/types'
 import type { DevStudioExecutionMode } from '@/types/devStudio'
 import { formatRepositorySlug, type DevStudioRepoRef } from '@/types/devStudio'
 import type { UserPreferences } from '@/storage/types'
 
+const EFFICIENCY_GUIDANCE = [
+	'DEV STUDIO EFFICIENCY (always follow):',
+	'Search or list files before reading — load only paths you will edit.',
+	'Avoid re-reading the same file; use prior tool output when the SHA has not changed.',
+	'Prefer one purposeful tool call over exploratory chains. Stage one file at a time.',
+	'Keep replies concise; put detail in staged file content, not long chat prose.',
+].join('\n')
+
+const GEMMA_EXTRA_GUIDANCE = [
+	'QUOTA MODE (Gemma — strict):',
+	'Minimize API round-trips. Never read a large file when search gives enough context.',
+	'Batch your plan before touching tools. Skip optional reads.',
+].join('\n')
+
 export function buildDevStudioSystemInstruction(
 	preferences: UserPreferences,
 	repo: DevStudioRepoRef,
 	executionMode: DevStudioExecutionMode = 'act',
+	modelId?: string,
 ): string {
+	const strictQuota = modelId ? isGemmaDevStudioModel(modelId) : false
+
 	const base = [
 		buildSystemInstruction(preferences),
 		`${getConfiguredAiName(preferences)} Dev Studio code agent mode.`,
 		`Connected repository: ${formatRepositorySlug(repo)} on branch ${repo.branch}.`,
+		EFFICIENCY_GUIDANCE,
+		strictQuota ? GEMMA_EXTRA_GUIDANCE : '',
 	]
 
 	if (executionMode === 'plan') {
@@ -32,7 +52,9 @@ export function buildDevStudioSystemInstruction(
 			'## ⚠️ Edge Cases, Safety & Risks',
 			'## 🧪 Verification & Testing Steps',
 			'End your response with a clear summary asking the user to review, download, or approve the plan to switch to Act Mode.',
-		].join('\n\n')
+		]
+			.filter(Boolean)
+			.join('\n\n')
 	}
 
 	return [
@@ -47,7 +69,9 @@ export function buildDevStudioSystemInstruction(
 		'Prefer small, focused changes. When proposing code, stage the full updated file content.',
 		'For multi-file work: list or search first, read each file, then stage edits one file at a time.',
 		'When you believe the task is fully done and staged changes are ready for human review, end with a clear summary and the phrase "Task ready for review."',
-	].join('\n\n')
+	]
+		.filter(Boolean)
+		.join('\n\n')
 }
 
 export function buildDevStudioUserText(message: StoredMessage): string {
