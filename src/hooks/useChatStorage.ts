@@ -12,8 +12,55 @@ import {
 	type UserPreferences,
 } from '@/storage/types'
 import { normalizeTtsVoiceName } from '@/services/gemini/ttsVoices'
+import {
+	getActiveGeminiApiKey,
+	getGeminiApiKeyForSlot,
+} from '@/storage/geminiApiKeys'
 
 const PREFERENCES_KEY = 'user'
+
+interface StoredPreferences extends Partial<UserPreferences> {
+	geminiApiKey?: string
+}
+
+function normalizeGeminiApiKeySlot(value: unknown): UserPreferences['activeGeminiApiKeySlot'] {
+	return value === 'free' ? 'free' : 'paid'
+}
+
+function normalizePreferences(stored: StoredPreferences | undefined): UserPreferences {
+	const merged: UserPreferences = {
+		...DEFAULT_PREFERENCES,
+		...stored,
+		memoryArchiveInterval: normalizeMemoryArchiveInterval(
+			stored?.memoryArchiveInterval,
+		),
+		ttsReadAloudMode: normalizeTtsReadAloudMode(stored?.ttsReadAloudMode),
+		ttsVoiceName: normalizeTtsVoiceName(stored?.ttsVoiceName),
+		activeGeminiApiKeySlot: normalizeGeminiApiKeySlot(stored?.activeGeminiApiKeySlot),
+		geminiApiKeyPaid: stored?.geminiApiKeyPaid ?? '',
+		geminiApiKeyFree: stored?.geminiApiKeyFree ?? '',
+	}
+
+	const legacyKey = stored?.geminiApiKey?.trim() ?? ''
+	if (
+		legacyKey &&
+		!getGeminiApiKeyForSlot(merged, 'paid') &&
+		!getGeminiApiKeyForSlot(merged, 'free')
+	) {
+		merged.geminiApiKeyPaid = legacyKey
+	}
+
+	const activeKey = getActiveGeminiApiKey(merged)
+	if (!activeKey) {
+		if (getGeminiApiKeyForSlot(merged, 'paid')) {
+			merged.activeGeminiApiKeySlot = 'paid'
+		} else if (getGeminiApiKeyForSlot(merged, 'free')) {
+			merged.activeGeminiApiKeySlot = 'free'
+		}
+	}
+
+	return merged
+}
 
 function normalizeMemoryArchiveInterval(value: unknown): MemoryArchiveInterval {
 	if (
@@ -77,15 +124,7 @@ export function usePreferences() {
 				PREFERENCES_KEY,
 			)
 			if (!cancelled) {
-				setPreferencesState({
-					...DEFAULT_PREFERENCES,
-					...stored,
-					memoryArchiveInterval: normalizeMemoryArchiveInterval(
-						stored?.memoryArchiveInterval,
-					),
-					ttsReadAloudMode: normalizeTtsReadAloudMode(stored?.ttsReadAloudMode),
-					ttsVoiceName: normalizeTtsVoiceName(stored?.ttsVoiceName),
-				})
+				setPreferencesState(normalizePreferences(stored))
 				setIsLoading(false)
 			}
 		}

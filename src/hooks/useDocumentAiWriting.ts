@@ -7,6 +7,7 @@ import {
 } from '@/services/gemini/documentWriting'
 import { getEconomyModelId } from '@/services/gemini/modelPreferences'
 import type { UserPreferences } from '@/storage/types'
+import { getActiveGeminiApiKey, hasGeminiApiKey } from '@/storage/geminiApiKeys'
 import { markdownToHtml } from '@/utils/documentContent'
 
 const ACTION_LABELS: Record<DocumentWritingAction, string> = {
@@ -49,7 +50,7 @@ export function useDocumentAiWriting({
 				return
 			}
 
-			const apiKey = preferences.geminiApiKey.trim()
+			const apiKey = getActiveGeminiApiKey(preferences)
 			if (!apiKey) {
 				setError('Add a Gemini API key in Settings to use AI writing assistance.')
 				setIsGenerating(false)
@@ -210,7 +211,7 @@ export function useDocumentAiWriting({
 		setAskOpen(true)
 	}, [editor])
 
-	const hasApiKey = preferences.geminiApiKey.trim().length > 0
+	const hasApiKey = hasGeminiApiKey(preferences)
 
 	return {
 		previewOpen,

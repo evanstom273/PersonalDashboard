@@ -10,6 +10,7 @@ import { confirmDocumentDeletion } from '@/services/gemini/documentTools'
 import { getTranscriptionModelId } from '@/services/gemini/modelPreferences'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
+import { getActiveGeminiApiKey, hasGeminiApiKey } from '@/storage/geminiApiKeys'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
@@ -53,7 +54,7 @@ export function ChatPage() {
 	)
 
 	const aiName = getConfiguredAiName(preferences)
-	const hasApiKey = preferences.geminiApiKey.trim().length > 0
+	const hasApiKey = hasGeminiApiKey(preferences)
 
 	useEffect(() => {
 		clearCompletionNotice()
@@ -233,7 +234,7 @@ export function ChatPage() {
 				disabled={!hasApiKey}
 				isGenerating={isGenerating}
 				webSearchEnabled={webSearchEnabled}
-				geminiApiKey={preferences.geminiApiKey}
+				geminiApiKey={getActiveGeminiApiKey(preferences)}
 				transcriptionModelId={getTranscriptionModelId(preferences.defaultModelId)}
 				selectedChatModelId={preferences.defaultModelId}
 				selectedImageModelId={preferences.defaultImageModelId}

@@ -29,9 +29,15 @@ import { GEMINI_TTS_VOICES } from '@/services/gemini/ttsVoices'
 import { GEMINI_MODELS, MODEL_CATEGORY_LABELS } from '@/services/gemini/models'
 import {
 	MEMORY_ARCHIVE_INTERVAL_OPTIONS,
+	type GeminiApiKeySlot,
 	type MemoryArchiveInterval,
 	type TtsReadAloudMode,
 } from '@/storage/types'
+import {
+	GEMINI_API_KEY_SLOT_LABELS,
+	getActiveGeminiApiKey,
+	hasGeminiApiKey,
+} from '@/storage/geminiApiKeys'
 import {
 	canUseNotifications,
 	getNotificationPermission,
@@ -75,7 +81,10 @@ export function SettingsPage() {
 	const { previewVoice, status: speechStatus } = useTextToSpeechContext()
 	const { memoryArchiveError, clearMemoryArchiveError } =
 		useChatGenerationContext()
-	const [apiKey, setApiKey] = useState('')
+	const [paidApiKey, setPaidApiKey] = useState('')
+	const [freeApiKey, setFreeApiKey] = useState('')
+	const [activeApiKeySlot, setActiveApiKeySlot] =
+		useState<GeminiApiKeySlot>('paid')
 	const [userName, setUserName] = useState('')
 	const [aiName, setAiName] = useState('')
 	const [aiBehaviorInstructions, setAiBehaviorInstructions] = useState('')
@@ -111,7 +120,9 @@ export function SettingsPage() {
 
 	useEffect(() => {
 		if (!isLoading) {
-			setApiKey(preferences.geminiApiKey)
+			setPaidApiKey(preferences.geminiApiKeyPaid)
+			setFreeApiKey(preferences.geminiApiKeyFree)
+			setActiveApiKeySlot(preferences.activeGeminiApiKeySlot)
 			setUserName(preferences.userName)
 			setAiName(preferences.aiName)
 			setAiBehaviorInstructions(preferences.aiBehaviorInstructions)
@@ -131,18 +142,33 @@ export function SettingsPage() {
 		setSearchParams(tab === 'profile' ? {} : { tab })
 	}
 
-	async function handleSaveApiKey(): Promise<void> {
+	async function handleSaveApiKeys(): Promise<void> {
 		setIsSavingApiKey(true)
 		setSavedApiKey(false)
 		try {
 			await savePreferences({
 				...preferences,
-				geminiApiKey: apiKey.trim(),
+				geminiApiKeyPaid: paidApiKey.trim(),
+				geminiApiKeyFree: freeApiKey.trim(),
+				activeGeminiApiKeySlot: activeApiKeySlot,
 			})
 			setSavedApiKey(true)
 		} finally {
 			setIsSavingApiKey(false)
 		}
+	}
+
+	async function handleActiveApiKeySlotChange(slot: GeminiApiKeySlot): Promise<void> {
+		setActiveApiKeySlot(slot)
+		setSavedApiKey(false)
+		setValidationMessage(null)
+		setValidationOk(null)
+		await savePreferences({
+			...preferences,
+			geminiApiKeyPaid: paidApiKey.trim(),
+			geminiApiKeyFree: freeApiKey.trim(),
+			activeGeminiApiKeySlot: slot,
+		})
 	}
 
 	async function handleSaveIdentity(): Promise<void> {
@@ -269,7 +295,7 @@ export function SettingsPage() {
 		clearMemoryArchiveError()
 		try {
 			const { conversation: updated, result } = await runManualMemoryArchive(
-				preferences.geminiApiKey,
+				getActiveGeminiApiKey(preferences),
 				conversation,
 				preferences,
 			)
@@ -354,7 +380,12 @@ export function SettingsPage() {
 		setValidationMessage(null)
 		setValidationOk(null)
 		try {
-			const result = await validateApiKey(apiKey)
+			const result = await validateApiKey(getActiveGeminiApiKey({
+				...preferences,
+				geminiApiKeyPaid: paidApiKey.trim(),
+				geminiApiKeyFree: freeApiKey.trim(),
+				activeGeminiApiKeySlot: activeApiKeySlot,
+			}))
 			setValidationOk(result.ok)
 			setValidationMessage(result.message)
 		} finally {
@@ -421,7 +452,7 @@ export function SettingsPage() {
 							unarchivedMessageCount={
 								conversation ? getUnarchivedMessages(conversation).length : 0
 							}
-							hasApiKey={preferences.geminiApiKey.trim().length > 0}
+							hasApiKey={hasGeminiApiKey(preferences)}
 							isClearingMemory={isClearingMemory}
 							isArchivingMemory={isArchivingMemory}
 							actionMessage={memoryActionMessage}
@@ -435,19 +466,30 @@ export function SettingsPage() {
 
 					{activeTab === 'api' ? (
 						<ApiTab
-							apiKey={apiKey}
+							paidApiKey={paidApiKey}
+							freeApiKey={freeApiKey}
+							activeApiKeySlot={activeApiKeySlot}
 							savedApiKey={savedApiKey}
 							isSavingApiKey={isSavingApiKey}
 							isValidating={isValidating}
 							validationMessage={validationMessage}
 							validationOk={validationOk}
-							onApiKeyChange={(value) => {
-								setApiKey(value)
+							onPaidApiKeyChange={(value) => {
+								setPaidApiKey(value)
 								setSavedApiKey(false)
 								setValidationMessage(null)
 								setValidationOk(null)
 							}}
-							onSave={() => void handleSaveApiKey()}
+							onFreeApiKeyChange={(value) => {
+								setFreeApiKey(value)
+								setSavedApiKey(false)
+								setValidationMessage(null)
+								setValidationOk(null)
+							}}
+							onActiveApiKeySlotChange={(slot) =>
+								void handleActiveApiKeySlotChange(slot)
+							}
+							onSave={() => void handleSaveApiKeys()}
 							onValidate={() => void handleValidate()}
 						/>
 					) : null}
@@ -456,7 +498,7 @@ export function SettingsPage() {
 						<VoiceTab
 							ttsReadAloudMode={ttsReadAloudMode}
 							ttsVoiceName={ttsVoiceName}
-							hasApiKey={preferences.geminiApiKey.trim().length > 0}
+							hasApiKey={hasGeminiApiKey(preferences)}
 							speechStatus={speechStatus}
 							onReadAloudModeChange={(value) =>
 								void handleTtsReadAloudModeChange(value)
@@ -739,78 +781,132 @@ function MemoryTab({
 }
 
 function ApiTab({
-	apiKey,
+	paidApiKey,
+	freeApiKey,
+	activeApiKeySlot,
 	savedApiKey,
 	isSavingApiKey,
 	isValidating,
 	validationMessage,
 	validationOk,
-	onApiKeyChange,
+	onPaidApiKeyChange,
+	onFreeApiKeyChange,
+	onActiveApiKeySlotChange,
 	onSave,
 	onValidate,
 }: {
-	apiKey: string
+	paidApiKey: string
+	freeApiKey: string
+	activeApiKeySlot: GeminiApiKeySlot
 	savedApiKey: boolean
 	isSavingApiKey: boolean
 	isValidating: boolean
 	validationMessage: string | null
 	validationOk: boolean | null
-	onApiKeyChange: (value: string) => void
+	onPaidApiKeyChange: (value: string) => void
+	onFreeApiKeyChange: (value: string) => void
+	onActiveApiKeySlotChange: (slot: GeminiApiKeySlot) => void
 	onSave: () => void
 	onValidate: () => void
 }) {
+	const activeKeyDraft =
+		activeApiKeySlot === 'paid' ? paidApiKey.trim() : freeApiKey.trim()
+
 	return (
 		<div className="space-y-5">
 			<TabIntro
 				title="API & models"
-				description="Your Gemini key stays on-device. Pick default models from the + menu in chat."
+				description="Store a paid and a free key on-device, then switch which one the app uses."
 			/>
 
 			<section className="surface-panel space-y-4 rounded-xl p-5">
 				<FieldGroup
 					icon={KeyRound}
-					label="Gemini API key"
-					hint={
-						<>
-							Get a key from{' '}
-							<a
-								href="https://aistudio.google.com/apikey"
-								target="_blank"
-								rel="noreferrer"
-								className="inline-flex items-center gap-1 text-primary hover:underline"
-							>
-								Google AI Studio
-								<ExternalLink className="h-3.5 w-3.5" />
-							</a>
-							. Your key never leaves this device except when calling Gemini.
-						</>
-					}
+					label="Active API key"
+					hint="The app uses this key for chat, voice, memory archival, and document AI."
+				>
+					<select
+						value={activeApiKeySlot}
+						onChange={(event) =>
+							onActiveApiKeySlotChange(event.target.value as GeminiApiKeySlot)
+						}
+						className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+					>
+						{(Object.keys(GEMINI_API_KEY_SLOT_LABELS) as GeminiApiKeySlot[]).map(
+							(slot) => {
+								const slotHasKey =
+									slot === 'paid'
+										? paidApiKey.trim().length > 0
+										: freeApiKey.trim().length > 0
+
+								return (
+									<option key={slot} value={slot}>
+										{GEMINI_API_KEY_SLOT_LABELS[slot]}
+										{slotHasKey ? '' : ' (not saved)'}
+									</option>
+								)
+							},
+						)}
+					</select>
+				</FieldGroup>
+
+				<FieldGroup
+					label="Paid key"
+					hint="Your Tier 2 or billing-enabled key — Flash Lite, web search allowance, etc."
 				>
 					<input
 						type="password"
-						value={apiKey}
-						onChange={(event) => onApiKeyChange(event.target.value)}
+						value={paidApiKey}
+						onChange={(event) => onPaidApiKeyChange(event.target.value)}
 						placeholder="AIza..."
 						autoComplete="off"
 						className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
 					/>
 				</FieldGroup>
 
+				<FieldGroup
+					label="Free key"
+					hint="A separate free-tier key — switch to it when you want daily quotas instead of paid balance."
+				>
+					<input
+						type="password"
+						value={freeApiKey}
+						onChange={(event) => onFreeApiKeyChange(event.target.value)}
+						placeholder="AIza..."
+						autoComplete="off"
+						className="w-full rounded-lg surface-input px-3 py-2 text-sm outline-none ring-ring focus:ring-2"
+					/>
+				</FieldGroup>
+
+				<p className="text-xs text-muted-foreground">
+					Get keys from{' '}
+					<a
+						href="https://aistudio.google.com/apikey"
+						target="_blank"
+						rel="noreferrer"
+						className="inline-flex items-center gap-1 text-primary hover:underline"
+					>
+						Google AI Studio
+						<ExternalLink className="h-3.5 w-3.5" />
+					</a>
+					. Keys never leave this device except when calling Gemini.
+				</p>
+
 				<div className="flex flex-wrap items-center gap-3">
 					<Button onClick={onSave} disabled={isSavingApiKey}>
 						<Save className="h-4 w-4" />
-						{isSavingApiKey ? 'Saving…' : 'Save key'}
+						{isSavingApiKey ? 'Saving…' : 'Save keys'}
 					</Button>
 					<Button
 						variant="outline"
 						onClick={onValidate}
-						disabled={isValidating || !apiKey.trim()}
+						disabled={isValidating || !activeKeyDraft}
 					>
 						<PlugZap className="h-4 w-4" />
-						{isValidating ? 'Validating…' : 'Validate connection'}
+						{isValidating ? 'Validating…' : 'Validate active key'}
 					</Button>
 					{savedApiKey ? (
-						<span className="text-sm text-primary">Key saved</span>
+						<span className="text-sm text-primary">Keys saved</span>
 					) : null}
 				</div>
 
