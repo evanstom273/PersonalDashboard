@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.1.1'
+export const APP_VERSION = '2.1.2'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.1.2',
+		releasedAt: '2026-08-12',
+		summary: 'Live document updates',
+		changes: [
+			'Documents refresh in the editor when the assistant updates them — no need to leave and reopen.',
+		],
+	},
 	{
 		version: '2.1.1',
 		releasedAt: '2026-08-12',
