@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.11'
+export const APP_VERSION = '2.0.12'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.0.12',
+		releasedAt: '2026-08-12',
+		summary: 'Dev Studio Qwen 3.6 Plus (free preview)',
+		changes: [
+			'New Dev Studio model: Qwen 3.6 Plus via OpenRouter free preview for coding only.',
+			'OpenRouter API key setting under Settings → App → Dev Studio (main chat still uses Gemini).',
+		],
+	},
 	{
 		version: '2.0.11',
 		releasedAt: '2026-08-12',
