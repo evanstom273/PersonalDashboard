@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
-import { Route, Routes, type Location } from 'react-router-dom'
-import { DevStudioPage } from '@/pages/DevStudioPage'
+import { Navigate, Route, Routes, type Location } from 'react-router-dom'
 import { DocumentEditorPage } from '@/pages/DocumentEditorPage'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { MemoryPage } from '@/pages/MemoryPage'
@@ -13,13 +12,13 @@ interface SecondaryPaneContentProps {
 }
 
 function buildSecondaryLocation(route: string): Location {
-	const trimmed = route.trim() || '/dev-studio'
+	const trimmed = route.trim() || '/library'
 	const queryIndex = trimmed.indexOf('?')
 	const pathname = queryIndex >= 0 ? trimmed.slice(0, queryIndex) : trimmed
 	const search = queryIndex >= 0 ? trimmed.slice(queryIndex) : ''
 
 	return {
-		pathname: pathname || '/dev-studio',
+		pathname: pathname || '/library',
 		search,
 		hash: '',
 		state: null,
@@ -33,14 +32,13 @@ export function SecondaryPaneContent({ route }: SecondaryPaneContentProps) {
 	return (
 		<div className="h-full w-full overflow-hidden bg-background">
 			<Routes location={secondaryLocation}>
-				<Route path="/dev-studio" element={<DevStudioPage />} />
 				<Route path="/library/documents/:documentId" element={<DocumentEditorPage />} />
 				<Route path="/library/projects/:projectId" element={<ProjectBoardPage />} />
 				<Route path="/library" element={<LibraryPage />} />
 				<Route path="/memory" element={<MemoryPage />} />
 				<Route path="/settings" element={<SettingsPage />} />
 				<Route path="/scratchpad" element={<ScratchpadPanel embedMode />} />
-				<Route path="*" element={<DevStudioPage />} />
+				<Route path="*" element={<Navigate to="/library" replace />} />
 			</Routes>
 		</div>
 	)

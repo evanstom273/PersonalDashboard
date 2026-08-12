@@ -27,7 +27,7 @@ function getPageTitle(pathname: string, aiName: string): string {
 		return 'Home'
 	}
 
-	if (pathname === '/chat' || pathname === '/dev-studio') {
+	if (pathname === '/chat') {
 		return aiName
 	}
 
@@ -71,7 +71,6 @@ export function AppShell() {
 	const isMobileNav = useMobileNavLayout()
 	const aiName = getConfiguredAiName(preferences)
 	const isChatRoute = location.pathname === '/chat'
-	const isDevStudioRoute = location.pathname === '/dev-studio'
 	const pageTitle = getPageTitle(location.pathname, aiName)
 	const { navigateWithFade, contentClassName } = useSwipePageTransition()
 	const { slot: chatHeaderVoiceSlot } = useChatHeaderSlot()
@@ -121,7 +120,7 @@ export function AppShell() {
 							<h1 className="truncate text-base font-semibold md:text-lg">
 								{pageTitle}
 							</h1>
-							{isChatRoute || isDevStudioRoute ? (
+							{isChatRoute ? (
 								<p className="truncate text-xs text-muted-foreground">
 									{formatAppVersionLabel()}
 								</p>
@@ -131,17 +130,15 @@ export function AppShell() {
 								</p>
 							) : null}
 						</div>
-						{isChatRoute || isDevStudioRoute ? (
+						{isChatRoute ? (
 							<div className="flex shrink-0 items-center gap-0.5">
 								{chatHeaderVoiceSlot}
-								{isChatRoute ? (
-									<ChatConversationActions
-										conversation={conversation}
-										isGenerating={isGenerating}
-										onClear={handleClearChat}
-										onImport={handleImportChat}
-									/>
-								) : null}
+								<ChatConversationActions
+									conversation={conversation}
+									isGenerating={isGenerating}
+									onClear={handleClearChat}
+									onImport={handleImportChat}
+								/>
 							</div>
 						) : null}
 					</div>

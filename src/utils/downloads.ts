@@ -129,11 +129,3 @@ export function downloadChangelogMarkdown(): void {
 		buildDownloadFilename('Personal AI Changelog', 'md'),
 	)
 }
-
-export function downloadDevStudioPlan(title: string, content: string): void {
-	const filename = buildDownloadFilename(title || 'Dev Studio Plan', 'md')
-	downloadBlob(
-		new Blob([content], { type: 'text/markdown;charset=utf-8' }),
-		filename,
-	)
-}

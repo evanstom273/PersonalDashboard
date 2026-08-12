@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.15'
+export const APP_VERSION = '2.1.0'
 
 export interface ChangelogEntry {
 	version: string
@@ -9,13 +9,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
-		version: '2.0.15',
+		version: '2.1.0',
 		releasedAt: '2026-08-12',
-		summary: 'Dev Studio efficiency for all models',
+		summary: 'Remove Dev Studio',
 		changes: [
-			'Token budgets, context pruning, and tool output caps now apply to every Dev Studio model (Gemma stays strictest).',
-			'Parallel tool execution, in-session file read cache, and lighter thinking budgets on Flash/Pro.',
-			'Efficiency guidance in the agent prompt for all models; search-before-read tool hints.',
+			'Dev Studio and all GitHub coding-agent features removed from the app.',
+			'Bottom nav simplified (Home, Chat, Library, Settings). Dual-pane default secondary pane is now Library.',
+			'Removed GitHub PAT settings, CodeMirror dependencies, and Send to Dev Studio from documents.',
 		],
 	},
 	{

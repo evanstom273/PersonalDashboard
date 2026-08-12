@@ -1,4 +1,4 @@
-import { ArrowLeftRight, X, Code2, FileText, Kanban, Layers } from 'lucide-react'
+import { ArrowLeftRight, X, FileText, Kanban, Layers } from 'lucide-react'
 import { useCallback } from 'react'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,6 @@ import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 
 function getPaneTitle(route: string, aiName: string): { title: string; icon: typeof Layers } {
 	if (!route || route === '/chat') return { title: aiName, icon: Layers }
-	if (route === '/dev-studio') return { title: 'Dev Studio', icon: Code2 }
 	if (route.startsWith('/library/documents/')) return { title: 'Document Editor', icon: FileText }
 	if (route.startsWith('/library/projects/')) return { title: 'Project Board', icon: Kanban }
 	if (route.startsWith('/library')) return { title: 'Library', icon: Layers }

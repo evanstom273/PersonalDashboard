@@ -1,7 +1,6 @@
 import {
 	Bell,
 	Brain,
-	Code2,
 	Columns,
 	Download,
 	ExternalLink,
@@ -18,8 +17,6 @@ import {
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { DevStudioPatPermissionsHelp } from '@/components/devStudio/DevStudioPatPermissionsHelp'
-import { DevStudioRepositorySelect } from '@/components/devStudio/DevStudioRepositorySelect'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { usePreferencesContext, useTextToSpeechContext, useMainConversationContext } from '@/providers/ChatProvider'
 import { validateApiKey } from '@/services/gemini/validate'
@@ -98,12 +95,6 @@ export function SettingsPage() {
 		null,
 	)
 	const [allowCodebaseInspection, setAllowCodebaseInspection] = useState(true)
-	const [githubPat, setGithubPat] = useState('')
-	const [devStudioRepository, setDevStudioRepository] = useState('')
-	const [devStudioBranch, setDevStudioBranch] = useState('main')
-	const [devStudioAutoContinue, setDevStudioAutoContinue] = useState(false)
-	const [savedDevStudio, setSavedDevStudio] = useState(false)
-	const [isSavingDevStudio, setIsSavingDevStudio] = useState(false)
 	const [enableFoldableDualPane, setEnableFoldableDualPane] = useState(true)
 	const [forceDualPaneMode, setForceDualPaneMode] = useState(false)
 	const [customHingeGap, setCustomHingeGap] = useState(0)
@@ -125,10 +116,6 @@ export function SettingsPage() {
 			setTtsReadAloudMode(preferences.ttsReadAloudMode)
 			setTtsVoiceName(preferences.ttsVoiceName)
 			setAllowCodebaseInspection(preferences.allowCodebaseInspection ?? true)
-			setGithubPat(preferences.githubPat)
-			setDevStudioRepository(preferences.devStudioRepository)
-			setDevStudioBranch(preferences.devStudioBranch || 'main')
-			setDevStudioAutoContinue(preferences.devStudioAutoContinue ?? false)
 			setEnableFoldableDualPane(preferences.enableFoldableDualPane ?? true)
 			setForceDualPaneMode(preferences.forceDualPaneMode ?? false)
 			setCustomHingeGap(preferences.customHingeGap ?? 0)
@@ -225,24 +212,6 @@ export function SettingsPage() {
 			...preferences,
 			...updates,
 		})
-	}
-
-	async function handleSaveDevStudio(): Promise<void> {
-		setIsSavingDevStudio(true)
-		setSavedDevStudio(false)
-		try {
-			await savePreferences({
-				...preferences,
-				githubPat: githubPat.trim(),
-				devStudioRepository: devStudioRepository.trim(),
-				devStudioBranch: devStudioBranch.trim() || 'main',
-				devStudioAutoContinue,
-			})
-			setSavedDevStudio(true)
-			window.setTimeout(() => setSavedDevStudio(false), 2000)
-		} finally {
-			setIsSavingDevStudio(false)
-		}
 	}
 
 	async function handleClearMemory(): Promise<void> {
@@ -485,21 +454,10 @@ export function SettingsPage() {
 							notificationPermission={notificationPermission}
 							notificationMessage={notificationMessage}
 							allowCodebaseInspection={allowCodebaseInspection}
-							githubPat={githubPat}
-							devStudioRepository={devStudioRepository}
-							devStudioBranch={devStudioBranch}
-							devStudioAutoContinue={devStudioAutoContinue}
-							savedDevStudio={savedDevStudio}
-							isSavingDevStudio={isSavingDevStudio}
 							enableFoldableDualPane={enableFoldableDualPane}
 							forceDualPaneMode={forceDualPaneMode}
 							customHingeGap={customHingeGap}
 							dualPaneMinWidth={dualPaneMinWidth}
-							onGithubPatChange={setGithubPat}
-							onDevStudioRepositoryChange={setDevStudioRepository}
-							onDevStudioBranchChange={setDevStudioBranch}
-							onDevStudioAutoContinueChange={setDevStudioAutoContinue}
-							onSaveDevStudio={() => void handleSaveDevStudio()}
 							onEnableNotifications={() => void handleEnableNotifications()}
 							onAllowCodebaseInspectionChange={(value) =>
 								void handleAllowCodebaseInspectionChange(value)
@@ -1000,21 +958,10 @@ function AppTab({
 	notificationPermission,
 	notificationMessage,
 	allowCodebaseInspection,
-	githubPat,
-	devStudioRepository,
-	devStudioBranch,
-	devStudioAutoContinue,
-	savedDevStudio,
-	isSavingDevStudio,
 	enableFoldableDualPane,
 	forceDualPaneMode,
 	customHingeGap,
 	dualPaneMinWidth,
-	onGithubPatChange,
-	onDevStudioRepositoryChange,
-	onDevStudioBranchChange,
-	onDevStudioAutoContinueChange,
-	onSaveDevStudio,
 	onEnableNotifications,
 	onAllowCodebaseInspectionChange,
 	onFoldableChange,
@@ -1022,21 +969,10 @@ function AppTab({
 	notificationPermission: NotificationPermission
 	notificationMessage: string | null
 	allowCodebaseInspection: boolean
-	githubPat: string
-	devStudioRepository: string
-	devStudioBranch: string
-	devStudioAutoContinue: boolean
-	savedDevStudio: boolean
-	isSavingDevStudio: boolean
 	enableFoldableDualPane: boolean
 	forceDualPaneMode: boolean
 	customHingeGap: number
 	dualPaneMinWidth: number
-	onGithubPatChange: (value: string) => void
-	onDevStudioRepositoryChange: (value: string) => void
-	onDevStudioBranchChange: (value: string) => void
-	onDevStudioAutoContinueChange: (value: boolean) => void
-	onSaveDevStudio: () => void
 	onEnableNotifications: () => void
 	onAllowCodebaseInspectionChange: (value: boolean) => void
 	onFoldableChange: (updates: Partial<{
@@ -1050,7 +986,7 @@ function AppTab({
 		<div className="space-y-5">
 			<TabIntro
 				title="App behaviour"
-				description="Notifications, Dual-Pane & Foldables, Dev Studio, and background settings."
+				description="Notifications, Dual-Pane & Foldables, and background settings."
 			/>
 
 			<section className="surface-panel space-y-4 rounded-xl p-5">
@@ -1124,59 +1060,6 @@ function AppTab({
 							className="w-full accent-primary"
 						/>
 					</div>
-				</div>
-			</section>
-
-			<section className="surface-panel space-y-4 rounded-xl p-5">
-				<div className="flex items-center gap-2">
-					<Code2 className="h-5 w-5 text-primary" />
-					<h3 className="text-sm font-medium">Dev Studio (GitHub)</h3>
-				</div>
-				<p className="text-sm text-muted-foreground">
-					Connect any repository for the mobile code agent. Your fine-grained
-					Personal Access Token stays on this device in IndexedDB.
-				</p>
-				<label className="block space-y-2 text-sm">
-					<span className="font-medium">GitHub token</span>
-					<input
-						type="password"
-						value={githubPat}
-						onChange={(event) => onGithubPatChange(event.target.value)}
-						placeholder="github_pat_…"
-						className="w-full rounded-lg border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
-						autoComplete="off"
-					/>
-				</label>
-				<DevStudioRepositorySelect
-					repository={devStudioRepository}
-					branch={devStudioBranch}
-					onRepositoryChange={onDevStudioRepositoryChange}
-					onBranchChange={onDevStudioBranchChange}
-				/>
-				<DevStudioPatPermissionsHelp />
-				<label className="flex items-start gap-3 text-sm">
-					<input
-						type="checkbox"
-						checked={devStudioAutoContinue}
-						onChange={(event) => onDevStudioAutoContinueChange(event.target.checked)}
-						className="mt-1"
-					/>
-					<span>
-						<span className="font-medium">Auto-continue long agent runs</span>
-						<span className="mt-1 block text-muted-foreground">
-							When the code agent hits its tool step limit, automatically resume
-							up to three times before asking you to continue manually.
-						</span>
-					</span>
-				</label>
-				<div className="flex items-center gap-3">
-					<Button type="button" onClick={onSaveDevStudio} disabled={isSavingDevStudio}>
-						<Save className="h-4 w-4" />
-						{isSavingDevStudio ? 'Saving…' : 'Save Dev Studio settings'}
-					</Button>
-					{savedDevStudio ? (
-						<span className="text-sm text-primary">Saved</span>
-					) : null}
 				</div>
 			</section>
 

@@ -128,11 +128,6 @@ export interface UserPreferences {
 	ttsVoiceName: string
 	allowCodebaseInspection: boolean
 	scratchpadContent: string
-	githubPat: string
-	devStudioRepository: string
-	devStudioBranch: string
-	devStudioModelId: string
-	devStudioAutoContinue: boolean
 	enableFoldableDualPane: boolean
 	forceDualPaneMode: boolean
 	customHingeGap: number
@@ -154,11 +149,6 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 	ttsVoiceName: 'Kore',
 	allowCodebaseInspection: true,
 	scratchpadContent: '',
-	githubPat: '',
-	devStudioRepository: '',
-	devStudioBranch: 'main',
-	devStudioModelId: 'gemini-3.6-flash',
-	devStudioAutoContinue: false,
 	enableFoldableDualPane: true,
 	forceDualPaneMode: false,
 	customHingeGap: 0,
