@@ -3,12 +3,15 @@ import { useCallback } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
 import { ChatVoiceSession } from '@/components/chat/ChatVoiceSession'
-import { useMobileNavLayout } from '@/hooks/useMobileNavLayout'
-import { useAppSwipeNavigation } from '@/hooks/useAppSwipeNavigation'
-import { useSwipePageTransition } from '@/hooks/useSwipePageTransition'
-import { BottomNav } from '@/layout/BottomNav'
+import { FoldableDualPaneLayout } from '@/components/foldable/FoldableDualPaneLayout'
 import { ScratchpadBusyIndicator, ScratchpadFab } from '@/components/scratchpad/ScratchpadFab'
 import { ScratchpadPanel } from '@/components/scratchpad/ScratchpadPanel'
+import { formatAppVersionLabel } from '@/data/changelog'
+import { useAppSwipeNavigation } from '@/hooks/useAppSwipeNavigation'
+import { useFoldablePane } from '@/hooks/useFoldablePane'
+import { useMobileNavLayout } from '@/hooks/useMobileNavLayout'
+import { useSwipePageTransition } from '@/hooks/useSwipePageTransition'
+import { BottomNav } from '@/layout/BottomNav'
 import {
 	useChatGenerationContext,
 	useChatHeaderSlot,
@@ -16,7 +19,6 @@ import {
 	usePreferencesContext,
 	useTextToSpeechContext,
 } from '@/providers/ChatProvider'
-import { formatAppVersionLabel } from '@/data/changelog'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import { cn } from '@/utils/cn'
 
@@ -63,6 +65,7 @@ export function AppShell() {
 		speakAssistantMessage,
 		stop: stopSpeech,
 	} = useTextToSpeechContext()
+	const { isDualPaneActive, pane2Route } = useFoldablePane()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const isMobileNav = useMobileNavLayout()
@@ -72,7 +75,9 @@ export function AppShell() {
 	const pageTitle = getPageTitle(location.pathname, aiName)
 	const { navigateWithFade, contentClassName } = useSwipePageTransition()
 	const { slot: chatHeaderVoiceSlot } = useChatHeaderSlot()
+
 	const showAppHeader =
+		!isDualPaneActive &&
 		!location.pathname.startsWith('/library/documents/') &&
 		!location.pathname.startsWith('/library/projects/') &&
 		location.pathname !== '/home' &&
@@ -143,7 +148,7 @@ export function AppShell() {
 				</header>
 			) : null}
 
-			{isGenerating && !isChatRoute ? (
+			{isGenerating && !isChatRoute && !isDualPaneActive ? (
 				<div className="flex shrink-0 items-center justify-between gap-3 border-b border-primary/20 bg-primary/10 px-4 py-2 text-sm backdrop-blur-sm md:px-6">
 					<span className="inline-flex items-center gap-2 text-primary">
 						<Loader2 className="h-4 w-4 animate-spin" />
@@ -159,7 +164,7 @@ export function AppShell() {
 				</div>
 			) : null}
 
-			{completionNotice && !isChatRoute ? (
+			{completionNotice && !isChatRoute && !isDualPaneActive ? (
 				<div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-secondary/50 px-4 py-2 text-sm md:px-6">
 					<span className="text-foreground">{completionNotice}</span>
 					<div className="flex shrink-0 items-center gap-2">
@@ -183,7 +188,13 @@ export function AppShell() {
 			) : null}
 
 			<main className={cn(contentClassName, 'touch-pan-y')}>
-				<Outlet />
+				{isDualPaneActive && pane2Route ? (
+					<FoldableDualPaneLayout>
+						<Outlet />
+					</FoldableDualPaneLayout>
+				) : (
+					<Outlet />
+				)}
 			</main>
 
 			<ChatVoiceSession

@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
+import { useFoldablePane } from '@/hooks/useFoldablePane'
 import { useMobileNavLayout } from '@/hooks/useMobileNavLayout'
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation'
 import {
@@ -14,9 +15,11 @@ export function useAppSwipeNavigation(
 ): void {
 	const location = useLocation()
 	const isMobileNav = useMobileNavLayout()
+	const { isDualPaneActive } = useFoldablePane()
 
 	const enabled =
 		isMobileNav &&
+		!isDualPaneActive &&
 		isSwipeNavigationPath(location.pathname) &&
 		!location.pathname.startsWith('/library/documents/') &&
 		!location.pathname.startsWith('/library/projects/')

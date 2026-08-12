@@ -2,6 +2,7 @@ import {
 	Bell,
 	Brain,
 	Code2,
+	Columns,
 	Download,
 	ExternalLink,
 	KeyRound,
@@ -103,6 +104,10 @@ export function SettingsPage() {
 	const [devStudioAutoContinue, setDevStudioAutoContinue] = useState(false)
 	const [savedDevStudio, setSavedDevStudio] = useState(false)
 	const [isSavingDevStudio, setIsSavingDevStudio] = useState(false)
+	const [enableFoldableDualPane, setEnableFoldableDualPane] = useState(true)
+	const [forceDualPaneMode, setForceDualPaneMode] = useState(false)
+	const [customHingeGap, setCustomHingeGap] = useState(0)
+	const [dualPaneMinWidth, setDualPaneMinWidth] = useState(900)
 	const [memoryActionMessage, setMemoryActionMessage] = useState<string | null>(
 		null,
 	)
@@ -124,6 +129,10 @@ export function SettingsPage() {
 			setDevStudioRepository(preferences.devStudioRepository)
 			setDevStudioBranch(preferences.devStudioBranch || 'main')
 			setDevStudioAutoContinue(preferences.devStudioAutoContinue ?? false)
+			setEnableFoldableDualPane(preferences.enableFoldableDualPane ?? true)
+			setForceDualPaneMode(preferences.forceDualPaneMode ?? false)
+			setCustomHingeGap(preferences.customHingeGap ?? 0)
+			setDualPaneMinWidth(preferences.dualPaneMinWidth ?? 900)
 		}
 	}, [isLoading, preferences])
 
@@ -196,6 +205,25 @@ export function SettingsPage() {
 		await savePreferences({
 			...preferences,
 			allowCodebaseInspection: value,
+		})
+	}
+
+	async function handleFoldablePreferenceChange(
+		updates: Partial<{
+			enableFoldableDualPane: boolean
+			forceDualPaneMode: boolean
+			customHingeGap: number
+			dualPaneMinWidth: number
+		}>,
+	): Promise<void> {
+		if (updates.enableFoldableDualPane !== undefined) setEnableFoldableDualPane(updates.enableFoldableDualPane)
+		if (updates.forceDualPaneMode !== undefined) setForceDualPaneMode(updates.forceDualPaneMode)
+		if (updates.customHingeGap !== undefined) setCustomHingeGap(updates.customHingeGap)
+		if (updates.dualPaneMinWidth !== undefined) setDualPaneMinWidth(updates.dualPaneMinWidth)
+
+		await savePreferences({
+			...preferences,
+			...updates,
 		})
 	}
 
@@ -463,6 +491,10 @@ export function SettingsPage() {
 							devStudioAutoContinue={devStudioAutoContinue}
 							savedDevStudio={savedDevStudio}
 							isSavingDevStudio={isSavingDevStudio}
+							enableFoldableDualPane={enableFoldableDualPane}
+							forceDualPaneMode={forceDualPaneMode}
+							customHingeGap={customHingeGap}
+							dualPaneMinWidth={dualPaneMinWidth}
 							onGithubPatChange={setGithubPat}
 							onDevStudioRepositoryChange={setDevStudioRepository}
 							onDevStudioBranchChange={setDevStudioBranch}
@@ -471,6 +503,9 @@ export function SettingsPage() {
 							onEnableNotifications={() => void handleEnableNotifications()}
 							onAllowCodebaseInspectionChange={(value) =>
 								void handleAllowCodebaseInspectionChange(value)
+							}
+							onFoldableChange={(updates) =>
+								void handleFoldablePreferenceChange(updates)
 							}
 						/>
 					) : null}
@@ -971,6 +1006,10 @@ function AppTab({
 	devStudioAutoContinue,
 	savedDevStudio,
 	isSavingDevStudio,
+	enableFoldableDualPane,
+	forceDualPaneMode,
+	customHingeGap,
+	dualPaneMinWidth,
 	onGithubPatChange,
 	onDevStudioRepositoryChange,
 	onDevStudioBranchChange,
@@ -978,6 +1017,7 @@ function AppTab({
 	onSaveDevStudio,
 	onEnableNotifications,
 	onAllowCodebaseInspectionChange,
+	onFoldableChange,
 }: {
 	notificationPermission: NotificationPermission
 	notificationMessage: string | null
@@ -988,6 +1028,10 @@ function AppTab({
 	devStudioAutoContinue: boolean
 	savedDevStudio: boolean
 	isSavingDevStudio: boolean
+	enableFoldableDualPane: boolean
+	forceDualPaneMode: boolean
+	customHingeGap: number
+	dualPaneMinWidth: number
 	onGithubPatChange: (value: string) => void
 	onDevStudioRepositoryChange: (value: string) => void
 	onDevStudioBranchChange: (value: string) => void
@@ -995,13 +1039,93 @@ function AppTab({
 	onSaveDevStudio: () => void
 	onEnableNotifications: () => void
 	onAllowCodebaseInspectionChange: (value: boolean) => void
+	onFoldableChange: (updates: Partial<{
+		enableFoldableDualPane: boolean
+		forceDualPaneMode: boolean
+		customHingeGap: number
+		dualPaneMinWidth: number
+	}>) => void
 }) {
 	return (
 		<div className="space-y-5">
 			<TabIntro
 				title="App behaviour"
-				description="Notifications, Dev Studio, and how chat behaves when you leave the screen."
+				description="Notifications, Dual-Pane & Foldables, Dev Studio, and background settings."
 			/>
+
+			<section className="surface-panel space-y-4 rounded-xl p-5">
+				<div className="flex items-center gap-2">
+					<Columns className="h-5 w-5 text-primary" />
+					<h3 className="text-sm font-medium">Foldable & Split Screen Dual-Pane View</h3>
+				</div>
+				<p className="text-sm text-muted-foreground">
+					Enables dynamic side-by-side multi-pane layouts on wide screens, foldable screens (Galaxy Z Fold, Surface Duo, Pixel Fold), and tablets.
+				</p>
+
+				<div className="space-y-3">
+					<label className="flex items-start gap-3 rounded-lg border border-border/60 px-3 py-3 text-sm">
+						<input
+							type="checkbox"
+							checked={enableFoldableDualPane}
+							onChange={(e) => onFoldableChange({ enableFoldableDualPane: e.target.checked })}
+							className="mt-0.5"
+						/>
+						<span>
+							<span className="block font-medium">Auto-enable Dual-Pane View</span>
+							<span className="mt-1 block text-muted-foreground">
+								Automatically switch to split view when on foldable screens or screens wider than the min-width threshold.
+							</span>
+						</span>
+					</label>
+
+					<label className="flex items-start gap-3 rounded-lg border border-border/60 px-3 py-3 text-sm">
+						<input
+							type="checkbox"
+							checked={forceDualPaneMode}
+							onChange={(e) => onFoldableChange({ forceDualPaneMode: e.target.checked })}
+							className="mt-0.5"
+						/>
+						<span>
+							<span className="block font-medium">Force Dual-Pane Mode</span>
+							<span className="mt-1 block text-muted-foreground">
+								Always split the screen regardless of device size or viewport orientation (ideal for testing multi-pane).
+							</span>
+						</span>
+					</label>
+
+					<div className="space-y-2 pt-2">
+						<div className="flex items-center justify-between text-sm">
+							<span className="font-medium">Min-Width Activation Threshold</span>
+							<span className="font-mono text-xs text-muted-foreground">{dualPaneMinWidth}px</span>
+						</div>
+						<input
+							type="range"
+							min={600}
+							max={1400}
+							step={50}
+							value={dualPaneMinWidth}
+							onChange={(e) => onFoldableChange({ dualPaneMinWidth: Number(e.target.value) })}
+							className="w-full accent-primary"
+						/>
+					</div>
+
+					<div className="space-y-2 pt-2">
+						<div className="flex items-center justify-between text-sm">
+							<span className="font-medium">Custom Physical Hinge Gap Offset</span>
+							<span className="font-mono text-xs text-muted-foreground">{customHingeGap}px</span>
+						</div>
+						<input
+							type="range"
+							min={0}
+							max={40}
+							step={2}
+							value={customHingeGap}
+							onChange={(e) => onFoldableChange({ customHingeGap: Number(e.target.value) })}
+							className="w-full accent-primary"
+						/>
+					</div>
+				</div>
+			</section>
 
 			<section className="surface-panel space-y-4 rounded-xl p-5">
 				<div className="flex items-center gap-2">
