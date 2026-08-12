@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.1.3'
+export const APP_VERSION = '2.1.4'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.1.4',
+		releasedAt: '2026-08-12',
+		summary: 'Free-tier Flash-Lite chat models',
+		changes: [
+			'Chat model picker adds Gemini 3.5 Flash Lite and 3.1 Flash Lite — separate daily quotas for failover.',
+			'Voice transcription, memory archival, and document AI follow your Flash-Lite chat model on free keys.',
+		],
+	},
 	{
 		version: '2.1.3',
 		releasedAt: '2026-08-12',

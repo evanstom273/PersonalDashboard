@@ -632,8 +632,8 @@ function MemoryTab({
 				<p className="text-sm text-muted-foreground">
 					After this many new chat messages, the assistant reads the batch and
 					archives durable facts into Memory. Lower values update more often;
-					higher values wait for more context per pass. Archival always uses
-					Gemini 3.6 Flash to keep costs down.
+					higher values wait for more context per pass. Archival uses Gemini 3.6
+					Flash on paid keys, or your Flash-Lite chat model on free-tier keys.
 				</p>
 
 				<div className="space-y-3">

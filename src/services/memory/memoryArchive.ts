@@ -1,7 +1,7 @@
 import { geminiFetch } from '@/services/gemini/client'
 import {
-	ECONOMY_MODEL_ID,
 	MAX_MEMORY_ARCHIVE_OUTPUT_TOKENS,
+	resolveEconomyModelId,
 } from '@/services/gemini/constants'
 import { applySafetySettingsToRequestBody } from '@/services/gemini/safetySettings'
 import { getConfiguredUserName } from '@/services/gemini/systemInstruction'
@@ -84,6 +84,7 @@ function parseExtractedMemory(text: string): ExtractedMemoryItem[] {
 
 async function extractMemoryFromBatch(
 	apiKey: string,
+	modelId: string,
 	messages: StoredMessage[],
 	preferences: UserPreferences,
 ): Promise<ExtractedMemoryItem[]> {
@@ -115,7 +116,7 @@ async function extractMemoryFromBatch(
 
 	const response = await geminiFetch<GenerateContentResponse>(
 		apiKey,
-		`/models/${ECONOMY_MODEL_ID}:generateContent`,
+		`/models/${modelId}:generateContent`,
 		{
 			method: 'POST',
 			body: JSON.stringify(
@@ -166,6 +167,7 @@ export async function archiveConversationIfNeeded(
 
 	archiveInProgress = true
 	let nextConversation = conversation
+	const economyModelId = resolveEconomyModelId(preferences.defaultModelId)
 
 	try {
 		do {
@@ -181,6 +183,7 @@ export async function archiveConversationIfNeeded(
 			const batch = unarchived.slice(0, interval)
 			const extracted = await extractMemoryFromBatch(
 				apiKey,
+				economyModelId,
 				batch,
 				preferences,
 			)
@@ -241,6 +244,7 @@ export async function runManualMemoryArchive(
 	let batchesProcessed = 0
 	let messagesArchived = 0
 	let memoriesAdded = 0
+	const economyModelId = resolveEconomyModelId(preferences.defaultModelId)
 
 	try {
 		const interval = Math.max(1, preferences.memoryArchiveInterval)
@@ -258,6 +262,7 @@ export async function runManualMemoryArchive(
 			const batch = unarchived.slice(0, batchSize)
 			const extracted = await extractMemoryFromBatch(
 				apiKey,
+				economyModelId,
 				batch,
 				preferences,
 			)
