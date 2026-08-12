@@ -2,6 +2,7 @@ import { Loader2, X } from 'lucide-react'
 import { useCallback } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChatConversationActions } from '@/components/chat/ChatConversationActions'
+import { ChatVoiceSession } from '@/components/chat/ChatVoiceSession'
 import { useMobileNavLayout } from '@/hooks/useMobileNavLayout'
 import { useAppSwipeNavigation } from '@/hooks/useAppSwipeNavigation'
 import { useSwipePageTransition } from '@/hooks/useSwipePageTransition'
@@ -13,6 +14,7 @@ import {
 	useChatHeaderSlot,
 	useMainConversationContext,
 	usePreferencesContext,
+	useTextToSpeechContext,
 } from '@/providers/ChatProvider'
 import { formatAppVersionLabel } from '@/data/changelog'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
@@ -23,12 +25,8 @@ function getPageTitle(pathname: string, aiName: string): string {
 		return 'Home'
 	}
 
-	if (pathname === '/chat') {
+	if (pathname === '/chat' || pathname === '/dev-studio') {
 		return aiName
-	}
-
-	if (pathname === '/dev-studio') {
-		return 'Dev Studio'
 	}
 
 	if (pathname.startsWith('/library/projects/')) {
@@ -58,8 +56,13 @@ export function AppShell() {
 	const { preferences } = usePreferencesContext()
 	const { conversation, clearConversation, replaceConversation } =
 		useMainConversationContext()
-	const { isGenerating, completionNotice, clearCompletionNotice, stopGeneration } =
+	const { isGenerating, completionNotice, clearCompletionNotice, stopGeneration, submitMessage } =
 		useChatGenerationContext()
+	const {
+		status: speechStatus,
+		speakAssistantMessage,
+		stop: stopSpeech,
+	} = useTextToSpeechContext()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const isMobileNav = useMobileNavLayout()
@@ -73,7 +76,6 @@ export function AppShell() {
 		!location.pathname.startsWith('/library/documents/') &&
 		!location.pathname.startsWith('/library/projects/') &&
 		location.pathname !== '/home' &&
-		location.pathname !== '/dev-studio' &&
 		!(isChatRoute && !isMobileNav)
 
 	useAppSwipeNavigation(navigateWithFade)
@@ -88,6 +90,13 @@ export function AppShell() {
 			await replaceConversation(imported)
 		},
 		[replaceConversation],
+	)
+
+	const handleVoiceSubmit = useCallback(
+		async (payload: Parameters<typeof submitMessage>[0]) => {
+			await submitMessage(payload)
+		},
+		[submitMessage],
 	)
 
 	const goToChat = useCallback(() => {
@@ -107,25 +116,27 @@ export function AppShell() {
 							<h1 className="truncate text-base font-semibold md:text-lg">
 								{pageTitle}
 							</h1>
-							{isChatRoute ? (
+							{isChatRoute || isDevStudioRoute ? (
 								<p className="truncate text-xs text-muted-foreground">
 									{formatAppVersionLabel()}
 								</p>
-							) : isGenerating && !isChatRoute ? (
+							) : isGenerating ? (
 								<p className="truncate text-xs text-muted-foreground">
 									{aiName} is replying in the background…
 								</p>
 							) : null}
 						</div>
-						{isChatRoute ? (
+						{isChatRoute || isDevStudioRoute ? (
 							<div className="flex shrink-0 items-center gap-0.5">
 								{chatHeaderVoiceSlot}
-								<ChatConversationActions
-									conversation={conversation}
-									isGenerating={isGenerating}
-									onClear={handleClearChat}
-									onImport={handleImportChat}
-								/>
+								{isChatRoute ? (
+									<ChatConversationActions
+										conversation={conversation}
+										isGenerating={isGenerating}
+										onClear={handleClearChat}
+										onImport={handleImportChat}
+									/>
+								) : null}
 							</div>
 						) : null}
 					</div>
@@ -175,10 +186,22 @@ export function AppShell() {
 				<Outlet />
 			</main>
 
+			<ChatVoiceSession
+				preferences={preferences}
+				conversationMessages={conversation?.messages ?? []}
+				isGenerating={isGenerating}
+				hasApiKey={preferences.geminiApiKey.trim().length > 0}
+				aiName={aiName}
+				speechStatus={speechStatus}
+				onSubmit={handleVoiceSubmit}
+				onStopSpeech={stopSpeech}
+				onSpeakAssistantMessage={speakAssistantMessage}
+			/>
+
 			<BottomNav />
 
-			{!isDevStudioRoute ? <ScratchpadFab /> : null}
-			{!isDevStudioRoute ? <ScratchpadBusyIndicator /> : null}
+			<ScratchpadFab />
+			<ScratchpadBusyIndicator />
 			<ScratchpadPanel />
 		</div>
 	)
