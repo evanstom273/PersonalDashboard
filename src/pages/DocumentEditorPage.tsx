@@ -1,6 +1,6 @@
 import { ArrowLeft, LayoutTemplate, Lock, Play } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { DocumentEditor } from '@/components/documents/DocumentEditor'
 import { DocumentHtmlRunnerDialog } from '@/components/documents/DocumentHtmlRunnerDialog'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
+import { useDualPaneNavigation } from '@/hooks/useDualPaneNavigation'
 import { usePreferencesContext } from '@/providers/ChatProvider'
 import { getDocument, createDocument, updateDocument } from '@/services/documents/documentService'
 import { saveDocumentAsTemplate } from '@/services/documents/documentTemplateService'
@@ -26,7 +27,7 @@ const AUTOSAVE_MS = 800
 
 export function DocumentEditorPage() {
 	const { documentId } = useParams<{ documentId: string }>()
-	const navigate = useNavigate()
+	const { navigateApp, goToLibrary, isDualPaneActive } = useDualPaneNavigation()
 	const { preferences } = usePreferencesContext()
 	const [document, setDocument] = useState<DocumentRecord | null>(null)
 	const [title, setTitle] = useState('')
@@ -139,7 +140,7 @@ export function DocumentEditorPage() {
 					readOnly: false,
 				})
 				if (!cancelled) {
-					navigate(`/library/documents/${created.id}`, { replace: true })
+					navigateApp(`/library/documents/${created.id}`)
 				}
 				return
 			}
@@ -147,7 +148,7 @@ export function DocumentEditorPage() {
 			const stored = await getDocument(documentId)
 			if (!cancelled) {
 				if (!stored) {
-					navigate('/library', { replace: true })
+					goToLibrary()
 					return
 				}
 				const editorHtml = documentContentToEditorHtml(stored)
@@ -171,7 +172,7 @@ export function DocumentEditorPage() {
 		return () => {
 			cancelled = true
 		}
-	}, [documentId, navigate])
+	}, [documentId, goToLibrary, navigateApp])
 
 	useEffect(() => {
 		if (!documentMetaRef.current || isLoading || readOnly) {
@@ -212,7 +213,15 @@ export function DocumentEditorPage() {
 			<header className="shrink-0 border-b border-border px-4 py-3 md:px-6">
 				<div className="flex flex-wrap items-center gap-3">
 					<Button asChild variant="ghost" size="sm">
-						<Link to="/library">
+						<Link
+							to="/library"
+							onClick={(event) => {
+								if (isDualPaneActive) {
+									event.preventDefault()
+									goToLibrary()
+								}
+							}}
+						>
 							<ArrowLeft className="h-4 w-4" />
 							Library
 						</Link>

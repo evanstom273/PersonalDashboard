@@ -4,12 +4,20 @@ import {
 	useContext,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 	type ReactNode,
 } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useFoldableDevice, type FoldableDeviceInfo } from '@/hooks/useFoldableDevice'
 import { usePreferencesContext } from '@/providers/ChatProvider'
+import {
+	buildAppRoute,
+	DEFAULT_SECONDARY_ROUTE,
+	DUAL_PANE_PRIMARY_ROUTE,
+	isDualPanePrimaryRoute,
+	isDualPaneSecondaryRoute,
+} from '@/utils/dualPaneRoutes'
 
 export interface FoldablePaneContextValue {
 	foldableInfo: FoldableDeviceInfo
@@ -29,8 +37,6 @@ export interface FoldablePaneContextValue {
 
 const FoldablePaneContext = createContext<FoldablePaneContextValue | null>(null)
 
-const DEFAULT_SECONDARY_ROUTE = '/library'
-
 export function FoldablePaneProvider({ children }: { children: ReactNode }) {
 	const { preferences, savePreferences } = usePreferencesContext()
 	const foldableInfo = useFoldableDevice(preferences)
@@ -40,9 +46,12 @@ export function FoldablePaneProvider({ children }: { children: ReactNode }) {
 	const [splitRatio, setRatioState] = useState<number>(
 		preferences.dualPaneSplitRatio ?? 50,
 	)
-	const [pane1Route, setPane1RouteState] = useState<string>('/chat')
+	const [pane1Route, setPane1RouteState] = useState<string>(DUAL_PANE_PRIMARY_ROUTE)
 	const [pane2Route, setPane2RouteState] = useState<string>(DEFAULT_SECONDARY_ROUTE)
 	const [activePane, setActivePane] = useState<'pane1' | 'pane2'>('pane1')
+	const wasDualPaneActiveRef = useRef(foldableInfo.isDualPaneActive)
+
+	const currentRoute = buildAppRoute(location.pathname, location.search)
 
 	// Keep ratio synced with preference changes
 	useEffect(() => {
@@ -51,17 +60,61 @@ export function FoldablePaneProvider({ children }: { children: ReactNode }) {
 		}
 	}, [preferences.dualPaneSplitRatio])
 
-	// Update pane 1 route when main location changes, unless it's the secondary route path
+	// When split-screen turns on, pin chat to pane 1 and move the current view to pane 2.
 	useEffect(() => {
-		const currentPath = location.pathname + location.search
-		if (foldableInfo.isDualPaneActive) {
-			if (currentPath !== pane2Route) {
-				setPane1RouteState(currentPath)
-			}
-		} else {
-			setPane1RouteState(currentPath)
+		const justActivated =
+			foldableInfo.isDualPaneActive && !wasDualPaneActiveRef.current
+		wasDualPaneActiveRef.current = foldableInfo.isDualPaneActive
+
+		if (!foldableInfo.isDualPaneActive) {
+			setPane1RouteState(currentRoute)
+			return
 		}
-	}, [location.pathname, location.search, foldableInfo.isDualPaneActive, pane2Route])
+
+		setPane1RouteState(DUAL_PANE_PRIMARY_ROUTE)
+
+		if (justActivated) {
+			if (isDualPaneSecondaryRoute(location.pathname)) {
+				setPane2RouteState(currentRoute)
+			} else if (!pane2Route) {
+				setPane2RouteState(DEFAULT_SECONDARY_ROUTE)
+			}
+		}
+
+		if (!isDualPanePrimaryRoute(location.pathname)) {
+			navigate(DUAL_PANE_PRIMARY_ROUTE, { replace: justActivated })
+		}
+	}, [
+		currentRoute,
+		foldableInfo.isDualPaneActive,
+		location.pathname,
+		navigate,
+		pane2Route,
+	])
+
+	// While split-screen is active, any main-router navigation to a secondary route
+	// should update pane 2 only — chat stays in pane 1.
+	useEffect(() => {
+		if (!foldableInfo.isDualPaneActive) {
+			return
+		}
+
+		if (isDualPanePrimaryRoute(location.pathname)) {
+			setPane1RouteState(DUAL_PANE_PRIMARY_ROUTE)
+			return
+		}
+
+		if (isDualPaneSecondaryRoute(location.pathname)) {
+			setPane2RouteState(currentRoute)
+			setPane1RouteState(DUAL_PANE_PRIMARY_ROUTE)
+			navigate(DUAL_PANE_PRIMARY_ROUTE, { replace: true })
+		}
+	}, [
+		currentRoute,
+		foldableInfo.isDualPaneActive,
+		location.pathname,
+		navigate,
+	])
 
 	const setSplitRatio = useCallback(
 		(ratio: number) => {
@@ -79,12 +132,18 @@ export function FoldablePaneProvider({ children }: { children: ReactNode }) {
 		(route: string) => {
 			setPane2RouteState(route)
 			setActivePane('pane2')
-			// If dual pane is not active, navigate to the route directly
-			if (!foldableInfo.isDualPaneActive) {
-				navigate(route)
+
+			if (foldableInfo.isDualPaneActive) {
+				setPane1RouteState(DUAL_PANE_PRIMARY_ROUTE)
+				if (!isDualPanePrimaryRoute(location.pathname)) {
+					navigate(DUAL_PANE_PRIMARY_ROUTE, { replace: true })
+				}
+				return
 			}
+
+			navigate(route)
 		},
-		[foldableInfo.isDualPaneActive, navigate],
+		[foldableInfo.isDualPaneActive, location.pathname, navigate],
 	)
 
 	const closeSecondaryPane = useCallback(() => {
@@ -93,14 +152,8 @@ export function FoldablePaneProvider({ children }: { children: ReactNode }) {
 	}, [])
 
 	const swapPanes = useCallback(() => {
-		const temp1 = pane1Route
-		const temp2 = pane2Route
-		setPane1RouteState(temp2)
-		setPane2RouteState(temp1)
-		if (temp2) {
-			navigate(temp2)
-		}
-	}, [pane1Route, pane2Route, navigate])
+		setActivePane((current) => (current === 'pane1' ? 'pane2' : 'pane1'))
+	}, [])
 
 	const contextValue = useMemo<FoldablePaneContextValue>(
 		() => ({

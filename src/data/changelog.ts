@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.1.0'
+export const APP_VERSION = '2.1.1'
 
 export interface ChangelogEntry {
 	version: string
@@ -9,13 +9,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
-		version: '2.1.0',
+		version: '2.1.1',
 		releasedAt: '2026-08-12',
-		summary: 'Remove Dev Studio',
+		summary: 'Split-screen keeps chat pinned',
 		changes: [
-			'Dev Studio and all GitHub coding-agent features removed from the app.',
-			'Bottom nav simplified (Home, Chat, Library, Settings). Dual-pane default secondary pane is now Library.',
-			'Removed GitHub PAT settings, CodeMirror dependencies, and Send to Dev Studio from documents.',
+			'Dual-pane mode always keeps chat on the left; library, documents, projects, and settings open on the right.',
+			'Opening a document from library in split-screen no longer replaces the chat pane.',
+			'Bottom nav in split-screen routes secondary tabs to the right pane only.',
 		],
 	},
 	{
