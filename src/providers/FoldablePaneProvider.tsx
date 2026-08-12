@@ -29,7 +29,7 @@ export interface FoldablePaneContextValue {
 
 const FoldablePaneContext = createContext<FoldablePaneContextValue | null>(null)
 
-const DEFAULT_SECONDARY_ROUTE = '/dev-studio'
+const DEFAULT_SECONDARY_ROUTE = '/library'
 
 export function FoldablePaneProvider({ children }: { children: ReactNode }) {
 	const { preferences, savePreferences } = usePreferencesContext()

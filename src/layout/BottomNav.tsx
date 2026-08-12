@@ -1,4 +1,4 @@
-import { Code2, Home, Library, MessageSquare, Settings } from 'lucide-react'
+import { Home, Library, MessageSquare, Settings } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useFoldablePane } from '@/hooks/useFoldablePane'
 import { useChatGenerationContext } from '@/providers/ChatProvider'
@@ -7,7 +7,6 @@ import { cn } from '@/utils/cn'
 const NAV_ITEMS = [
 	{ to: '/home', label: 'Home', icon: Home, end: true },
 	{ to: '/chat', label: 'Chat', icon: MessageSquare, end: true },
-	{ to: '/dev-studio', label: 'Dev', icon: Code2, end: true },
 	{ to: '/library', label: 'Library', icon: Library, end: false },
 	{ to: '/settings', label: 'Settings', icon: Settings, end: true },
 ] as const
@@ -17,7 +16,7 @@ export function BottomNav() {
 	const { isDualPaneActive, openInSecondaryPane, pane2Route } = useFoldablePane()
 
 	const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, to: string) => {
-		if (isDualPaneActive && (to === '/dev-studio' || to === '/library')) {
+		if (isDualPaneActive && to === '/library') {
 			e.preventDefault()
 			openInSecondaryPane(to)
 		}

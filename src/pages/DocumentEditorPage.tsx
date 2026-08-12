@@ -1,4 +1,4 @@
-import { ArrowLeft, Code2, LayoutTemplate, Lock, Play } from 'lucide-react'
+import { ArrowLeft, LayoutTemplate, Lock, Play } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DocumentEditor } from '@/components/documents/DocumentEditor'
@@ -95,19 +95,6 @@ export function DocumentEditorPage() {
 		setTemplateDialogOpen(true)
 	}, [title])
 
-	const handleSendToDevStudio = useCallback(() => {
-		const currentTitle = latestRef.current.title.trim() || 'Untitled document'
-		const meta = documentMetaRef.current
-
-		void navigate('/dev-studio', {
-			state: {
-				initialDocument: meta
-					? { id: meta.id, title: currentTitle }
-					: undefined,
-				initialPrompt: `Implement specification from document "${currentTitle}"`,
-			},
-		})
-	}, [navigate])
 
 	const persistDocument = useCallback(async () => {
 		const meta = documentMetaRef.current
@@ -247,17 +234,6 @@ export function DocumentEditorPage() {
 						>
 							<Play className="h-4 w-4 fill-current" />
 							Run HTML
-						</Button>
-
-						<Button
-							type="button"
-							variant="secondary"
-							size="sm"
-							onClick={handleSendToDevStudio}
-							title="Send specification to Dev Studio agent"
-						>
-							<Code2 className="h-4 w-4 text-primary" />
-							Send to Dev Studio
 						</Button>
 
 						{readOnly ? (
