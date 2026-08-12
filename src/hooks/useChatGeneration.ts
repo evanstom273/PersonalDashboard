@@ -13,6 +13,7 @@ import {
 import { capUnarchivedMessagesForModel } from '@/utils/chatHistory'
 import { saveMessageMediaToLibrary } from '@/services/library/libraryMediaService'
 import type { ConversationRecord, StoredMessage, UserPreferences } from '@/storage/types'
+import { getActiveGeminiApiKey, hasGeminiApiKey } from '@/storage/geminiApiKeys'
 import type { ChatInputMethod, ChatSubmitPayload } from '@/types/chat'
 import {
 	notifyGenerationComplete,
@@ -93,7 +94,7 @@ export function useChatGeneration({
 			}: ChatSubmitPayload,
 			options?: { forcedNextIntent?: GenerationIntent | null },
 		) => {
-			const hasApiKey = preferences.geminiApiKey.trim().length > 0
+			const hasApiKey = hasGeminiApiKey(preferences)
 			if (!hasApiKey) {
 				setError('Add your Gemini API key in Settings before generating.')
 				return
@@ -210,7 +211,7 @@ export function useChatGeneration({
 					setStreamingAssistant({ id: assistantMessageId, content: '' })
 
 					const chatResult = await generateChatWithTools(
-						preferences.geminiApiKey,
+						getActiveGeminiApiKey(preferences),
 						resolved.modelId,
 						history,
 						preferences,
@@ -255,7 +256,7 @@ export function useChatGeneration({
 							: resolved.prompt
 
 					const result = await runModelGeneration(
-						preferences.geminiApiKey,
+						getActiveGeminiApiKey(preferences),
 						resolved.modelId,
 						generationPrompt,
 						history,
@@ -297,7 +298,7 @@ export function useChatGeneration({
 
 				if (resolved.intent === 'chat') {
 					queueMemoryArchive(
-						preferences.geminiApiKey,
+						getActiveGeminiApiKey(preferences),
 						updatedConversation,
 						preferences,
 						saveConversation,

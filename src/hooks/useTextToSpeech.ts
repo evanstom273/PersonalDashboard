@@ -3,6 +3,7 @@ import { synthesizeSpeechWithGemini } from '@/services/gemini/synthesizeSpeech'
 import { streamSpeechWithGemini } from '@/services/gemini/streamingTtsService'
 import { normalizeTtsVoiceName } from '@/services/gemini/ttsVoices'
 import type { TtsReadAloudMode, UserPreferences } from '@/storage/types'
+import { getActiveGeminiApiKey } from '@/storage/geminiApiKeys'
 import { PcmStreamPlayer } from '@/utils/pcmStreamPlayer'
 import { prepareTextForSpeech } from '@/utils/speechText'
 
@@ -230,7 +231,7 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 
 			let receivedAudio = false
 			await streamSpeechWithGemini({
-				apiKey: preferences.geminiApiKey,
+				apiKey: getActiveGeminiApiKey(preferences),
 				text: speechText,
 				voiceName: normalizeTtsVoiceName(preferences.ttsVoiceName),
 				preferences,
@@ -265,7 +266,7 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 			onError,
 			suppressErrorState = false,
 		}: SpeakAssistantMessageOptions) => {
-			const apiKey = preferences.geminiApiKey.trim()
+			const apiKey = getActiveGeminiApiKey(preferences).trim()
 			if (!apiKey) {
 				const message = 'Add your Gemini API key in Settings to use text-to-speech.'
 				if (!suppressErrorState) {
@@ -371,7 +372,7 @@ export function useTextToSpeech({ preferences }: UseTextToSpeechOptions) {
 
 	const previewVoice = useCallback(
 		async (voiceName: string) => {
-			const apiKey = preferences.geminiApiKey.trim()
+			const apiKey = getActiveGeminiApiKey(preferences).trim()
 			if (!apiKey) {
 				setError('Add your Gemini API key in Settings to preview voices.')
 				return

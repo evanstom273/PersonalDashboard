@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.1.4'
+export const APP_VERSION = '2.1.5'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.1.5',
+		releasedAt: '2026-08-12',
+		summary: 'Paid and free API key slots',
+		changes: [
+			'Settings stores separate paid and free Gemini API keys with a dropdown to switch which one the app uses.',
+			'Existing single-key setups migrate automatically into the paid key slot.',
+		],
+	},
 	{
 		version: '2.1.4',
 		releasedAt: '2026-08-12',

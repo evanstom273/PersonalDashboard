@@ -114,8 +114,12 @@ export interface LibraryMediaRecord {
 	updatedAt: number
 }
 
+export type GeminiApiKeySlot = 'paid' | 'free'
+
 export interface UserPreferences {
-	geminiApiKey: string
+	geminiApiKeyPaid: string
+	geminiApiKeyFree: string
+	activeGeminiApiKeySlot: GeminiApiKeySlot
 	defaultModelId: string
 	defaultImageModelId: string
 	defaultMusicModelId: string
@@ -136,7 +140,9 @@ export interface UserPreferences {
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
-	geminiApiKey: '',
+	geminiApiKeyPaid: '',
+	geminiApiKeyFree: '',
+	activeGeminiApiKeySlot: 'paid',
 	defaultModelId: 'gemini-3.6-flash',
 	defaultImageModelId: 'gemini-3.1-flash-image',
 	defaultMusicModelId: 'lyria-3-clip-preview',

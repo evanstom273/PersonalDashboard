@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { usePreferencesContext } from '@/providers/ChatProvider'
+import { getActiveGeminiApiKey, hasGeminiApiKey } from '@/storage/geminiApiKeys'
 import { useScratchpad } from '@/providers/ScratchpadProvider'
 import { createDocument } from '@/services/documents/documentService'
 import { createProject, createTask, listProjects } from '@/services/projects/projectService'
@@ -150,7 +151,7 @@ export function useScratchpadActions() {
 	const pendingTasksRef = useRef<Array<{ title: string; note?: string }>>([])
 
 	function ensureApiKey(): boolean {
-		if (!preferences.geminiApiKey.trim()) {
+		if (!hasGeminiApiKey(preferences)) {
 			setError('Add your Gemini API key in Settings first.')
 			return false
 		}
@@ -170,7 +171,7 @@ export function useScratchpadActions() {
 		setError(null)
 		try {
 			const organized = await organizeScratchpadIntoDocument({
-				apiKey: preferences.geminiApiKey,
+				apiKey: getActiveGeminiApiKey(preferences),
 				modelId: getEconomyModelId(preferences.defaultModelId),
 				preferences,
 				rawText: content,
@@ -205,7 +206,7 @@ export function useScratchpadActions() {
 		setError(null)
 		try {
 			const extracted = await extractScratchpadTasks({
-				apiKey: preferences.geminiApiKey,
+				apiKey: getActiveGeminiApiKey(preferences),
 				modelId: getEconomyModelId(preferences.defaultModelId),
 				preferences,
 				rawText: content,

@@ -20,6 +20,7 @@ import {
 	useTextToSpeechContext,
 } from '@/providers/ChatProvider'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
+import { hasGeminiApiKey } from '@/storage/geminiApiKeys'
 import { cn } from '@/utils/cn'
 
 function getPageTitle(pathname: string, aiName: string): string {
@@ -198,7 +199,7 @@ export function AppShell() {
 				preferences={preferences}
 				conversationMessages={conversation?.messages ?? []}
 				isGenerating={isGenerating}
-				hasApiKey={preferences.geminiApiKey.trim().length > 0}
+				hasApiKey={hasGeminiApiKey(preferences)}
 				aiName={aiName}
 				speechStatus={speechStatus}
 				onSubmit={handleVoiceSubmit}
