@@ -544,7 +544,6 @@ export function DevStudioComposer() {
 					repo,
 					toolContext,
 					{
-						executionMode: mode,
 						signal: abortController.signal,
 						onThoughtDelta: (delta) => {
 							thoughtsRef.current += delta
@@ -571,6 +570,7 @@ export function DevStudioComposer() {
 						},
 					},
 					{
+						executionMode: mode,
 						autoContinue: preferences.devStudioAutoContinue,
 					},
 				)
@@ -821,7 +821,7 @@ export function DevStudioComposer() {
 			{latestPlan && executionMode === 'plan' && !isComposerSending ? (
 				<div className="mx-auto mb-2 flex max-w-3xl flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs shadow-xs">
 					<div className="flex items-center gap-2 min-w-0">
-						<span className="font-semibold text-primary shrink-0">📝 Plan Generated</span>
+						<span className="font-semibold text-primary shrink-0">📋 Plan Generated</span>
 						<span className="truncate text-muted-foreground">{latestPlan.title}</span>
 					</div>
 					<div className="flex items-center gap-2 shrink-0">
