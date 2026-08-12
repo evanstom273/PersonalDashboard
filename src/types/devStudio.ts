@@ -105,6 +105,44 @@ export interface DevStudioWorkspaceSnapshot {
 	lastSyncedAt: number
 }
 
+export type GitHubPagesBuildState =
+	| 'building'
+	| 'deployed'
+	| 'failed'
+	| 'not_found'
+	| 'idle'
+
+export interface GitHubPagesDeploymentInfo {
+	state: GitHubPagesBuildState
+	statusText: string
+	htmlUrl?: string
+	logsUrl?: string
+	updatedAt?: string
+	commitSha?: string
+}
+
+export interface GitHubPagesBuildResponse {
+	url: string
+	status: 'built' | 'building' | 'errored' | 'queued' | string
+	error?: { message?: string }
+	commit?: string
+	html_url?: string
+	created_at?: string
+	updated_at?: string
+}
+
+export interface GitHubWorkflowRunResponse {
+	id: number
+	name: string
+	head_branch: string
+	head_sha: string
+	status: 'queued' | 'in_progress' | 'completed' | 'waiting' | string
+	conclusion: 'success' | 'failure' | 'cancelled' | 'timed_out' | string | null
+	html_url: string
+	created_at: string
+	updated_at: string
+}
+
 export function parseRepositorySlug(input: string): DevStudioRepoRef | null {
 	const trimmed = input.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/, '')
 	const match = trimmed.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/)

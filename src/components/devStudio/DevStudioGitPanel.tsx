@@ -1,9 +1,13 @@
 import {
 	Check,
+	CheckCircle2,
 	ExternalLink,
 	GitMerge,
 	GitPullRequest,
+	Globe,
 	Loader2,
+	RefreshCw,
+	XCircle,
 } from 'lucide-react'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
@@ -78,6 +82,7 @@ export function DevStudioGitPanel({ className }: { className?: string }) {
 					</p>
 					<p className="mt-1 font-mono text-sm">{workspace.repo.branch}</p>
 				</div>
+				<PagesDeploymentCard />
 				{lastPushResult ? (
 					<div className="rounded-xl border border-border/60 bg-background/30 px-3 py-3">
 						<p className="text-xs font-medium text-muted-foreground uppercase">
@@ -190,6 +195,90 @@ export function DevStudioGitPanel({ className }: { className?: string }) {
 							))}
 						</div>
 					</div>
+				) : null}
+			</div>
+		</div>
+	)
+}
+
+function PagesDeploymentCard() {
+	const { pagesDeployment, isPollingPagesStatus, refreshPagesStatus } =
+		useDevStudio()
+
+	if (!pagesDeployment || pagesDeployment.state === 'not_found') {
+		return null
+	}
+
+	const { state, statusText, htmlUrl, logsUrl } = pagesDeployment
+
+	return (
+		<div className="rounded-xl border border-border/60 bg-background/30 px-3 py-3">
+			<div className="flex items-center justify-between">
+				<p className="text-xs font-medium text-muted-foreground uppercase">
+					GitHub Pages
+				</p>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="h-6 w-6"
+					onClick={() => void refreshPagesStatus()}
+					title="Refresh deployment status"
+				>
+					<RefreshCw
+						className={cn('h-3.5 w-3.5', isPollingPagesStatus && 'animate-spin')}
+					/>
+				</Button>
+			</div>
+
+			<div className="mt-2 flex items-center gap-2">
+				{state === 'building' && (
+					<span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-400">
+						<Loader2 className="h-3.5 w-3.5 animate-spin" />
+						🟡 Building...
+					</span>
+				)}
+				{state === 'deployed' && (
+					<span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-400">
+						<CheckCircle2 className="h-3.5 w-3.5" />
+						🟢 Live / Deployed
+					</span>
+				)}
+				{state === 'failed' && (
+					<span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/15 px-2.5 py-1 text-xs font-medium text-destructive">
+						<XCircle className="h-3.5 w-3.5" />
+						🔴 Build Failed
+					</span>
+				)}
+				{state === 'idle' && (
+					<span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
+						{statusText}
+					</span>
+				)}
+			</div>
+
+			<div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+				{htmlUrl ? (
+					<a
+						href={htmlUrl}
+						target="_blank"
+						rel="noreferrer"
+						className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+					>
+						<Globe className="h-3.5 w-3.5" />
+						View Live Site
+					</a>
+				) : null}
+				{logsUrl ? (
+					<a
+						href={logsUrl}
+						target="_blank"
+						rel="noreferrer"
+						className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline"
+					>
+						<ExternalLink className="h-3.5 w-3.5" />
+						View Build Run Logs
+					</a>
 				) : null}
 			</div>
 		</div>

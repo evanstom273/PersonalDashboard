@@ -46,9 +46,11 @@ export function prepareHtmlContent(
 	let rawHtml = content.trim()
 
 	if (format === 'markdown') {
-		const codeBlockMatch = /```(?:html|xml)\s*([\s\S]*?)```/i.exec(content)
+		const codeBlockMatch = /```(?:html|xml|htm)?\s*([\s\S]*?)```/i.exec(content)
 		if (codeBlockMatch) {
 			rawHtml = codeBlockMatch[1].trim()
+		} else if (/<[a-z!][\s\S]*>/i.test(content)) {
+			rawHtml = content.trim()
 		} else {
 			rawHtml = markdownToHtml(content)
 		}

@@ -20,6 +20,7 @@ import {
 	closePullRequest,
 	fetchFileContent,
 	fetchRepositoryTree,
+	getPagesDeploymentStatus,
 	listAccessibleRepositories,
 	listOpenPullRequests,
 	mergePullRequest,
@@ -43,6 +44,7 @@ import {
 	type DevStudioStreamingState,
 	type DevStudioAgentTaskStatus,
 	type DevStudioWorkspaceSnapshot,
+	type GitHubPagesDeploymentInfo,
 } from '@/types/devStudio'
 import { getDevStudioPushSafety } from '@/utils/devStudioTaskStatus'
 import { flattenFilePaths } from '@/utils/devStudioFileTree'
@@ -75,6 +77,10 @@ interface DevStudioContextValue {
 	recentlyMergedPullRequests: DevStudioMergedPullRequest[]
 	agentTaskStatus: DevStudioAgentTaskStatus
 	streamingAssistant: DevStudioStreamingState | null
+	pagesDeployment: GitHubPagesDeploymentInfo | null
+	isPollingPagesStatus: boolean
+	refreshPagesStatus: () => Promise<void>
+	startPagesPolling: (durationMs?: number, intervalMs?: number) => void
 	setContextTab: (tab: DevStudioContextTab) => void
 	setMobileTab: (tab: DevStudioMobileTab) => void
 	connectWorkspace: () => Promise<void>
@@ -173,6 +179,12 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	const [streamingAssistant, setStreamingAssistant] =
 		useState<DevStudioStreamingState | null>(null)
 
+	const [pagesDeployment, setPagesDeployment] =
+		useState<GitHubPagesDeploymentInfo | null>(null)
+	const [isPollingPagesStatus, setIsPollingPagesStatus] = useState(false)
+	const pollingTimerRef = useRef<number | null>(null)
+	const pollingEndTimeRef = useRef<number | null>(null)
+
 	const fileShaRef = useRef(fileShaByPath)
 	const stagedRef = useRef(stagedChanges)
 	const messagesRef = useRef(messages)
@@ -217,6 +229,83 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			),
 		[branch, pinnedRepositories, remoteRepositories, repositorySlug],
 	)
+
+	const stopPagesPolling = useCallback(() => {
+		if (pollingTimerRef.current !== null) {
+			window.clearInterval(pollingTimerRef.current)
+			pollingTimerRef.current = null
+		}
+		setIsPollingPagesStatus(false)
+	}, [])
+
+	const refreshPagesStatus = useCallback(async () => {
+		if (!repoRef || !preferences.githubPat.trim()) {
+			setPagesDeployment(null)
+			return
+		}
+
+		try {
+			const result = await getPagesDeploymentStatus(
+				preferences.githubPat.trim(),
+				repoRef,
+			)
+			if (result.rateLimit) {
+				setRateLimit(result.rateLimit)
+			}
+			setPagesDeployment(result.deployment)
+		} catch {
+			// Ignore pages fetch errors gracefully
+		}
+	}, [preferences.githubPat, repoRef])
+
+	const startPagesPolling = useCallback(
+		(durationMs = 180000, intervalMs = 12000) => {
+			stopPagesPolling()
+			setIsPollingPagesStatus(true)
+			pollingEndTimeRef.current = Date.now() + durationMs
+
+			void refreshPagesStatus()
+
+			pollingTimerRef.current = window.setInterval(async () => {
+				if (Date.now() >= (pollingEndTimeRef.current ?? 0)) {
+					stopPagesPolling()
+					return
+				}
+
+				try {
+					if (!repoRef || !preferences.githubPat.trim()) {
+						stopPagesPolling()
+						return
+					}
+					const result = await getPagesDeploymentStatus(
+						preferences.githubPat.trim(),
+						repoRef,
+					)
+					if (result.rateLimit) {
+						setRateLimit(result.rateLimit)
+					}
+					setPagesDeployment(result.deployment)
+
+					if (
+						result.deployment &&
+						(result.deployment.state === 'deployed' ||
+							result.deployment.state === 'failed')
+					) {
+						stopPagesPolling()
+					}
+				} catch {
+					// Continue polling
+				}
+			}, intervalMs)
+		},
+		[preferences.githubPat, refreshPagesStatus, repoRef, stopPagesPolling],
+	)
+
+	useEffect(() => {
+		return () => {
+			stopPagesPolling()
+		}
+	}, [stopPagesPolling])
 
 	const persistWorkspaceState = useCallback(
 		async (repo: DevStudioRepoRef) => {
@@ -311,6 +400,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				setConnectionStatus('disconnected')
 				setWorkspace(null)
 				setConnectionError(null)
+				setPagesDeployment(null)
 				return
 			}
 
@@ -331,7 +421,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				} catch (caught) {
 					if (caught instanceof GitHubApiError && caught.status === 404) {
 						emptyRepoNotice =
-							'Repository is empty or the branch has no commits yet. Enable “Initialize with README” when creating, or push a first commit on GitHub.'
+							'Repository is empty or the branch has no commits yet. Enable â€œInitialize with READMEâ€  when creating, or push a first commit on GitHub.'
 					} else {
 						throw caught
 					}
@@ -367,6 +457,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				})
 				setConnectionStatus('connected')
 				setConnectionError(emptyRepoNotice)
+				void refreshPagesStatus()
 			} catch (caught) {
 				setConnectionStatus('error')
 				setWorkspace(null)
@@ -377,7 +468,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				)
 			}
 		},
-		[preferences.githubPat, repoRef],
+		[preferences.githubPat, refreshPagesStatus, repoRef],
 	)
 
 	const connectWorkspace = useCallback(async () => {
@@ -385,8 +476,12 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 	}, [hydrateWorkspace])
 
 	const refreshWorkspace = useCallback(async () => {
-		await Promise.all([loadRepositories(), hydrateWorkspace()])
-	}, [hydrateWorkspace, loadRepositories])
+		await Promise.all([
+			loadRepositories(),
+			hydrateWorkspace(),
+			refreshPagesStatus(),
+		])
+	}, [hydrateWorkspace, loadRepositories, refreshPagesStatus])
 
 	const switchRepository = useCallback(
 		async (fullName: string, defaultBranch?: string) => {
@@ -614,12 +709,19 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				await hydrateWorkspace()
 				setContextTab('git')
 				setMobileTab('git')
+				startPagesPolling()
 				return pushResult.result
 			} finally {
 				setIsPushing(false)
 			}
 		},
-		[agentTaskStatus, hydrateWorkspace, preferences.githubPat, repoRef],
+		[
+			agentTaskStatus,
+			hydrateWorkspace,
+			preferences.githubPat,
+			repoRef,
+			startPagesPolling,
+		],
 	)
 
 	const mergePullRequestByNumber = useCallback(
@@ -669,8 +771,15 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 				]
 			})
 			await hydrateWorkspace()
+			startPagesPolling()
 		},
-		[hydrateWorkspace, preferences.githubPat, repoRef, workspace?.pullRequests],
+		[
+			hydrateWorkspace,
+			preferences.githubPat,
+			repoRef,
+			startPagesPolling,
+			workspace?.pullRequests,
+		],
 	)
 
 	const closePullRequestByNumber = useCallback(
@@ -777,6 +886,10 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			recentlyMergedPullRequests,
 			agentTaskStatus,
 			streamingAssistant,
+			pagesDeployment,
+			isPollingPagesStatus,
+			refreshPagesStatus,
+			startPagesPolling,
 			setContextTab,
 			setMobileTab,
 			connectWorkspace,
@@ -817,6 +930,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			isComposerSending,
 			isConfigured,
 			isLoadingRepositories,
+			isPollingPagesStatus,
 			isPushing,
 			lastPushResult,
 			recentlyMergedPullRequests,
@@ -826,8 +940,10 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			mobileTab,
 			openFile,
 			openWorkspaceFile,
+			pagesDeployment,
 			pushStagedChanges,
 			rateLimit,
+			refreshPagesStatus,
 			refreshWorkspace,
 			registerRepository,
 			repositoryListError,
@@ -836,6 +952,7 @@ export function DevStudioProvider({ children }: { children: ReactNode }) {
 			stageChange,
 			stageOpenFile,
 			stagedChanges,
+			startPagesPolling,
 			streamingAssistant,
 			switchRepository,
 			updateOpenFileContent,
