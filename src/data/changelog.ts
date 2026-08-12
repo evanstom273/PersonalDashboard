@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.0.15'
+export const APP_VERSION = '2.0.16'
 
 export interface ChangelogEntry {
 	version: string
@@ -9,13 +9,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
-		version: '2.0.15',
+		version: '2.0.16',
 		releasedAt: '2026-08-12',
-		summary: 'Dev Studio efficiency for all models',
+		summary: 'Fix Gemma TPM quota errors in Dev Studio',
 		changes: [
-			'Token budgets, context pruning, and tool output caps now apply to every Dev Studio model (Gemma stays strictest).',
-			'Parallel tool execution, in-session file read cache, and lighter thinking budgets on Flash/Pro.',
-			'Efficiency guidance in the agent prompt for all models; search-before-read tool hints.',
+			'Dev Studio no longer injects the full chat system prompt — saves thousands of input tokens per request.',
+			'Gemma: 5k read cap, line-range reads, rolling 12k TPM tracker, 6s pacing, auto-retry on quota errors.',
+			'read_workspace_file supports start_line/end_line for paginated reads of large files like DevStudioProvider.tsx.',
 		],
 	},
 	{

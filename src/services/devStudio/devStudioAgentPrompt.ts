@@ -1,6 +1,6 @@
 import {
-	buildSystemInstruction,
 	getConfiguredAiName,
+	getConfiguredUserName,
 } from '@/services/gemini/systemInstruction'
 import { isGemmaDevStudioModel } from '@/services/devStudio/devStudioModels'
 import type { StoredMessage } from '@/storage/types'
@@ -11,16 +11,38 @@ import type { UserPreferences } from '@/storage/types'
 const EFFICIENCY_GUIDANCE = [
 	'DEV STUDIO EFFICIENCY (always follow):',
 	'Search or list files before reading — load only paths you will edit.',
+	'For large files use read_workspace_file start_line/end_line to read a section at a time.',
 	'Avoid re-reading the same file; use prior tool output when the SHA has not changed.',
 	'Prefer one purposeful tool call over exploratory chains. Stage one file at a time.',
 	'Keep replies concise; put detail in staged file content, not long chat prose.',
 ].join('\n')
 
 const GEMMA_EXTRA_GUIDANCE = [
-	'QUOTA MODE (Gemma — strict):',
-	'Minimize API round-trips. Never read a large file when search gives enough context.',
-	'Batch your plan before touching tools. Skip optional reads.',
+	'QUOTA MODE (Gemma — 16k input tokens/minute):',
+	'One tool call per turn when possible. Never read a whole large file — use line ranges or search.',
+	'DevStudioProvider.tsx and similar files: search first, then read_line ranges of ~80 lines.',
 ].join('\n')
+
+function buildDevStudioCompactBase(
+	preferences: UserPreferences,
+	repo: DevStudioRepoRef,
+	strictQuota: boolean,
+): string {
+	const aiName = getConfiguredAiName(preferences)
+	const userName = getConfiguredUserName(preferences)
+	const behavior = preferences.aiBehaviorInstructions.trim()
+
+	const lines = [
+		`You are ${aiName}, Dev Studio code agent for ${userName}.`,
+		`Repository: ${formatRepositorySlug(repo)} @ branch ${repo.branch}.`,
+	]
+
+	if (behavior && !strictQuota) {
+		lines.push(`Style: ${behavior.slice(0, 400)}`)
+	}
+
+	return lines.join('\n')
+}
 
 export function buildDevStudioSystemInstruction(
 	preferences: UserPreferences,
@@ -31,9 +53,7 @@ export function buildDevStudioSystemInstruction(
 	const strictQuota = modelId ? isGemmaDevStudioModel(modelId) : false
 
 	const base = [
-		buildSystemInstruction(preferences),
-		`${getConfiguredAiName(preferences)} Dev Studio code agent mode.`,
-		`Connected repository: ${formatRepositorySlug(repo)} on branch ${repo.branch}.`,
+		buildDevStudioCompactBase(preferences, repo, strictQuota),
 		EFFICIENCY_GUIDANCE,
 		strictQuota ? GEMMA_EXTRA_GUIDANCE : '',
 	]
