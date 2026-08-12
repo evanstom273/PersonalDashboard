@@ -7,7 +7,11 @@ import {
 import type { DevStudioToolContext } from '@/services/devStudio/devStudioWorkspaceTools'
 import { getMaxIterationsForModel } from '@/services/devStudio/devStudioModels'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
-import type { DevStudioAgentPhase, DevStudioRepoRef } from '@/types/devStudio'
+import type {
+	DevStudioAgentPhase,
+	DevStudioExecutionMode,
+	DevStudioRepoRef,
+} from '@/types/devStudio'
 import { buildDevStudioResumeUserMessage } from '@/utils/devStudioTaskStatus'
 
 export interface DevStudioAgentStreamCallbacks {
@@ -28,6 +32,7 @@ export async function runDevStudioAgentWithContinue(
 	toolContext: DevStudioToolContext,
 	callbacks: DevStudioAgentStreamCallbacks,
 	options?: {
+		executionMode?: DevStudioExecutionMode
 		autoContinue?: boolean
 		isResume?: boolean
 	},
@@ -44,7 +49,10 @@ export async function runDevStudioAgentWithContinue(
 			preferences,
 			repo,
 			toolContext,
-			callbacks,
+			{
+				...callbacks,
+				executionMode: options?.executionMode,
+			},
 		)
 
 		if (result.status !== 'limit_reached') {
