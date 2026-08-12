@@ -1,4 +1,5 @@
 import { Loader2, RefreshCw, Sparkles } from 'lucide-react'
+import { ChatMarkdown } from '@/components/chat/ChatMarkdown'
 import { Button } from '@/components/ui/button'
 import {
 	Dialog,
@@ -48,7 +49,7 @@ export function DocumentAiPreviewDialog({
 					<p className="text-sm text-destructive">{error}</p>
 				) : (
 					<ScrollArea className="max-h-[45vh] rounded-lg border border-border/70 bg-card/40 p-4">
-						<p className="whitespace-pre-wrap text-sm leading-relaxed">{previewText}</p>
+						<ChatMarkdown content={previewText} className="text-sm leading-relaxed" />
 					</ScrollArea>
 				)}
 

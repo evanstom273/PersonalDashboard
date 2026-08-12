@@ -39,7 +39,7 @@ function CodeBlock({ children }: { children: ReactNode }) {
 	const [copied, setCopied] = useState(false)
 	const codeElement = findCodeElement(children)
 	const language = extractLanguage(codeElement?.props?.className)
-	const codeText = extractCodeText(codeElement)
+	const codeText = extractCodeText(codeElement) || extractTextFromNode(children)
 
 	const handleCopy = useCallback(async () => {
 		if (!codeText) {
@@ -56,25 +56,31 @@ function CodeBlock({ children }: { children: ReactNode }) {
 	}, [codeText])
 
 	return (
-		<div className="chat-code-block">
+		<div className="chat-code-block group relative">
 			<div className="chat-code-block-header">
-				<span>{language || 'code'}</span>
+				<span className="font-mono text-xs text-muted-foreground/80">{language || 'code'}</span>
 				<Button
 					type="button"
 					variant="ghost"
 					size="sm"
-					className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+					className={cn(
+						'chat-copy-button h-7 gap-1.5 px-2.5 text-xs transition-all',
+						copied
+							? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+							: 'text-muted-foreground hover:text-foreground hover:bg-white/10'
+					)}
 					onClick={() => {
 						void handleCopy()
 					}}
 					disabled={!codeText}
+					aria-label={copied ? 'Code copied to clipboard' : 'Copy code to clipboard'}
 				>
 					{copied ? (
-						<Check className="h-3.5 w-3.5" />
+						<Check className="h-3.5 w-3.5 text-emerald-400" />
 					) : (
 						<Copy className="h-3.5 w-3.5" />
 					)}
-					{copied ? 'Copied' : 'Copy'}
+					<span>{copied ? 'Copied' : 'Copy'}</span>
 				</Button>
 			</div>
 			<pre>{children}</pre>
@@ -106,7 +112,7 @@ function findCodeElement(node: ReactNode): CodeElementLike | null {
 }
 
 interface CodeElementLike {
-	type?: string
+	type?: unknown
 	props?: {
 		className?: string
 		children?: ReactNode
@@ -122,19 +128,27 @@ function extractLanguage(className?: string): string | null {
 	return match?.[1] ?? null
 }
 
+function extractTextFromNode(node: ReactNode): string {
+	if (node === null || node === undefined || typeof node === 'boolean') {
+		return ''
+	}
+	if (typeof node === 'string' || typeof node === 'number') {
+		return String(node)
+	}
+	if (Array.isArray(node)) {
+		return node.map(extractTextFromNode).join('')
+	}
+	if (typeof node === 'object' && 'props' in node) {
+		const element = node as { props?: { children?: ReactNode } }
+		return extractTextFromNode(element.props?.children)
+	}
+	return ''
+}
+
 function extractCodeText(node: CodeElementLike | null): string {
 	if (!node?.props?.children) {
 		return ''
 	}
 
-	const { children } = node.props
-	if (typeof children === 'string') {
-		return children
-	}
-
-	if (Array.isArray(children)) {
-		return children.map((child) => extractCodeText(findCodeElement(child))).join('')
-	}
-
-	return ''
+	return extractTextFromNode(node.props.children)
 }
