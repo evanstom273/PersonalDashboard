@@ -325,7 +325,7 @@ export function DocumentEditorPage() {
 				open={runnerDialogOpen}
 				onOpenChange={setRunnerDialogOpen}
 				title={title}
-				content={content}
+				content={editorHtmlToDocumentContent(content, document.contentFormat)}
 				contentFormat={document.contentFormat}
 			/>
 
