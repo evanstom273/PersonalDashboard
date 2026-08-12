@@ -1,6 +1,8 @@
 import { listProjects } from '@/services/projects/projectService'
 import type { ProjectRecord } from '@/storage/types'
 
+const MAX_TOTAL_PROJECT_CONTEXT_CHARS = 24_000
+
 function formatTaskLine(task: ProjectRecord['tasks'][number]): string {
 	const checklist =
 		task.checklist.length > 0
@@ -61,13 +63,33 @@ export function buildProjectLibraryContext(projects: ProjectRecord[]): string {
 		].join('\n')
 	}
 
-	const sections = projects.map(formatProjectForContext)
+	const sections: string[] = []
+	let totalChars = 0
+	let omittedCount = 0
+
+	for (const project of projects) {
+		const section = formatProjectForContext(project)
+		if (totalChars + section.length > MAX_TOTAL_PROJECT_CONTEXT_CHARS) {
+			omittedCount += 1
+			continue
+		}
+
+		sections.push(section)
+		totalChars += section.length
+	}
+
+	const omittedNote =
+		omittedCount > 0
+			? `\n\n_${omittedCount} additional project${omittedCount === 1 ? '' : 's'} omitted due to context size limits. Use list_projects for the full list._`
+			: ''
+
 	return [
 		'## Projects (always in context)',
 		'',
 		'Kanban projects are separate from documents. Tasks can link to documents and reminders. Done tasks stay visible in the done column.',
 		'',
 		sections.join('\n\n---\n\n'),
+		omittedNote,
 	].join('\n')
 }
 

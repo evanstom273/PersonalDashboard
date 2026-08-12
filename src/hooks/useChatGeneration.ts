@@ -8,9 +8,9 @@ import { getModelById } from '@/services/gemini/models'
 import { runModelGeneration } from '@/services/gemini'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import {
-	getUnarchivedMessages,
 	queueMemoryArchive,
 } from '@/services/memory/memoryArchive'
+import { capUnarchivedMessagesForModel } from '@/utils/chatHistory'
 import { saveMessageMediaToLibrary } from '@/services/library/libraryMediaService'
 import type { ConversationRecord, StoredMessage, UserPreferences } from '@/storage/types'
 import type { ChatInputMethod, ChatSubmitPayload } from '@/types/chat'
@@ -34,6 +34,7 @@ interface UseChatGenerationOptions {
 		message: StoredMessage
 		inputMethod: ChatInputMethod
 	}) => void
+	onMemoryArchiveError?: (error: Error) => void
 }
 
 export function useChatGeneration({
@@ -45,6 +46,7 @@ export function useChatGeneration({
 	saveConversation,
 	isChatRoute,
 	onAssistantReply,
+	onMemoryArchiveError,
 }: UseChatGenerationOptions) {
 	const [isGenerating, setIsGenerating] = useState(false)
 	const [error, setError] = useState<string | null>(null)
@@ -142,7 +144,12 @@ export function useChatGeneration({
 			setLastIntent(getIntentLabel(resolved.intent))
 
 			const chatHistory = (
-				activeConversation ? getUnarchivedMessages(activeConversation) : []
+				activeConversation
+					? capUnarchivedMessagesForModel(
+							activeConversation.messages,
+							activeConversation.memoryArchiveCursor ?? 0,
+						)
+					: []
 			).map(
 				(message) => ({
 					role: message.role,
@@ -291,10 +298,10 @@ export function useChatGeneration({
 				if (resolved.intent === 'chat') {
 					queueMemoryArchive(
 						preferences.geminiApiKey,
-						resolved.modelId,
 						updatedConversation,
 						preferences,
 						saveConversation,
+						onMemoryArchiveError,
 					)
 				}
 
@@ -368,6 +375,7 @@ export function useChatGeneration({
 			conversation,
 			ensureConversation,
 			onAssistantReply,
+			onMemoryArchiveError,
 			preferences,
 			saveConversation,
 			truncateMessagesFrom,

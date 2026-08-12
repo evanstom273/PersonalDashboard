@@ -13,6 +13,7 @@ import { usePreferencesContext } from '@/providers/ChatProvider'
 import { useScratchpad } from '@/providers/ScratchpadProvider'
 import { createDocument } from '@/services/documents/documentService'
 import { createProject, createTask, listProjects } from '@/services/projects/projectService'
+import { getEconomyModelId } from '@/services/gemini/modelPreferences'
 import {
 	extractScratchpadTasks,
 	organizeScratchpadIntoDocument,
@@ -170,7 +171,7 @@ export function useScratchpadActions() {
 		try {
 			const organized = await organizeScratchpadIntoDocument({
 				apiKey: preferences.geminiApiKey,
-				modelId: preferences.defaultModelId,
+				modelId: getEconomyModelId(),
 				preferences,
 				rawText: content,
 			})
@@ -205,7 +206,7 @@ export function useScratchpadActions() {
 		try {
 			const extracted = await extractScratchpadTasks({
 				apiKey: preferences.geminiApiKey,
-				modelId: preferences.defaultModelId,
+				modelId: getEconomyModelId(),
 				preferences,
 				rawText: content,
 			})

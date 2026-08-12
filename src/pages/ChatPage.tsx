@@ -7,6 +7,7 @@ import {
 	useTextToSpeechContext,
 } from '@/providers/ChatProvider'
 import { confirmDocumentDeletion } from '@/services/gemini/documentTools'
+import { getTranscriptionModelId } from '@/services/gemini/modelPreferences'
 import { getConfiguredAiName } from '@/services/gemini/systemInstruction'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
 import { useCallback, useEffect, useState } from 'react'
@@ -233,7 +234,7 @@ export function ChatPage() {
 				isGenerating={isGenerating}
 				webSearchEnabled={webSearchEnabled}
 				geminiApiKey={preferences.geminiApiKey}
-				transcriptionModelId={preferences.defaultModelId}
+				transcriptionModelId={getTranscriptionModelId()}
 				selectedChatModelId={preferences.defaultModelId}
 				selectedImageModelId={preferences.defaultImageModelId}
 				selectedMusicModelId={preferences.defaultMusicModelId}

@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.1.2'
+export const APP_VERSION = '2.1.3'
 
 export interface ChangelogEntry {
 	version: string
@@ -8,6 +8,19 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '2.1.3',
+		releasedAt: '2026-08-12',
+		summary: 'Gemini API cost optimizations',
+		changes: [
+			'Chat system context is built once per message instead of on every tool step.',
+			'Document library in chat is metadata and previews only — use read_document for full text.',
+			'Chat history capped at 40 messages; project context and read_document responses are size-limited.',
+			'Memory archival, transcription, document AI, and scratchpad always use Gemini 3.6 Flash.',
+			'Codebase inspection off by default; default music model is Lyria Clip; tool loops capped at 5.',
+			'TTS no longer double-bills when streaming partially succeeds; memory archival errors surface in Settings.',
+		],
+	},
 	{
 		version: '2.1.2',
 		releasedAt: '2026-08-12',

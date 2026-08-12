@@ -1,4 +1,5 @@
 import { geminiFetch } from '@/services/gemini/client'
+import { ECONOMY_MODEL_ID } from '@/services/gemini/constants'
 
 interface TranscribeAudioResponse {
 	candidates?: Array<{
@@ -12,7 +13,7 @@ interface TranscribeAudioResponse {
 
 export async function transcribeAudioWithGemini(
 	apiKey: string,
-	modelId: string,
+	_modelId: string,
 	audioBlob: Blob,
 ): Promise<string> {
 	if (!apiKey.trim()) {
@@ -28,7 +29,7 @@ export async function transcribeAudioWithGemini(
 
 	const response = await geminiFetch<TranscribeAudioResponse>(
 		apiKey,
-		`/models/${modelId}:generateContent`,
+		`/models/${ECONOMY_MODEL_ID}:generateContent`,
 		{
 			method: 'POST',
 			body: JSON.stringify({

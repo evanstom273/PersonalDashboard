@@ -18,6 +18,10 @@ import {
 } from '@/services/reminders/reminderTools'
 import { buildFullSystemInstruction } from '@/services/gemini/documentContext'
 import {
+	MAX_CHAT_OUTPUT_TOKENS,
+	MAX_TOOL_ITERATIONS,
+} from '@/services/gemini/constants'
+import {
 	extractGroundingMetadata,
 	formatGroundedResponseText,
 	type GroundingMetadata,
@@ -62,7 +66,31 @@ export interface ChatWithToolsResult {
 	pendingDeleteConfirmation?: PendingDeleteConfirmation
 }
 
-const MAX_TOOL_ITERATIONS = 8
+const MAX_TOOL_ITERATIONS_LIMIT = MAX_TOOL_ITERATIONS
+
+function estimateRequestInputChars(
+	systemInstruction: string,
+	contents: GeminiContent[],
+): number {
+	let total = systemInstruction.length
+	for (const content of contents) {
+		for (const part of content.parts) {
+			if (part.text) {
+				total += part.text.length
+			}
+			if (part.functionResponse) {
+				total += JSON.stringify(part.functionResponse.response).length
+			}
+			if (part.functionCall) {
+				total += JSON.stringify(part.functionCall).length
+			}
+			if (part.inlineData?.data) {
+				total += part.inlineData.data.length
+			}
+		}
+	}
+	return total
+}
 
 export async function generateChatWithTools(
 	apiKey: string,
@@ -84,8 +112,16 @@ export async function generateChatWithTools(
 	let pendingDeleteConfirmation: PendingDeleteConfirmation | undefined
 	let documentLinks: MessageDocumentLink[] = []
 	const useWebSearch = options?.useWebSearch ?? false
+	const systemInstruction = await buildFullSystemInstruction(preferences)
 
-	for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
+	if (import.meta.env.DEV) {
+		console.debug(
+			'[gemini] chat system instruction chars:',
+			systemInstruction.length,
+		)
+	}
+
+	for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS_LIMIT; iteration += 1) {
 		if (options?.signal?.aborted) {
 			throw new DOMException('Generation aborted', 'AbortError')
 		}
@@ -93,13 +129,24 @@ export async function generateChatWithTools(
 		const requestBody: Record<string, unknown> = applySafetySettingsToRequestBody(
 			{
 				systemInstruction: {
-					parts: [{ text: await buildFullSystemInstruction(preferences) }],
+					parts: [{ text: systemInstruction }],
 				},
-				tools: buildChatTools(useWebSearch, preferences.allowCodebaseInspection ?? true),
+				tools: buildChatTools(useWebSearch, preferences.allowCodebaseInspection ?? false),
 				contents,
+				generationConfig: {
+					maxOutputTokens: MAX_CHAT_OUTPUT_TOKENS,
+				},
 			},
 			preferences.allowMatureContent ?? true,
 		)
+
+		if (import.meta.env.DEV) {
+			console.debug(
+				'[gemini] chat request input chars (est.):',
+				estimateRequestInputChars(systemInstruction, contents),
+				`iteration ${iteration + 1}`,
+			)
+		}
 
 		if (useWebSearch) {
 			requestBody.toolConfig = {

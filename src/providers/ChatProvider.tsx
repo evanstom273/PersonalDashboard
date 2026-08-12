@@ -20,7 +20,10 @@ import { useLocation } from 'react-router-dom'
 
 type PreferencesContextValue = ReturnType<typeof usePreferences>
 type MainConversationContextValue = ReturnType<typeof useMainConversation>
-type ChatGenerationContextValue = ReturnType<typeof useChatGeneration>
+type ChatGenerationContextValue = ReturnType<typeof useChatGeneration> & {
+	memoryArchiveError: string | null
+	clearMemoryArchiveError: () => void
+}
 type TextToSpeechContextValue = ReturnType<typeof useTextToSpeech>
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null)
@@ -56,7 +59,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		preferences: preferencesState.preferences,
 	})
 	const conversationModeActiveRef = useRef(false)
+	const [memoryArchiveError, setMemoryArchiveError] = useState<string | null>(
+		null,
+	)
 	const [chatHeaderSlot, setChatHeaderSlot] = useState<ReactNode | null>(null)
+
+	const handleMemoryArchiveError = useCallback((error: Error) => {
+		setMemoryArchiveError(error.message)
+	}, [])
+
+	const clearMemoryArchiveError = useCallback(() => {
+		setMemoryArchiveError(null)
+	}, [])
 
 	const setChatHeaderSlotStable = useCallback((slot: ReactNode | null) => {
 		setChatHeaderSlot(slot)
@@ -101,6 +115,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 		saveConversation: conversationState.saveConversation,
 		isChatRoute,
 		onAssistantReply: handleAssistantReply,
+		onMemoryArchiveError: handleMemoryArchiveError,
 	})
 
 	useReminderScheduler({
@@ -129,7 +144,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 						<ChatHeaderSlotContext.Provider
 							value={{ slot: chatHeaderSlot, setSlot: setChatHeaderSlotStable }}
 						>
-							<ChatGenerationContext.Provider value={generationState}>
+							<ChatGenerationContext.Provider
+								value={{
+									...generationState,
+									memoryArchiveError,
+									clearMemoryArchiveError,
+								}}
+							>
 								{children}
 							</ChatGenerationContext.Provider>
 						</ChatHeaderSlotContext.Provider>

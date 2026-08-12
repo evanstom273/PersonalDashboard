@@ -18,7 +18,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { usePreferencesContext, useTextToSpeechContext, useMainConversationContext } from '@/providers/ChatProvider'
+import { usePreferencesContext, useTextToSpeechContext, useMainConversationContext, useChatGenerationContext } from '@/providers/ChatProvider'
 import { validateApiKey } from '@/services/gemini/validate'
 import {
 	requestBackgroundReminderNotificationPermission,
@@ -64,6 +64,8 @@ const SETTINGS_TABS = [
 	{ id: 'app', label: 'App', icon: Bell },
 ] as const
 
+const MANUAL_ARCHIVE_CONFIRM_BATCHES = 3
+
 export function SettingsPage() {
 	const [searchParams, setSearchParams] = useSearchParams()
 	const activeTab = resolveSettingsTabFromParams(searchParams)
@@ -71,6 +73,8 @@ export function SettingsPage() {
 	const { preferences, savePreferences, isLoading } = usePreferencesContext()
 	const { conversation, saveConversation } = useMainConversationContext()
 	const { previewVoice, status: speechStatus } = useTextToSpeechContext()
+	const { memoryArchiveError, clearMemoryArchiveError } =
+		useChatGenerationContext()
 	const [apiKey, setApiKey] = useState('')
 	const [userName, setUserName] = useState('')
 	const [aiName, setAiName] = useState('')
@@ -94,7 +98,7 @@ export function SettingsPage() {
 	const [notificationMessage, setNotificationMessage] = useState<string | null>(
 		null,
 	)
-	const [allowCodebaseInspection, setAllowCodebaseInspection] = useState(true)
+	const [allowCodebaseInspection, setAllowCodebaseInspection] = useState(false)
 	const [enableFoldableDualPane, setEnableFoldableDualPane] = useState(true)
 	const [forceDualPaneMode, setForceDualPaneMode] = useState(false)
 	const [customHingeGap, setCustomHingeGap] = useState(0)
@@ -115,7 +119,7 @@ export function SettingsPage() {
 			setMemoryArchiveInterval(preferences.memoryArchiveInterval)
 			setTtsReadAloudMode(preferences.ttsReadAloudMode)
 			setTtsVoiceName(preferences.ttsVoiceName)
-			setAllowCodebaseInspection(preferences.allowCodebaseInspection ?? true)
+			setAllowCodebaseInspection(preferences.allowCodebaseInspection ?? false)
 			setEnableFoldableDualPane(preferences.enableFoldableDualPane ?? true)
 			setForceDualPaneMode(preferences.forceDualPaneMode ?? false)
 			setCustomHingeGap(preferences.customHingeGap ?? 0)
@@ -249,12 +253,23 @@ export function SettingsPage() {
 			return
 		}
 
+		const batchSize = Math.max(1, memoryArchiveInterval)
+		const estimatedBatches = Math.ceil(unarchivedCount / batchSize)
+		if (estimatedBatches > MANUAL_ARCHIVE_CONFIRM_BATCHES) {
+			const confirmed = window.confirm(
+				`Archive now will run about ${estimatedBatches} Gemini API calls to scan ${unarchivedCount} messages. Continue?`,
+			)
+			if (!confirmed) {
+				return
+			}
+		}
+
 		setIsArchivingMemory(true)
 		setMemoryActionMessage(null)
+		clearMemoryArchiveError()
 		try {
 			const { conversation: updated, result } = await runManualMemoryArchive(
 				preferences.geminiApiKey,
-				preferences.defaultModelId,
 				conversation,
 				preferences,
 			)
@@ -410,6 +425,8 @@ export function SettingsPage() {
 							isClearingMemory={isClearingMemory}
 							isArchivingMemory={isArchivingMemory}
 							actionMessage={memoryActionMessage}
+							memoryArchiveError={memoryArchiveError}
+							onDismissArchiveError={clearMemoryArchiveError}
 							onIntervalChange={(value) => void handleMemoryIntervalChange(value)}
 							onClearMemory={() => void handleClearMemory()}
 							onManualArchive={() => void handleManualMemoryArchive()}
@@ -586,6 +603,8 @@ function MemoryTab({
 	isClearingMemory,
 	isArchivingMemory,
 	actionMessage,
+	memoryArchiveError,
+	onDismissArchiveError,
 	onIntervalChange,
 	onClearMemory,
 	onManualArchive,
@@ -596,6 +615,8 @@ function MemoryTab({
 	isClearingMemory: boolean
 	isArchivingMemory: boolean
 	actionMessage: string | null
+	memoryArchiveError: string | null
+	onDismissArchiveError: () => void
 	onIntervalChange: (value: number) => void
 	onClearMemory: () => void
 	onManualArchive: () => void
@@ -611,7 +632,8 @@ function MemoryTab({
 				<p className="text-sm text-muted-foreground">
 					After this many new chat messages, the assistant reads the batch and
 					archives durable facts into Memory. Lower values update more often;
-					higher values wait for more context per pass.
+					higher values wait for more context per pass. Archival always uses
+					Gemini 3.6 Flash to keep costs down.
 				</p>
 
 				<div className="space-y-3">
@@ -680,6 +702,24 @@ function MemoryTab({
 				) : null}
 				{actionMessage ? (
 					<p className="text-sm text-muted-foreground">{actionMessage}</p>
+				) : null}
+				{memoryArchiveError ? (
+					<div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+						<p>Automatic memory archival failed: {memoryArchiveError}</p>
+						<p className="mt-1 text-muted-foreground">
+							Chat history may be growing larger until this succeeds. Try Archive
+							now or check your API key and quota.
+						</p>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							className="mt-2 h-7 px-2 text-destructive"
+							onClick={onDismissArchiveError}
+						>
+							Dismiss
+						</Button>
+					</div>
 				) : null}
 			</section>
 
@@ -860,9 +900,10 @@ function VoiceTab({
 					<h3 className="text-sm font-medium">Voice input</h3>
 				</div>
 				<p className="text-sm text-muted-foreground">
-					On desktop, the mic uses your browser&apos;s speech recognition. On
-					Android and installed apps, it records a short clip and transcribes it
-					with your default chat model and Gemini API key.
+					On desktop, the browser&apos;s speech recognition is used when
+					available. On Android and installed apps, a short clip is recorded and
+					transcribed with Gemini 3.6 Flash (always — independent of your chat
+					model).
 				</p>
 				<p className="text-sm text-muted-foreground">
 					Tap the mic, speak, then tap Continue. If voice input fails in an
@@ -897,6 +938,12 @@ function VoiceTab({
 						<option value="after_speech">When I use the microphone</option>
 						<option value="always">Always</option>
 					</select>
+					{ttsReadAloudMode === 'always' ? (
+						<p className="text-xs text-muted-foreground">
+							Always generates a separate TTS API call for every assistant reply,
+							which adds to your Gemini bill.
+						</p>
+					) : null}
 				</div>
 
 				<div className="space-y-2">

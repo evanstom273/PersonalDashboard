@@ -11,15 +11,22 @@ import { buildScheduleContextFromStore } from '@/services/gemini/scheduleContext
 import { buildSystemInstruction } from '@/services/gemini/systemInstruction'
 import type { UserPreferences } from '@/storage/types'
 
-const MAX_CHARS_PER_DOCUMENT = 12_000
-const MAX_TOTAL_CONTEXT_CHARS = 120_000
+const MAX_READ_DOCUMENT_CHARS = 12_000
+const MAX_CATALOG_PREVIEW_CHARS = 200
+const MAX_TOTAL_CATALOG_CHARS = 24_000
 
-function truncateWithNotice(text: string, maxChars: number): string {
-	if (text.length <= maxChars) {
-		return text
+export function truncateDocumentTextForTool(text: string): {
+	text: string
+	truncated: boolean
+} {
+	if (text.length <= MAX_READ_DOCUMENT_CHARS) {
+		return { text, truncated: false }
 	}
 
-	return `${text.slice(0, maxChars)}\n\n[Document truncated for context length.]`
+	return {
+		text: `${text.slice(0, MAX_READ_DOCUMENT_CHARS)}\n\n[Document truncated for context length. Use read_document with line ranges if needed.]`,
+		truncated: true,
+	}
 }
 
 function documentBodyForContext(document: DocumentRecord): string {
@@ -30,23 +37,15 @@ function documentBodyForContext(document: DocumentRecord): string {
 	return htmlToMarkdown(document.content)
 }
 
-export function formatDocumentForContext(document: DocumentRecord): string {
+function formatDocumentCatalogEntry(document: DocumentRecord): string {
 	const normalized = normalizeDocumentRecord(document)
-	const body = truncateWithNotice(
-		documentBodyForContext(normalized),
-		MAX_CHARS_PER_DOCUMENT,
-	)
+	const body = documentBodyForContext(normalized)
+	const wordCount = body.trim() ? body.trim().split(/\s+/).length : 0
+	const preview = body.replace(/\s+/g, ' ').trim().slice(0, MAX_CATALOG_PREVIEW_CHARS)
 	const accessLabel =
-		normalized.source === 'upload' ? 'uploaded, editable' : 'editable'
+		normalized.source === 'upload' ? 'uploaded' : normalized.source
 
-	return [
-		`### ${normalized.title}`,
-		`- id: ${normalized.id}`,
-		`- access: ${accessLabel}`,
-		`- format: ${normalized.contentFormat}`,
-		'',
-		body,
-	].join('\n')
+	return `- **${normalized.title}** (id: ${normalized.id}, ${accessLabel}, ${normalized.contentFormat}, ~${wordCount} words, updated ${new Date(normalized.updatedAt).toISOString()}): ${preview}${body.length > MAX_CATALOG_PREVIEW_CHARS ? '…' : ''}`
 }
 
 export function buildDocumentLibraryContext(
@@ -54,41 +53,41 @@ export function buildDocumentLibraryContext(
 ): string {
 	if (documents.length === 0) {
 		return [
-			'## Document library (always in context)',
+			'## Document library catalog',
 			'',
 			'No documents yet. Use document tools to create one.',
 		].join('\n')
 	}
 
 	const sorted = [...documents].sort((a, b) => b.updatedAt - a.updatedAt)
-	const sections: string[] = []
+	const entries: string[] = []
 	let totalChars = 0
 	let omittedCount = 0
 
 	for (const document of sorted) {
-		const section = formatDocumentForContext(document)
-		if (totalChars + section.length > MAX_TOTAL_CONTEXT_CHARS) {
+		const entry = formatDocumentCatalogEntry(document)
+		if (totalChars + entry.length > MAX_TOTAL_CATALOG_CHARS) {
 			omittedCount += 1
 			continue
 		}
 
-		sections.push(section)
-		totalChars += section.length
+		entries.push(entry)
+		totalChars += entry.length
 	}
 
 	const header = [
-		'## Document library (always in context)',
+		'## Document library catalog',
 		'',
-		'All library documents are injected here on every message. Use document tools to create, update, rename, or delete. Uploaded documents can be edited like any other document.',
+		'Metadata and short previews only — use read_document for full text before editing.',
 		'',
 	].join('\n')
 
 	const omittedNote =
 		omittedCount > 0
-			? `\n\n_${omittedCount} additional document${omittedCount === 1 ? '' : 's'} omitted due to context size limits. Use read_document for full text._`
+			? `\n\n_${omittedCount} additional document${omittedCount === 1 ? '' : 's'} omitted from the catalog. Use list_documents to see titles._`
 			: ''
 
-	return `${header}${sections.join('\n\n---\n\n')}${omittedNote}`
+	return `${header}${entries.join('\n')}${omittedNote}`
 }
 
 export async function buildFullSystemInstruction(

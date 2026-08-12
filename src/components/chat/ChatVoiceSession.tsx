@@ -1,6 +1,7 @@
 import { ConversationModeOverlay } from '@/components/chat/ConversationModeOverlay'
 import { VoiceModeControls } from '@/components/chat/VoiceModeControls'
 import { useConversationMode } from '@/hooks/useConversationMode'
+import { getTranscriptionModelId } from '@/services/gemini/modelPreferences'
 import { useChatHeaderSlot, useVoiceSessionContext } from '@/providers/ChatProvider'
 import type { StoredMessage, UserPreferences } from '@/storage/types'
 import type { ChatSubmitPayload } from '@/types/chat'
@@ -51,7 +52,7 @@ export function ChatVoiceSession({
 
 	const conversationMode = useConversationMode({
 		geminiApiKey: preferences.geminiApiKey,
-		transcriptionModelId: preferences.defaultModelId,
+		transcriptionModelId: getTranscriptionModelId(),
 		onSubmit: handleConversationSubmit,
 		onStopSpeaking: onStopSpeech,
 	})
