@@ -14,8 +14,9 @@ import {
 } from 'lucide-react'
 import { DocumentTemplatePicker } from '@/components/documents/DocumentTemplatePicker'
 import type { DocumentTemplate } from '@/data/documentTemplates'
+import { useDualPaneNavigation } from '@/hooks/useDualPaneNavigation'
 import { useMemo, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
 	DropdownMenu,
@@ -173,8 +174,34 @@ export function LibraryPage() {
 	)
 }
 
+function DocumentTitleLink({
+	documentId,
+	title,
+}: {
+	documentId: string
+	title: string
+}) {
+	const { isDualPaneActive, openInSecondaryPane } = useDualPaneNavigation()
+	const targetRoute = `/library/documents/${documentId}`
+
+	return (
+		<Link
+			to={targetRoute}
+			onClick={(event) => {
+				if (isDualPaneActive) {
+					event.preventDefault()
+					openInSecondaryPane(targetRoute)
+				}
+			}}
+			className="block truncate font-medium hover:underline"
+		>
+			{title}
+		</Link>
+	)
+}
+
 function DocumentsSection({ query }: { query: string }) {
-	const navigate = useNavigate()
+	const { openDocument } = useDualPaneNavigation()
 	const {
 		documents,
 		isLoading,
@@ -204,7 +231,7 @@ function DocumentsSection({ query }: { query: string }) {
 	async function handleTemplateSelect(template: DocumentTemplate | null): Promise<void> {
 		setTemplatePickerOpen(false)
 		const document = await createDocumentFromTemplate(template)
-		navigate(`/library/documents/${document.id}`)
+		openDocument(document.id)
 	}
 
 	async function handleRename(documentId: string): Promise<void> {
@@ -268,12 +295,10 @@ function DocumentsSection({ query }: { query: string }) {
 										className="w-full rounded-md surface-input px-2 py-1 text-sm outline-none"
 									/>
 								) : (
-									<Link
-										to={`/library/documents/${document.id}`}
-										className="block truncate font-medium hover:underline"
-									>
-										{document.title}
-									</Link>
+									<DocumentTitleLink
+										documentId={document.id}
+										title={document.title}
+									/>
 								)}
 								<p className="mt-1 text-xs text-muted-foreground">
 									Created {formatTimestamp(document.createdAt)} · Modified{' '}
@@ -291,8 +316,12 @@ function DocumentsSection({ query }: { query: string }) {
 									<MoreHorizontal className="h-4 w-4" />
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
-									<DropdownMenuItem asChild>
-										<Link to={`/library/documents/${document.id}`}>Open</Link>
+									<DropdownMenuItem
+										onSelect={() => {
+											openDocument(document.id)
+										}}
+									>
+										Open
 									</DropdownMenuItem>
 									<DropdownMenuItem
 										onSelect={() => downloadDocument(document, 'txt')}
@@ -324,7 +353,7 @@ function DocumentsSection({ query }: { query: string }) {
 									<DropdownMenuItem
 										onSelect={() => {
 											void copyDocument(document.id).then((copy) => {
-												navigate(`/library/documents/${copy.id}`)
+												openDocument(copy.id)
 											})
 										}}
 									>
