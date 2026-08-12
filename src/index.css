@@ -300,7 +300,7 @@ body {
 }
 
 .dev-studio-composer {
-	padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+	padding-bottom: 0.5rem;
 }
 
 .library-section-tabs {
